@@ -12,11 +12,13 @@ digits10_array - Uses an array and initial block.
 These two modules are functionally equivalent.
 */
 
+`define DIGIT_DIMENSION 5   // height and width of digits in bitmap
+
 // module for 10-digit bitmap ROM
 module digits10_case(digit, yofs, bits);
   
   input [3:0] digit;		// digit 0-9
-  input [2:0] yofs;		// vertical offset (0-4)
+  input [2:0] yofs;		    // vertical offset (0-4)
   output reg [4:0] bits;	// output (5 bits)
 
   // combine {digit,yofs} into single ROM address
@@ -91,7 +93,7 @@ endmodule
 module digits10_array(digit, yofs, bits);
   
   input [3:0] digit;		// digit 0-9
-  input [2:0] yofs;		// vertical offset (0-4)
+  input [2:0] yofs;		    // vertical offset (0-4)
   output [4:0] bits;		// output (5 bits)
 
   reg [4:0] bitarray[0:15][0:4]; // ROM array (16 x 5 x 5 bits)
@@ -161,7 +163,6 @@ module digits10_array(digit, yofs, bits);
     bitarray[9][3] = 5'b00001;
     bitarray[9][4] = 5'b11111;
 
-    // clear unused array entries
     for (i = 10; i <= 15; i=i+1)
       for (j = 0; j <= 4; j=j+1) 
         bitarray[i][j] = 0; 
@@ -175,6 +176,8 @@ module test_numbers_top(clk, reset, hsync, vsync, rgb);
   output hsync, vsync;
   output [2:0] rgb;
 
+  localparam MAGNIFIER = 1;    // defines the magnification of the digits when they are displayed, 1 = smallest
+  
   wire display_on;
   wire [8:0] hpos;
   wire [8:0] vpos;
@@ -189,19 +192,30 @@ module test_numbers_top(clk, reset, hsync, vsync, rgb);
     .vpos(vpos)
   );
   
-  wire [3:0] digit = hpos[7:4];
-  wire [2:0] xofs = hpos[3:1];
-  wire [2:0] yofs = vpos[3:1];
+  // this displays the digits in their basic shape
+  //wire [3:0] digit = hpos[7:3];
+  //wire [2:0] xofs = hpos[2:0];
+  //wire [2:0] yofs = vpos[2:0];
+
+  // all of these are affected by the MAGNIFIER
+  wire [3:0] digit = hpos[7:(2+MAGNIFIER)];
+  wire [2:0] xofs = hpos[1+MAGNIFIER:MAGNIFIER-1];
+  wire [2:0] yofs = vpos[1+MAGNIFIER:MAGNIFIER-1];
+  
+  // this is the horizontal slice of the digit
   wire [4:0] bits;
   
+  // must use the case version of the font since it defaults undefined bits to 0
+  //digits10_case numbers(
   digits10_array numbers(
     .digit(digit),
     .yofs(yofs),
     .bits(bits)
   );
 
+  // only display the defined bits of the digits by restricting the index into bits
   wire r = display_on && 0;
-  wire g = display_on && bits[xofs ^ 3'b111];
+  wire g = display_on && (((xofs ^ 3'b111) < `DIGIT_DIMENSION) && (yofs < `DIGIT_DIMENSION)) ? bits[xofs ^ 3'b111] : 0;
   wire b = display_on && 0;
   assign rgb = {b,g,r};
 

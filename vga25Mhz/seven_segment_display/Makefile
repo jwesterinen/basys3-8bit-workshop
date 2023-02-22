@@ -32,4 +32,5 @@ flash: $(TARGET)
 .PHONY: clean
 clean:
 	rm -f *.html *.xml *.jou *.log build/*
+	rm -fr .Xil
 
