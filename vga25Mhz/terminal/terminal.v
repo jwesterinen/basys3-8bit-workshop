@@ -37,35 +37,33 @@ module terminal (
         .vpos(vpos)
     );
   
-    // video buffer contains 80x40 character codes
-    reg [7:0] videoBuf[0:(80*40)-1];
+    // video buffer contains 30x80 character codes
+    reg [7:0] videoBuf[29:0][79:0];
     
-    integer i,j;
+    integer row, col;
   
     initial begin
-        // init the video buffer
-        videoBuf[0] = 72;   // 'H'
-        videoBuf[1] = 101;  // 'e'
-        videoBuf[2] = 108;  // 'l'
-        videoBuf[3] = 108;  // 'l'
-        videoBuf[4] = 111;  // 'o'
-        videoBuf[5] = 44;   // ','
-        videoBuf[6] = 0;    // ' '
-        videoBuf[7] = 87;   // 'W'
-        videoBuf[8] = 111;  // 'o'
-        videoBuf[9] = 114;  // 'r'
-        videoBuf[10] = 108; // 'l'
-        videoBuf[11] = 100; // 'd'
-        videoBuf[12] = 33;  // '!'
-        for (i = 13; i <= 3200; i=i+1)
-            videoBuf[i] = 0; 
+        videoBuf[0][0] = 72;   // 'H'
+        videoBuf[0][1] = 101;  // 'e'
+        videoBuf[0][2] = 108;  // 'l'
+        videoBuf[0][3] = 108;  // 'l'
+        videoBuf[0][4] = 111;  // 'o'
+        videoBuf[0][5] = 44;   // ','
+        videoBuf[0][6] = 0;    // ' '
+        videoBuf[0][7] = 87;   // 'W'
+        videoBuf[0][8] = 111;  // 'o'
+        videoBuf[0][9] = 114;  // 'r'
+        videoBuf[0][10] = 108; // 'l'
+        videoBuf[0][11] = 100; // 'd'
+        videoBuf[0][12] = 33;  // '!'
+        for (col = 13; col <= 80; col=col+1)
+            videoBuf[0][col] = 0; 
+        for (row = 1; row < 30; row=row+1)
+            for (col = 0; col <= 80; col=col+1)
+                videoBuf[row][col] = 0; 
     end
 
-    // QUESTION: What type of data structure should the display buffer be, list or array??
-    // display row = vpos[9:4] and display col = hpos[9:3]
-    wire [255:0] char = videoBuf[vpos[9:4] * 80 + hpos[9:3]];
-    // OR
-    // wire [255:0] char = videoBuf[vpos[9:4]][hpos[9:3]];
+    wire [255:0] char = videoBuf[vpos[9:4]][hpos[9:3]];
     
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
