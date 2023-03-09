@@ -56,14 +56,14 @@ module terminal (
         videoBuf[0][10] = 108; // 'l'
         videoBuf[0][11] = 100; // 'd'
         videoBuf[0][12] = 33;  // '!'
-        for (col = 13; col <= 80; col=col+1)
+        for (col = 13; col < 80; col=col+1)
             videoBuf[0][col] = 0; 
         for (row = 1; row < 30; row=row+1)
-            for (col = 0; col <= 80; col=col+1)
+            for (col = 0; col < 80; col=col+1)
                 videoBuf[row][col] = 0; 
     end
 
-    wire [255:0] char = videoBuf[vpos[9:4]][hpos[9:3]];
+    wire [7:0] char = videoBuf[vpos[9:4]][hpos[9:3]];
     
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
