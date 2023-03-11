@@ -1,7 +1,7 @@
-# make file for a VGA project from the 8-bit Workshop on the Basys3 board
+# make file for terminal project
 
 PROJ = terminal
-PROJ_SOURCES = $(SRC_DIR)/font437array.v
+PROJ_SOURCES = $(SRC_DIR)/font437array.v $(SRC_DIR)/vgachar.v
 
 COMMON_DIR = $(SRC_DIR)/..
 SRC_DIR = .
