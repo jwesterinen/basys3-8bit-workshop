@@ -1,5 +1,5 @@
 set project terminal ;
-set xdc_file ../basys3_vga.xdc
+set xdc_file basys3_${project}.xdc
 
 read_verilog ${project}.v ;
 read_xdc $xdc_file ;

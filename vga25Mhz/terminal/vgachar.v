@@ -5,17 +5,16 @@
  *
  */
 
-`include "../prescaler.v"
-`include "../hvsync_generator.v"
+`include "prescaler.v"
+`include "hvsync_generator.v"
 `include "font437array.v"
 
-module vgachar(ck100, dstb, rstb, cstb, data, curvis, curblk, fgclr, bgclr, underln,
+module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underln,
                 currow, curcol, charrc, attrrc, hsync, vsync, red, green, blue);
     input  ck100;           // 100 MHz clock
-    input  dstb;            // strobe to latch /data/ char and attr on rising edge
-    input  rstb;            // Set cursor row to /data/ on rising edge of rstb
-    input  cstb;            // Set cursor column to /data/ on rising edge of cstb
-    input  [7:0] data;      // character data, X or Y location input
+    input  [7:0] data;      // data to latch
+    input  dstrobe;         // positive edge will latch in data
+    input  [1:0] dtype;     // data type: 0 = char, 1 = column, and 2 = row
     input  curvis;          // cursor visible if ==1
     input  curblk;          // cursor block if ==1, else underline
     input  [11:0] fgclr;    // foreground color 4/4/4 for r/g/b
@@ -53,47 +52,57 @@ module vgachar(ck100, dstb, rstb, cstb, data, curvis, curblk, fgclr, bgclr, unde
     reg [4:0] cursorRow;
     reg [6:0] cursorCol;
     initial begin
-        cursorRow = 0;
-        cursorCol = 0;
+        cursorRow = 15; //0;
+        cursorCol = 40; //0;
     end
     
-    // latch cursor row and column
-    always @(posedge rstb) begin
-        cursorRow <= data[4:0];
-    end
-    always @(posedge cstb) begin
-        cursorCol <= data[6:0];
-    end
-
     // video buffer contains 30x80 character codes and attributes: {underline, fgColor, bgColor, charCode}
-    reg [33:0] videoBuf[29:0][79:0];    
+    reg [32:0] displayBuf[29:0][79:0];    
     integer row, col;  
     initial begin
-        // initialize the display buffer to all blank except for the cursor
-        videoBuf[0][0] = 34'h0FFFFFFDB;  // {0, 0000/1000/0000, 0000/0000/0000, <block char>}
-        for (col = 1; col < 80; col=col+1)
-            videoBuf[0][col] = 0; 
-        for (row = 1; row < 30; row=row+1)
-            for (col = 0; col < 80; col=col+1)
-                videoBuf[row][col] = 0; 
-    end
-
-    // latch character code and attributes into video buffer:
-    //   [32]    - underline
-    //   [31:20] - fg color: [31:28] = red, [27:24] = green, [23:20] = blue
-    //   [19:8]  - bg color: [19:16] = red, [15:12] = green, [11:8] = blue
-    //   [7:0]   - character code
-    always @(posedge dstb) begin
-        // set the character code and attributes into the video buffer at the cursor position then increment the cursor
-        videoBuf[cursorRow][cursorCol] <= {underln, fgclr, bgclr, data};        
-        cursorCol <= (cursorCol < 79) ? cursorCol + 1 : 0;
-        if (cursorCol == 79) begin
-            cursorRow <= (cursorRow < 29) ? cursorRow + 1 : 0;
+        // initialize each char in the display buffer to {<no underline>, <white fg>, <black bg>, <blank>)
+        for (row = 0; row < 30; row=row+1) begin
+            for (col = 0; col < 80; col=col+1) begin
+                displayBuf[row][col] = 33'h0F0000F00 + col + 80; //33'h0FFF00000; 
+            end
         end
     end
 
-    // the char to be displayed is taken from the lower 8 bits of the indexed video buffer element
-    wire [7:0] char = videoBuf[vpos[9:4]][hpos[9:3]][7:0];
+    // latch data defined by dtype using dstrobe
+    always @(posedge dstrobe) begin
+        case (dtype)
+            0: begin
+                // character code and attributes in video buffer:
+                //   [32]    - underline
+                //   [31:20] - fg color: [31:28] = red, [27:24] = green, [23:20] = blue
+                //   [19:8]  - bg color: [19:16] = red, [15:12] = green, [11:8] = blue
+                //   [7:0]   - character code
+                // set the character code and attributes into the video buffer at the cursor position
+                displayBuf[cursorRow][cursorCol] <= {underln, fgclr, bgclr, data};   
+                
+                // increment the cursor location
+                cursorCol <= (cursorCol < 79) ? cursorCol + 1 : 0;
+                if (cursorCol == 79) begin
+                    cursorRow <= (cursorRow < 29) ? cursorRow + 1 : 0;
+                end
+            end
+            
+            1: begin
+                // latch the cursor column
+                cursorCol <= data[6:0];
+            end
+            
+            2: begin
+                // latch the cursor row
+                cursorRow <= data[4:0];
+            end
+        endcase
+    end
+
+    // the char to be displayed is:
+    //   - the cursor if the current location coincides with the cursor location and the cursor is visible
+    //   - otherwise the char in the display buffer, i.e. the lower 8 bits of the indexed display buffer element
+    wire [7:0] char = (vpos[9:4] == cursorRow && hpos[9:3] == cursorCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : displayBuf[vpos[9:4]][hpos[9:3]][7:0];
     
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
@@ -114,14 +123,14 @@ module vgachar(ck100, dstb, rstb, cstb, data, curvis, curblk, fgclr, bgclr, unde
     //  - if a bit is 1 in the slice, output the fg color
     //  - if a bit is 0 in the slice, output the bg color
     // only display the defined bits of the chars by restricting the index into the bit slice
-    assign red   = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? videoBuf[cursorRow][cursorCol][31:28] : videoBuf[cursorRow][cursorCol][19:16]) : 0;
-    assign green = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? videoBuf[cursorRow][cursorCol][27:24] : videoBuf[cursorRow][cursorCol][15:12]) : 0;
-    assign blue  = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? videoBuf[cursorRow][cursorCol][23:20] : videoBuf[cursorRow][cursorCol][11:8]) : 0;
+    assign red   = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][31:28] : displayBuf[cursorRow][cursorCol][19:16]) : 0;
+    assign green = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][27:24] : displayBuf[cursorRow][cursorCol][15:12]) : 0;
+    assign blue  = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][23:20] : displayBuf[cursorRow][cursorCol][11:8]) : 0;
 
     // outputs
     assign currow = cursorRow;
     assign curcol = cursorCol;
-    assign charrc = videoBuf[cursorRow][cursorCol][7:0];
-    assign attrrc = videoBuf[cursorRow][cursorCol][32:8];
+    assign charrc = displayBuf[cursorRow][cursorCol][7:0];
+    assign attrrc = displayBuf[cursorRow][cursorCol][32:8];
 
 endmodule

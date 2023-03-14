@@ -16,14 +16,13 @@ module terminal (
     output Hsync,
     output Vsync
 );
-    reg dataStrobe = 0;
-    reg rowStrobe = 0;
-    reg colStrobe = 0;
     reg [7:0] data = 0;
+    reg dataStrobe = 0;
+    reg dataType = 0;
     reg cursorVisible = 1;
     reg cursorBlock = 1;
-    reg [11:0] fgColor = 12'hFFFFFFFFF; // white
-    reg [11:0] bgColor = 12'h000000000; // black
+    reg [11:0] fgColor = 12'hFFF; // white
+    reg [11:0] bgColor = 12'h000; // black
     reg underline = 0;
     
     wire [4:0] curRow;
@@ -32,7 +31,7 @@ module terminal (
     wire [24:0] attribUnderCursor;
     
     // test pattern object
-    vgachar test(clk, dataStrobe, rowStrobe, colStrobe, data, cursorVisible, cursorBlock, fgColor, bgColor, underline,
+    vgachar test(clk, data, dataStrobe, dataType, cursorVisible, cursorBlock, fgColor, bgColor, underline,
                  curRow, curCol, charUnderCursor, attribUnderCursor, Hsync, Vsync, vgaRed, vgaGreen, vgaBlue);
 
 endmodule

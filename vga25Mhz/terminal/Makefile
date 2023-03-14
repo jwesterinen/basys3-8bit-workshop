@@ -1,19 +1,17 @@
 # make file for terminal project
 
 PROJ = terminal
-PROJ_SOURCES = $(SRC_DIR)/font437array.v $(SRC_DIR)/vgachar.v
 
-COMMON_DIR = $(SRC_DIR)/..
 SRC_DIR = .
-XDC_DIR = $(COMMON_DIR)
+XDC_DIR = .
 BUILD_DIR = build
 
 STATUS_FILE = status
-XDC_FILE = $(XDC_DIR)/basys3_vga.xdc
+XDC_FILE = $(XDC_DIR)/basys3_$(PROJ).xdc
 TARGET = $(BUILD_DIR)/$(PROJ).bit
 DEVICE = arty_a7_35t
 
-SOURCES = $(COMMON_DIR)/prescaler.v $(COMMON_DIR)/hvsync_generator.v $(SRC_DIR)/$(PROJ).v $(PROJ_SOURCES)
+SOURCES = $(SRC_DIR)/$(PROJ).v $(SRC_DIR)/vgachar.v $(SRC_DIR)/prescaler.v $(SRC_DIR)/hvsync_generator.v $(SRC_DIR)/font437array.v
 
 .PHONY: all
 all: $(TARGET)
