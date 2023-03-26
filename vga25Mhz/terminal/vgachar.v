@@ -63,7 +63,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         // initialize each char in the display buffer to {<no underline>, <white fg>, <black bg>, <blank>)
         for (row = 0; row < 30; row=row+1) begin
             for (col = 0; col < 80; col=col+1) begin
-                displayBuf[row][col] = 33'h0F0000F00 + col + 80; //33'h0FFF00000; 
+                displayBuf[row][col] = 33'h0F0000F00 + col + 80 + 33'h100000000; //33'h0FFF00000; 
             end
         end
     end
@@ -102,7 +102,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // the char to be displayed is:
     //   - the cursor if the current location coincides with the cursor location and the cursor is visible
     //   - otherwise the char in the display buffer, i.e. the lower 8 bits of the indexed display buffer element
-    wire [7:0] char = (vpos[9:4] == cursorRow && hpos[9:3] == cursorCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : displayBuf[vpos[9:4]][hpos[9:3]][7:0];
+    wire [7:0] char = (vpos[8:4] == cursorRow && hpos[9:3] == cursorCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : displayBuf[vpos[8:4]][hpos[9:3]][7:0];
     
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
@@ -119,13 +119,14 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         .bits(bits)
     );
 
-    // the font is defined as a bitmap
+    // the character is displayed as follows:
     //  - if a bit is 1 in the slice, output the fg color
     //  - if a bit is 0 in the slice, output the bg color
-    // only display the defined bits of the chars by restricting the index into the bit slice
-    assign red   = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][31:28] : displayBuf[cursorRow][cursorCol][19:16]) : 0;
-    assign green = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][27:24] : displayBuf[cursorRow][cursorCol][15:12]) : 0;
-    assign blue  = display_on && (((xofs ^ 3'b111) < 8) && (yofs < 12)) ? (bits[xofs ^ 3'b111] ? displayBuf[cursorRow][cursorCol][23:20] : displayBuf[cursorRow][cursorCol][11:8]) : 0;
+    //  - if underline is true the 11th slice of the font will be all foreground color
+    //  - the 14th thru 16th slice will be the background color of the char
+    assign red   = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][31:28] : displayBuf[vpos[8:4]][hpos[9:3]][19:16] : 0;
+    assign green = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][27:24] : displayBuf[vpos[8:4]][hpos[9:3]][15:12] : 0;
+    assign blue  = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][23:20] : displayBuf[vpos[8:4]][hpos[9:3]][11:8]  : 0;
 
     // outputs
     assign currow = cursorRow;
