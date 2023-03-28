@@ -36,8 +36,8 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     prescaler #(.N(2)) ps2(ck100, ck25);
     
     wire display_on;
-    wire [9:0] hpos_true;
-    wire [9:0] vpos_true;
+    wire [9:0] hpos;
+    wire [9:0] vpos;
 
     hvsync_generator hvsync_gen(
         .clk(ck25),
@@ -45,24 +45,10 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         .hsync(hsync),
         .vsync(vsync),
         .display_on(display_on),
-        .hpos(hpos_true),
-        .vpos(vpos_true)
+        .hpos(hpos),
+        .vpos(vpos)
     );
-    
-    // EXPER: try to cause vpos and hpos to lag by 2 clocks
-    reg [9:0] hposReg1;
-    reg [9:0] vposReg1;
-    reg [9:0] hpos;
-    reg [9:0] vpos;
-    always@(posedge ck25)
-    begin
-        hposReg1 <= hpos_true;
-        vposReg1 <= vpos_true;
-        hpos <= hposReg1;
-        vpos <= vposReg1;
-    end
-
-  
+       
     // current row and column values
     reg [4:0] curRow = 15;
     reg [6:0] curCol = 40;
@@ -81,8 +67,8 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         .wr(curRow), 
         .wc(curCol), 
         .wd(wrChar), 
-        .rr(vpos_true[8:4]), 
-        .rc(hpos_true[9:3]), 
+        .rr(vpos[8:4]), 
+        .rc(hpos[9:3]), 
         .rd(rdChar)
     );
 
@@ -134,8 +120,9 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
     
-    // index of the horizontal slice of the char to be displayed
-    wire [2:0] xofs = hpos[2:0];
+    // index of the horizontal slice of the char to be displayed which
+    // is compensated for the 2 clocks it takes to read the character and its font
+    wire [2:0] xofs = hpos[2:0] - 2;
   
     // horizontal 8-bit slice of the char to be displayed
     wire [7:0] bits;

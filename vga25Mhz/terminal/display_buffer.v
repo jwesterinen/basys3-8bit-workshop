@@ -17,7 +17,6 @@
  
     // video buffer contains 30x80 character codes and attributes: {underline, fgColor, bgColor, charCode}
     reg [32:0] rdReg;
-    //reg [32:0] ram[29:0][79:0];  
     reg [32:0] ram[2399:0];  
       
     integer row, col;    
@@ -25,7 +24,6 @@
         // initialize each char in the display buffer to {<no underline>, <white fg>, <black bg>, <blank>)
         for (row = 0; row < 30; row=row+1) begin
             for (col = 0; col < 80; col=col+1) begin
-                //ram[row][col] = 33'h0F0000F00 + col + 80 + 33'h100000000; //33'h0FFF00000; 
                 ram[(row * 80) + col] = 33'h0F0000F00 + col + 80 + 33'h100000000; //33'h0FFF00000; 
             end
         end
@@ -33,11 +31,6 @@
 
     always@(posedge clk)
     begin
-/*    
-        if (we)
-            ram[wr][wc] <= wd;
-        rdReg <= ram[rr][rc];
-*/
         if (we)
             ram[(wr * 80) + wc] <= wd;
         rdReg <= ram[(rr * 80) + rc];
