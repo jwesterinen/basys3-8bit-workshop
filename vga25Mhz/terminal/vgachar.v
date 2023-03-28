@@ -7,7 +7,8 @@
 
 `include "prescaler.v"
 `include "hvsync_generator.v"
-`include "font437array.v"
+`include "font437_rom.v"
+`include "display_buffer.v"
 
 module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underln,
                 currow, curcol, charrc, attrrc, hsync, vsync, red, green, blue);
@@ -35,8 +36,8 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     prescaler #(.N(2)) ps2(ck100, ck25);
     
     wire display_on;
-    wire [9:0] hpos;
-    wire [9:0] vpos;
+    wire [9:0] hpos_true;
+    wire [9:0] vpos_true;
 
     hvsync_generator hvsync_gen(
         .clk(ck25),
@@ -44,29 +45,46 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         .hsync(hsync),
         .vsync(vsync),
         .display_on(display_on),
-        .hpos(hpos),
-        .vpos(vpos)
+        .hpos(hpos_true),
+        .vpos(vpos_true)
     );
+    
+    // EXPER: try to cause vpos and hpos to lag by 2 clocks
+    reg [9:0] hposReg1;
+    reg [9:0] vposReg1;
+    reg [9:0] hpos;
+    reg [9:0] vpos;
+    always@(posedge ck25)
+    begin
+        hposReg1 <= hpos_true;
+        vposReg1 <= vpos_true;
+        hpos <= hposReg1;
+        vpos <= vposReg1;
+    end
+
   
     // current row and column values
-    reg [4:0] cursorRow;
-    reg [6:0] cursorCol;
-    initial begin
-        cursorRow = 15; //0;
-        cursorCol = 40; //0;
-    end
+    reg [4:0] curRow = 15;
+    reg [6:0] curCol = 40;
     
-    // video buffer contains 30x80 character codes and attributes: {underline, fgColor, bgColor, charCode}
-    reg [32:0] displayBuf[29:0][79:0];    
-    integer row, col;  
-    initial begin
-        // initialize each char in the display buffer to {<no underline>, <white fg>, <black bg>, <blank>)
-        for (row = 0; row < 30; row=row+1) begin
-            for (col = 0; col < 80; col=col+1) begin
-                displayBuf[row][col] = 33'h0F0000F00 + col + 80 + 33'h100000000; //33'h0FFF00000; 
-            end
-        end
-    end
+    // character code and attributes under cursor
+    reg [7:0] charrcReg;
+    reg [24:0] attrrcReg;
+
+    // character code and attributes
+    reg [32:0] wrChar;
+    wire [32:0] rdChar;
+        
+    display_buffer dispbuf(
+        .clk(ck25),
+        .we(dstrobe), 
+        .wr(curRow), 
+        .wc(curCol), 
+        .wd(wrChar), 
+        .rr(vpos_true[8:4]), 
+        .rc(hpos_true[9:3]), 
+        .rd(rdChar)
+    );
 
     // latch data defined by dtype using dstrobe
     always @(posedge dstrobe) begin
@@ -77,32 +95,41 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
                 //   [31:20] - fg color: [31:28] = red, [27:24] = green, [23:20] = blue
                 //   [19:8]  - bg color: [19:16] = red, [15:12] = green, [11:8] = blue
                 //   [7:0]   - character code
-                // set the character code and attributes into the video buffer at the cursor position
-                displayBuf[cursorRow][cursorCol] <= {underln, fgclr, bgclr, data};   
+                // write the character code and attributes into the video buffer at the cursor position
+                wrChar <= {underln, fgclr, bgclr, data};   
                 
                 // increment the cursor location
-                cursorCol <= (cursorCol < 79) ? cursorCol + 1 : 0;
-                if (cursorCol == 79) begin
-                    cursorRow <= (cursorRow < 29) ? cursorRow + 1 : 0;
+                curCol <= (curCol < 79) ? curCol + 1 : 0;
+                if (curCol == 79) begin
+                    curRow <= (curRow < 29) ? curRow + 1 : 0;
                 end
             end
             
             1: begin
                 // latch the cursor column
-                cursorCol <= data[6:0];
+                curCol <= data[6:0];
             end
             
             2: begin
                 // latch the cursor row
-                cursorRow <= data[4:0];
+                curRow <= data[4:0];
             end
         endcase
     end
 
+    // latch the char and attributes under the cursor
+    always@(posedge ck25)
+    begin
+        if (vpos[8:4] == curRow && hpos[9:3] == curCol) begin
+            charrcReg <= rdChar[7:0];
+            attrrcReg <= rdChar[32:8];
+        end
+    end
+    
     // the char to be displayed is:
     //   - the cursor if the current location coincides with the cursor location and the cursor is visible
     //   - otherwise the char in the display buffer, i.e. the lower 8 bits of the indexed display buffer element
-    wire [7:0] char = (vpos[8:4] == cursorRow && hpos[9:3] == cursorCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : displayBuf[vpos[8:4]][hpos[9:3]][7:0];
+    wire [7:0] char = (vpos[8:4] == curRow && hpos[9:3] == curCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : rdChar[7:0];
     
     // index of the vertical slice of the char to be displayed
     wire [3:0] yofs = vpos[3:0];
@@ -113,7 +140,8 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // horizontal 8-bit slice of the char to be displayed
     wire [7:0] bits;
     
-    font437_array numbers(
+    font437_rom font(
+        .clk(ck25),
         .char(char),
         .yofs(yofs),
         .bits(bits)
@@ -124,14 +152,14 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     //  - if a bit is 0 in the slice, output the bg color
     //  - if underline is true the 11th slice of the font will be all foreground color
     //  - the 14th thru 16th slice will be the background color of the char
-    assign red   = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][31:28] : displayBuf[vpos[8:4]][hpos[9:3]][19:16] : 0;
-    assign green = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][27:24] : displayBuf[vpos[8:4]][hpos[9:3]][15:12] : 0;
-    assign blue  = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && displayBuf[vpos[8:4]][hpos[9:3]][32])) ? displayBuf[vpos[8:4]][hpos[9:3]][23:20] : displayBuf[vpos[8:4]][hpos[9:3]][11:8]  : 0;
+    assign red   = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[31:28] : rdChar[19:16] : 0;
+    assign green = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[27:24] : rdChar[15:12] : 0;
+    assign blue  = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[23:20] : rdChar[11:8]  : 0;
 
     // outputs
-    assign currow = cursorRow;
-    assign curcol = cursorCol;
-    assign charrc = displayBuf[cursorRow][cursorCol][7:0];
-    assign attrrc = displayBuf[cursorRow][cursorCol][32:8];
+    assign currow = curRow;
+    assign curcol = curCol;
+    assign charrc = charrcReg;
+    assign attrrc = attrrcReg;
 
 endmodule

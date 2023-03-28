@@ -11,7 +11,7 @@ XDC_FILE = $(XDC_DIR)/basys3_$(PROJ).xdc
 TARGET = $(BUILD_DIR)/$(PROJ).bit
 DEVICE = arty_a7_35t
 
-SOURCES = $(SRC_DIR)/$(PROJ).v $(SRC_DIR)/vgachar.v $(SRC_DIR)/prescaler.v $(SRC_DIR)/hvsync_generator.v $(SRC_DIR)/font437array.v
+SOURCES = $(SRC_DIR)/$(PROJ).v $(SRC_DIR)/vgachar.v $(SRC_DIR)/prescaler.v $(SRC_DIR)/hvsync_generator.v $(SRC_DIR)/font437_rom.v $(SRC_DIR)/display_buffer.v
 
 .PHONY: all
 all: $(TARGET)
