@@ -1,7 +1,9 @@
 /**
- * Project: terminal
+ *  Module: terminal
  *
- * This project is the proof of concept of a Demand Peripherals "terminal" peripheral.
+ *  This project is the proof of concept of a Demand Peripherals "terminal" peripheral.
+ *
+ *  This module is the top, test module of the project.
  *
  */
 
@@ -9,7 +11,6 @@
 
 module terminal (
     input  clk,             // 100MHz clock
-//    input  btnC,            // reset button (center button on Basys3)
     output [3:0] vgaRed,    // VGA display signals
     output [3:0] vgaBlue,
     output [3:0] vgaGreen,

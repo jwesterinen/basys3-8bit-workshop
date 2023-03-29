@@ -1,3 +1,11 @@
+/*
+ *  file: font437.v
+ *
+ *  This file contains the shapes of the characters defined by Code Page 437.
+ *  Each character is 8 bits wide by 12 bits tall.
+ *
+ */
+ 
         font437[0][0] = 8'b00000000;
         font437[0][1] = 8'b00000000;
         font437[0][2] = 8'b00000000;

@@ -1,7 +1,35 @@
 /**
  * Module: vgachar
  *
- * This module is the guts of the terminal peripheral.
+ * This module is the guts of the terminal peripheral.  It consists of a VGA controller,
+ * a display buffer, a font ROM, and logic to control the cursor and the character to be
+ * written to the cursor position.  The VGA controller provides the current location of 
+ * the pixel being displayed.  The display buffer contains both the codes and 
+ * attributes of the characters accessed by row and column. The character codes are
+ * indeces to the font ROM that contains the shape of the character. The attributes
+ * of each character includes its foreground and background color as well as whether 
+ * the character is underlined.  Each character is 8 pixels wide by 12 pixels high 
+ * which means that each column of characters is defined by the absolute pixel 
+ * horizontal position and each row of characters is defined by the absolute pixel 
+ * vertical position divided by 12.  The font ROM describes the shape of each 
+ * character as 12 "slices" of 8 bits. The characters are drawn slice by slice in  
+ * the rows. If a bit is "on," e.g. = 1, the foreground color is displayed else the 
+ * background color is displayed. If the underline attribute is set to 1, the 12th 
+ * slice is replaced by all foreground color. The cursor and character control logic 
+ * allows the cursor's row and column to be specified as well as the character code 
+ * to be written to the current cursor location. The cursor can be specified to be 
+ * either visible or not, and if visible, it can be specified to appear as a block 
+ * character or an underline. If the cursor is visible, the current character that
+ * resides at the same location will be drawn as the cursor character.
+ *
+ * Note: In order to put the display buffer and font ROM into the FPGA's block RAM,
+ * the structures must be read synchronously which introduces a 2 clock delay from the
+ * actual actual pixel horizontal position to what is being displayed. In order to compensate
+ * for this, the font ROM receives a horizontal value that is 2 less than the pixel's
+ * actual position.  This will allow the characters to be correctly drawn, but they will
+ * be drawn 2 pixel locations late.  In order to conpensate for this, the VGA controller's
+ * horizongtal back porch is reduced by 2 so that the characters are drawn such that the 
+ * current row begins at the beginning of the VGA display.
  *
  */
 
@@ -50,8 +78,17 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     );
        
     // current row and column values
-    reg [4:0] curRow = 15;
-    reg [6:0] curCol = 40;
+`ifdef REAL_INIT    
+    reg [4:0] curRow = 0;
+    reg [6:0] curCol = 0;
+`else    
+    reg [4:0] curRow;
+    reg [6:0] curCol;
+    initial begin
+        curRow = 19;
+        curCol = 40;
+    end
+`endif    
     
     // character code and attributes under cursor
     reg [7:0] charrcReg;
@@ -67,7 +104,8 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
         .wr(curRow), 
         .wc(curCol), 
         .wd(wrChar), 
-        .rr(vpos[8:4]), 
+        // TODO: how to limit the number of bits in the result of the division?
+        .rr(vpos/12), 
         .rc(hpos[9:3]), 
         .rd(rdChar)
     );
@@ -115,10 +153,10 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // the char to be displayed is:
     //   - the cursor if the current location coincides with the cursor location and the cursor is visible
     //   - otherwise the char in the display buffer, i.e. the lower 8 bits of the indexed display buffer element
-    wire [7:0] char = (vpos[8:4] == curRow && hpos[9:3] == curCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : rdChar[7:0];
+    wire [7:0] char = ((vpos/12) == curRow && hpos[9:3] == curCol && curvis) ? ((curblk == 1) ? 8'hDB : 8'h5F) : rdChar[7:0];
     
     // index of the vertical slice of the char to be displayed
-    wire [3:0] yofs = vpos[3:0];
+    wire [3:0] yofs = vpos % 12;
     
     // index of the horizontal slice of the char to be displayed which
     // is compensated for the 2 clocks it takes to read the character and its font
@@ -137,11 +175,10 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // the character is displayed as follows:
     //  - if a bit is 1 in the slice, output the fg color
     //  - if a bit is 0 in the slice, output the bg color
-    //  - if underline is true the 11th slice of the font will be all foreground color
-    //  - the 14th thru 16th slice will be the background color of the char
-    assign red   = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[31:28] : rdChar[19:16] : 0;
-    assign green = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[27:24] : rdChar[15:12] : 0;
-    assign blue  = (display_on) ? ((yofs < 12 && bits[xofs ^ 3'b111]) || (yofs == 10 && rdChar[32])) ? rdChar[23:20] : rdChar[11:8]  : 0;
+    //  - if underline is true the 12th slice of the font will be all foreground color
+    assign red   = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[31:28] : rdChar[19:16] : 0;
+    assign green = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[27:24] : rdChar[15:12] : 0;
+    assign blue  = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[23:20] : rdChar[11:8]  : 0;
 
     // outputs
     assign currow = curRow;

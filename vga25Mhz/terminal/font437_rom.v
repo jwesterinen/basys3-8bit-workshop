@@ -1,6 +1,11 @@
 /**
  *
- * This module contains the codepage 437 font ROM.
+ * Module: font437.v
+ *
+ * This module contains the font ROM. It is loaded from the font description 
+ * file, font437.v. It provides synchronization for the reading of the ROM 
+ * which allows the compiler to use block RAM as the implementation of the 
+ * ROM structure.
  *
  */
 
@@ -24,7 +29,6 @@ module font437_rom(clk, char, yofs, bits);
     end
     
     assign bits = bitsReg;   
-    //assign bits = font437[char][yofs];
   
 endmodule
 
