@@ -26,7 +26,7 @@ module terminal (
     reg [11:0] bgColor = 12'h000; // black
     reg underline = 0;
     
-    wire [4:0] curRow;
+    wire [5:0] curRow;
     wire [6:0] curCol;
     wire [7:0] charUnderCursor;
     wire [24:0] attribUnderCursor;

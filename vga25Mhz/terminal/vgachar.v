@@ -49,7 +49,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     input  [11:0] fgclr;    // foreground color 4/4/4 for r/g/b
     input  [11:0] bgclr;    // background color 4/4/4 for r/g/b
     input  underln;         // underline characters added if ==1
-    output [4:0] currow;    // current row location of cursor (30 rows)
+    output [5:0] currow;    // current row location of cursor (40 rows)
     output [6:0] curcol;    // current column location of cursor (80 cols)
     output [7:0] charrc;    // character under cursor
     output [24:0] attrrc;   // attributes of character under cursor
@@ -79,10 +79,10 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
        
     // current row and column values
 `ifdef REAL_INIT    
-    reg [4:0] curRow = 0;
+    reg [5:0] curRow = 0;
     reg [6:0] curCol = 0;
 `else    
-    reg [4:0] curRow;
+    reg [5:0] curRow;
     reg [6:0] curCol;
     initial begin
         curRow = 19;
@@ -136,7 +136,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
             
             2: begin
                 // latch the cursor row
-                curRow <= data[4:0];
+                curRow <= data[5:0];
             end
         endcase
     end
@@ -144,7 +144,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     // latch the char and attributes under the cursor
     always@(posedge ck25)
     begin
-        if (vpos[8:4] == curRow && hpos[9:3] == curCol) begin
+        if ((vpos/12) == curRow && hpos[9:3] == curCol) begin
             charrcReg <= rdChar[7:0];
             attrrcReg <= rdChar[32:8];
         end
