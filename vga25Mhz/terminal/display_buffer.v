@@ -13,8 +13,9 @@
  *
  */
  
- module display_buffer(clk, we, wr, wc, wd, rr, rc, rd);
-    input   clk;        // system clock
+ module display_buffer(wclk, rclk, we, wr, wc, wd, rr, rc, rd);
+    input   wclk;       // write clock
+    input   rclk;       // read clock
     input   we;         // write strobe
     input   [5:0] wr;   // write row
     input   [6:0] wc;   // write col
@@ -56,10 +57,14 @@
     end
 `endif    
 
-    always@(posedge clk)
+    always@(posedge wclk)
     begin
         if (we)
             ram[(wr * 80) + wc] <= wd;
+    end
+
+    always@(posedge rclk)
+    begin
         rdReg <= ram[(rr * 80) + rc];
     end
 

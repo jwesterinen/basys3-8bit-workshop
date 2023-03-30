@@ -38,18 +38,19 @@
 `include "font437_rom.v"
 `include "display_buffer.v"
 
-module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underln,
+module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underln,
                 currow, curcol, charrc, attrrc, hsync, vsync, red, green, blue);
+    input  CLK_I;           // Host interface bus clock
     input  ck100;           // 100 MHz clock
     input  [7:0] data;      // data to latch
-    input  dstrobe;         // positive edge will latch in data
+    input  dstrobe;         // data available on positive edge of CLK_I
     input  [1:0] dtype;     // data type: 0 = char, 1 = column, and 2 = row
     input  curvis;          // cursor visible if ==1
     input  curblk;          // cursor block if ==1, else underline
     input  [11:0] fgclr;    // foreground color 4/4/4 for r/g/b
     input  [11:0] bgclr;    // background color 4/4/4 for r/g/b
     input  underln;         // underline characters added if ==1
-    output [5:0] currow;    // current row location of cursor (40 rows)
+    output [4:0] currow;    // current row location of cursor (30 rows)
     output [6:0] curcol;    // current column location of cursor (80 cols)
     output [7:0] charrc;    // character under cursor
     output [24:0] attrrc;   // attributes of character under cursor
@@ -79,7 +80,7 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
        
     // current row and column values
 `ifdef REAL_INIT    
-    reg [5:0] curRow = 0;
+    reg [4:0] curRow = 0;
     reg [6:0] curCol = 0;
 `else    
     reg [5:0] curRow;
@@ -99,47 +100,37 @@ module vgachar(ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr, underl
     wire [32:0] rdChar;
         
     display_buffer dispbuf(
-        .clk(ck25),
-        .we(dstrobe), 
+        .wclk(CLK_I),
+        .rclk(ck25),
+        .we(dstrobe && (dtype == 0)),
         .wr(curRow), 
         .wc(curCol), 
-        .wd(wrChar), 
+        .wd({underln, fgclr, bgclr, data}), 
         // TODO: how to limit the number of bits in the result of the division?
         .rr(vpos/12), 
         .rc(hpos[9:3]), 
         .rd(rdChar)
     );
 
-    // latch data defined by dtype using dstrobe
-    always @(posedge dstrobe) begin
-        case (dtype)
-            0: begin
-                // character code and attributes in video buffer:
-                //   [32]    - underline
-                //   [31:20] - fg color: [31:28] = red, [27:24] = green, [23:20] = blue
-                //   [19:8]  - bg color: [19:16] = red, [15:12] = green, [11:8] = blue
-                //   [7:0]   - character code
-                // write the character code and attributes into the video buffer at the cursor position
-                wrChar <= {underln, fgclr, bgclr, data};   
-                
+    // latch data defined by dtype using dstrobe on host clock (CLK_I) edge
+    always @(posedge CLK_I)
+    begin
+        if (dstrobe)
+        begin
+            if (dtype == 0)
+            begin
                 // increment the cursor location
                 curCol <= (curCol < 79) ? curCol + 1 : 0;
-                if (curCol == 79) begin
-                    curRow <= (curRow < 29) ? curRow + 1 : 0;
-                end
+                if (curCol == 79)
+                    curRow <= (curRow < 39) ? curRow + 1 : 0;
             end
-            
-            1: begin
-                // latch the cursor column
+            if (dtype == 1)
                 curCol <= data[6:0];
-            end
-            
-            2: begin
-                // latch the cursor row
+            else if (dtype == 2)
                 curRow <= data[5:0];
-            end
-        endcase
+        end
     end
+
 
     // latch the char and attributes under the cursor
     always@(posedge ck25)

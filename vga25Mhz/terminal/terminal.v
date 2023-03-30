@@ -25,14 +25,19 @@ module terminal (
     reg [11:0] fgColor = 12'hFFF; // white
     reg [11:0] bgColor = 12'h000; // black
     reg underline = 0;
+    reg [2:0] clkdiv;
     
-    wire [5:0] curRow;
+    wire [4:0] curRow;
     wire [6:0] curCol;
     wire [7:0] charUnderCursor;
     wire [24:0] attribUnderCursor;
-    
+
+    always @(posedge clk)
+        clkdiv <= clkdiv + 3'h1;
+
     // test pattern object
-    vgachar test(clk, data, dataStrobe, dataType, cursorVisible, cursorBlock, fgColor, bgColor, underline,
-                 curRow, curCol, charUnderCursor, attribUnderCursor, Hsync, Vsync, vgaRed, vgaGreen, vgaBlue);
+    vgachar test(clkdiv[2], clk, data, dataStrobe, dataType, cursorVisible, cursorBlock,
+                 fgColor, bgColor, underline, curRow, curCol, charUnderCursor, attribUnderCursor,
+                 Hsync, Vsync, vgaRed, vgaGreen, vgaBlue);
 
 endmodule
