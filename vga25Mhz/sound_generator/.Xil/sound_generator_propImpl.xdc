@@ -1,7 +1,0 @@
-set_property SRC_FILE_INFO {cfile:/home/jeff/devel/basys3-8bit-workshop/vga25Mhz/sound_generator/basys3_sound_generator.xdc rfile:../basys3_sound_generator.xdc id:1} [current_design]
-set_property src_info {type:XDC file:1 line:4 export:INPUT save:INPUT read:READ} [current_design]
-set_property -dict { PACKAGE_PIN W5   IOSTANDARD LVCMOS33 } [get_ports clk]
-set_property src_info {type:XDC file:1 line:9 export:INPUT save:INPUT read:READ} [current_design]
-set_property -dict { PACKAGE_PIN U18   IOSTANDARD LVCMOS33 } [get_ports btnC]
-set_property src_info {type:XDC file:1 line:13 export:INPUT save:INPUT read:READ} [current_design]
-set_property -dict { PACKAGE_PIN J1   IOSTANDARD LVCMOS33 } [get_ports JA1]

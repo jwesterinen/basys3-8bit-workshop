@@ -1,7 +1,12 @@
 /*
  * Project: sound_generator
  *
- * This is the top module of the project.
+ * This project is the Basys3 port of the 8-bit Workshop "Sound Generator" project.
+ * It is basically a Verilog interpretation of the SN76477 Complex Sound Generator
+ * device.  In this project, the sound is output to connector JA1 so that a Pmod
+ * AMP2 can be plugged into the JA connector to allow the low level sound to be
+ * heard thru a speaker connected to the AMP2's output jack.  Switch sw0 controls
+ * the gain.
  *
  */
 
@@ -11,7 +16,10 @@
 module sound_generator (
     input  clk,     // 100MHz clock
     input  btnC,    // reset button (center button on Basys3)
-    output JA1      // connector JA pin 1
+    input  sw0,     // SW0 to control gain 0=12dB, 1=6dB
+    output JA1,     // Pmod AMP2 audio input
+    output JA2,     // Pmod AMP2 gain
+    output JA4      // Pmod AMP2 ~shutdown
 );
 
     // 1.5MHz clock
@@ -30,5 +38,8 @@ module sound_generator (
         .lfo_shift(1),
         .mixer(3)
     );
+    
+    assign JA2 = sw0;
+    assign JA4 = 1;
     
 endmodule
