@@ -74,16 +74,15 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
     wire display_on;        // Set if raster is in the 640x480 display area
     wire [9:0] hpos;        // Horizontal location of raster
     wire [9:0] vpos;        // Vertical location of raster
-    reg  lasthsync;         // Previous value of hysnc -- used to detect pos edge
-    reg  [3:0] yofs;        // y offset of the char to be displayed
-    reg  [2:0] xofs;        // x offset of font column to be displayed
+    wire [3:0] yofs;        // y offset of the char to be displayed
+    reg  [2:0] xofs;        // x offset of char to be displayed
     wire [7:0] bits;        // horizontal 8-bit slice of the char to be displayed
     wire [7:0] char;        // the char to be displayed is:
                             // the cursor if current location matches cursor location
                             // and cursor is visible, or the char from the display buffer
     assign char = (((vpos/12) == cursorRow) && (hpos[9:3] == cursorCol && curvis)) ?
                       ((curblk == 1) ? 8'hDB : 8'h5F) : rdChar[7:0];
-    //assign yofs = vpos % 12; // index of the vertical slice of the char to be displayed
+    assign yofs = vpos % 12; // index of the vertical slice of the char to be displayed
     //assign xofs = hpos[2:0] - 1;  // -1 to add time for buffer RAM read
 
     // Instatiate the VGA sync generator
@@ -102,9 +101,6 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
     initial begin
         cursorRow = 19;
         cursorCol = 40;
-        xofs = 0;
-        yofs = 0;
-        lasthsync = 0;
     end
 
 
@@ -138,16 +134,10 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
 
         // xofs is the index into the font column.  Decrement it since
         // the data is stored with leftmost column in the MSB.
-        xofs <= (display_on) ? xofs -1 : 1;
-
-        // Increment the vertical offset on every new hsync
-        lasthsync <= hsync;
-        if ((lasthsync == 0) && (hsync))
-        begin
-           yofs <= (yofs == 11) ? 0 : yofs +1;
-        end
-        else if (vsync)
-           yofs <= 3;  // V_TOP % 12
+        if (display_on)
+            xofs <= xofs - 1;
+        else
+            xofs <= 1;
     end
 
 
