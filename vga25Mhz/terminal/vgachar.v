@@ -75,7 +75,7 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
     wire [9:0] hpos;        // Horizontal location of raster
     wire [9:0] vpos;        // Vertical location of raster
     wire [3:0] yofs;        // y offset of the char to be displayed
-    reg  [2:0] xofs;        // x offset of char to be displayed
+    wire [2:0] xofs;        // x offset of char to be displayed
     wire [7:0] bits;        // horizontal 8-bit slice of the char to be displayed
     wire [7:0] char;        // the char to be displayed is:
                             // the cursor if current location matches cursor location
@@ -83,7 +83,7 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
     assign char = (((vpos/12) == cursorRow) && (hpos[9:3] == cursorCol && curvis)) ?
                       ((curblk == 1) ? 8'hDB : 8'h5F) : rdChar[7:0];
     assign yofs = vpos % 12; // index of the vertical slice of the char to be displayed
-    //assign xofs = hpos[2:0] - 1;  // -1 to add time for buffer RAM read
+    assign xofs = hpos[2:0] - 1;  // -1 to add time for buffer RAM read
 
     // Instatiate the VGA sync generator
     hvsync_generator hvsync_gen( .clk(ck25), .reset(0), .hsync(hsync), .vsync(vsync),
@@ -131,13 +131,6 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
             charrcReg <= rdChar[7:0];
             attrrcReg <= rdChar[32:8];
         end
-
-        // xofs is the index into the font column.  Decrement it since
-        // the data is stored with leftmost column in the MSB.
-        if (display_on)
-            xofs <= xofs - 1;
-        else
-            xofs <= 1;
     end
 
 
@@ -145,9 +138,9 @@ module vgachar(CLK_I, ck100, data, dstrobe, dtype, curvis, curblk, fgclr, bgclr,
     //  - if a bit is 1 in the slice, output the fg color
     //  - if a bit is 0 in the slice, output the bg color
     //  - if underline is true the 12th slice of the font will be all foreground color
-    assign red   = (display_on) ? (bits[xofs] || (yofs == 10 && rdChar[32])) ? rdChar[31:28] : rdChar[19:16] : 0;
-    assign green = (display_on) ? (bits[xofs] || (yofs == 10 && rdChar[32])) ? rdChar[27:24] : rdChar[15:12] : 0;
-    assign blue  = (display_on) ? (bits[xofs] || (yofs == 10 && rdChar[32])) ? rdChar[23:20] : rdChar[11:8]  : 0;
+    assign red   = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[31:28] : rdChar[19:16] : 0;
+    assign green = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[27:24] : rdChar[15:12] : 0;
+    assign blue  = (display_on) ? (bits[xofs ^ 3'b111] || (yofs == 10 && rdChar[32])) ? rdChar[23:20] : rdChar[11:8]  : 0;
 
     // outputs
     assign currow = cursorRow;

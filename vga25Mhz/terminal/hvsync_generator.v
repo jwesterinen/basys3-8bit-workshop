@@ -21,7 +21,7 @@ module hvsync_generator(clk, reset, hsync, vsync, display_on, hpos, vpos);
 
   // declarations for TV-simulator sync parameters
   // horizontal constants
-  parameter H_DISPLAY       = 642; // horizontal display width
+  parameter H_DISPLAY       = 640; // horizontal display width
   parameter H_FRONT         =  16; // horizontal right border (front porch)
   //parameter H_BACK          =  48; // horizontal left border (back porch)
   parameter H_BACK          =  46; // horizontal left border (back porch)       // NOTE: this value compensates for the 2 clocks it takes to read the char and font
