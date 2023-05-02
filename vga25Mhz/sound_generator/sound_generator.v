@@ -14,12 +14,12 @@
 `include "SN76477.v"
 
 module sound_generator (
-    input  clk,     // 100MHz clock
-    input  btnC,    // reset button (center button on Basys3)
-    input  sw0,     // SW0 to control gain 0=12dB, 1=6dB
-    output JA1,     // Pmod AMP2 audio input
-    output JA2,     // Pmod AMP2 gain
-    output JA4      // Pmod AMP2 ~shutdown
+    input  clk,         // 100MHz clock
+    input  btnC,        // reset button (center button on Basys3)
+    input [15:0] sw,     // SW0 to control gain 0=12dB, 1=6dB
+    output JA1,         // Pmod AMP2 audio input
+    output JA2,         // Pmod AMP2 gain
+    output JA4          // Pmod AMP2 ~shutdown
 );
 
     // 1.5MHz clock
@@ -30,16 +30,16 @@ module sound_generator (
         .clk(CLK_25MHz),
         .reset(btnC),
         .spkr(JA1),
-        .lfo_freq(1000),
-        .noise_freq(90),
-        .vco_freq(250),
-        .vco_select(1),
-        .noise_select(1),
-        .lfo_shift(1),
-        .mixer(3)
+        .lfo_freq({sw[5],sw[4],sw[3],7'b0}),
+        .noise_freq({sw[8],sw[7],sw[6],5'b0}),
+        .vco_freq({sw[2],sw[1],sw[0],6'b0}),
+        .vco_select(sw[9]),
+        .noise_select(sw[10]),
+        .lfo_shift({sw[12],sw[11]}),
+        .mixer({sw[15],sw[14],sw[13]})
     );
     
-    assign JA2 = sw0;
+    assign JA2 = 0;
     assign JA4 = 1;
     
 endmodule
