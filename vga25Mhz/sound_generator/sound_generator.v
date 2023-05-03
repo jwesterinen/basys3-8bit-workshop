@@ -39,17 +39,16 @@ module sound_generator (
     SN76477 sndgen(
         .clk(CLK_25MHz),
         .reset(btnC),
-        .spkr(JA1),
-        .lfo_freq({1'b1,sw[7],sw[6],7'b0}),
-        //.noise_freq({sw[8],sw[7],sw[6],5'b0}),
-        .noise_freq(90),
         .vco1_freq({sw[2],sw[1],sw[0],6'b0}),
         .vco2_freq({sw[5],sw[4],sw[3],6'b0}),
+        .noise_freq(90),
+        .lfo_freq({1'b1,sw[7],sw[6],7'b0}),
         .vco1_select(sw[8]),
         .vco2_select(sw[9]),
         .noise_select(sw[10]),
         .lfo_shift({0'b0,sw[11],1'b0}),
-        .mixer({sw[15],sw[14],sw[13],sw[12]})
+        .mixer({sw[15],sw[14],sw[13],sw[12]}),
+        .signal_out(JA1)
     );
     
     assign JA2 = 0;
