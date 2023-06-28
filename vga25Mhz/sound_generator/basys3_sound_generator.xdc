@@ -27,9 +27,7 @@ set_property -dict { PACKAGE_PIN T1    IOSTANDARD LVCMOS33 } [get_ports {sw[14]}
 set_property -dict { PACKAGE_PIN R2    IOSTANDARD LVCMOS33 } [get_ports {sw[15]}]
 
 ##Pmod Header JA
-set_property -dict { PACKAGE_PIN J1   IOSTANDARD LVCMOS33 } [get_ports JA1]
-set_property -dict { PACKAGE_PIN L2   IOSTANDARD LVCMOS33 } [get_ports JA2]
-set_property -dict { PACKAGE_PIN G2   IOSTANDARD LVCMOS33 } [get_ports JA4]
+set_property -dict { PACKAGE_PIN H1    IOSTANDARD LVCMOS33 } [get_ports JA7]
 
 ## Configuration options, can be used for all designs
 set_property CONFIG_VOLTAGE 3.3 [current_design]

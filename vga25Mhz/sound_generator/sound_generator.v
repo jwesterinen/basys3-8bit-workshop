@@ -27,9 +27,7 @@ module sound_generator (
     input  clk,         // 100MHz clock
     input  btnC,        // reset button (center button on Basys3)
     input [15:0] sw,    // switches to control the inputs of the SN76477
-    output JA1,         // Pmod AMP2 audio input
-    output JA2,         // Pmod AMP2 gain
-    output JA4          // Pmod AMP2 ~shutdown
+    output JA7          // Pmod Audio left input (IL)
 );
 
     // 1.5MHz clock
@@ -48,10 +46,7 @@ module sound_generator (
         .noise_select(sw[10]),
         .lfo_shift({0'b0,sw[11],1'b0}),
         .mixer({sw[15],sw[14],sw[13],sw[12]}),
-        .signal_out(JA1)
+        .signal_out(JA7)
     );
-    
-    assign JA2 = 0;
-    assign JA4 = 1;
     
 endmodule

@@ -1,0 +1,6 @@
+system16_tb.v
+../system16.v
+../rom_sync.v
+../ram_sync.v
+../cpu16.v
+

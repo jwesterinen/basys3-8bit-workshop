@@ -1,5 +1,5 @@
 /**
- * Project: <project name>
+ * Project: ball_motion
  *
  * This is the top module that serves as an adaptor for projects in the 8 Bit Workshop
  * to be used on a Basys3 board.
@@ -7,10 +7,10 @@
  */
 
 `include "../prescaler.v"
-`include "<project-specific top module>.v"
+`include "ball_absolute.v"
 
-module <project name> (
-    input  clk,             // 100MHz clock
+module ball_motion (
+    input  clk,             // 25MHz clock
     input  btnC,            // reset button (center button on Basys3)
     output [3:0] vgaRed,    // VGA display signals
     output [3:0] vgaBlue,
@@ -29,6 +29,6 @@ module <project name> (
     prescaler #(.N(2)) ps2(clk, CLK_25MHz);
     
     // test pattern object
-    <project-specific top module> test(CLK_25MHz, btnC, Hsync, Vsync, {vgaBlue[3],vgaGreen[3],vgaRed[3]});    
+    ball_absolute_top test(CLK_25MHz, btnC, Hsync, Vsync, {vgaBlue[3],vgaGreen[3],vgaRed[3]});    
 
 endmodule

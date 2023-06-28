@@ -1,8 +1,8 @@
-# basys3-8bit-workshop-vga-projects
+# basys3-8bit-workshop-cpu-projects
 
 ## Overview
-This project contains a set of Basys3 versions of the [8 Bit Workshop](https://8bitworkshop.com/) VGA projects, 
-and a set of template files needed to create any Basys3 version of an 8 Bit Workshop VGA project.
+This project contains a set of Basys3 versions of the [8 Bit Workshop](https://8bitworkshop.com/) CPU projects, 
+and a set of template files needed to create any Basys3 version of an 8 Bit Workshop CPU project.
 
 ## How to build and install projects
  1. Move to the project directory.
@@ -10,18 +10,17 @@ and a set of template files needed to create any Basys3 version of an 8 Bit Work
  3. Remove all generated files with: `make clean`
 
 ## Creating a new Basys3 version of an 8 Bit Workshop VGA project
- 1. Create a directory under "vga25Mhz" with the same name as the project.
- 2. Copy all files in the "template" directory to the new directory.
- 3. Rename the "project.tcl" and "project.v" files to the name of the project.
- 4. In the Makefile, do the following:
+ 1. Copy the "template" directory under "cpu" to a new project directory.
+ 2. Rename the "project.tcl" and "project.v" files to the name of the project.
+ 3. In the Makefile, do the following:
     - Replace "<project name>" with the name of the project.
     - Define all of the 8 Bit Workshop project-specific .v files in "PROJ_SOURCES".
- 5. In the .tcl file, do the following:
+ 4. In the .tcl file, do the following:
     - Replace "<project name>" with the name of the project.
- 6. In the .v file, do the following:
+ 5. In the .v file, do the following:
     - Replace "<project name>" with the name of the project.
     - Replace "<project-specific top module>" with the name of the top module in the 8 Bit Workshop project.
- 7. Copy all of the 8 Bit Workshop project-specific .v files to the new directory.
+ 6. Copy all of the 8 Bit Workshop project-specific .v files to the new directory.
 
 ## Known issues
  - The 8 Bit Workshop and Basys3 verilog compilers are different and it is possible 
