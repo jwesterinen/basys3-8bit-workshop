@@ -1,0 +1,49 @@
+// This file contains the keypad subroutines of the stdlib:
+//   - ReadKey
+
+
+// int ReadKey()
+//   Waits until a key is pressed on the keypad and released, then returns the code of the pressed key.
+//   Args: none
+//   Return: keycode of the key pressed
+//
+//   Stack on entry:
+//     SP-> retaddr
+//
+//   The return value is written to the global variable "RETVAL".
+//
+
+(ReadKey)
+    @RETVAL             // clear keycode
+    M=0
+    @50                 // init the timeout counter
+    D=A
+    @RK_counter
+    M=D
+(ReadKeyLoop) 
+    @RK_counter         // decrement the timeout counter and return when it counts down to zero
+    MD=M-1
+    @RK_Return
+    D;JEQ   
+    @KBD                // get the keycode value from the kbd buffer when it becomes non-zero
+    D=M
+    @ReadKeyLoop
+    D;JEQ       
+    @RETVAL
+    M=D    
+
+(RK_GetKeyRelease)    
+    @KBD                // wait for keycode value to become 0 then return the key value
+    D=M
+    @RK_GetKeyRelease
+    D;JNE
+
+(RK_Return)
+    @SP                 // pop the return address from the stack and return
+    M=M-1
+    A=M+1
+    A=M
+    0;JMP
+(ReadKey_End)
+
+

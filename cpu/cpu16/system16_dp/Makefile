@@ -1,9 +1,11 @@
 # make file for a CPU project from the 8-bit Workshop on the Basys3 board
 
-PROJ = sbc16
-PROJ_SOURCES = $(SRC_DIR)/system16.v $(SRC_DIR)/cpu16.v $(SRC_DIR)/rom_sync.v $(SRC_DIR)/ram_sync.v $(SRC_DIR)/rom.bin
+PROJ = system16_dp
+PROJ_SOURCES = $(SRC_DIR)/../cpu16.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(SRC_DIR)/basys3.v $(SRC_DIR)/clocks.v
+PROJ_HEADERS = $(SRC_DIR)/sysdefs.h $(SRC_DIR)/brddefs.h
+PROJ_CONFIGS = $(SRC_DIR)/basys3.xdc
 
-COMMON_DIR = $(SRC_DIR)/..
+COMMON_DIR = $(SRC_DIR)/../..
 SRC_DIR = .
 XDC_DIR = $(COMMON_DIR)
 BUILD_DIR = build
@@ -12,7 +14,7 @@ STATUS_FILE = status
 TARGET = $(BUILD_DIR)/$(PROJ).bit
 DEVICE = arty_a7_35t
 
-SOURCES = $(COMMON_DIR)/prescaler.v $(SRC_DIR)/$(PROJ).v $(PROJ_SOURCES)
+SOURCES = $(COMMON_DIR)/prescaler.v $(SRC_DIR)/$(PROJ).v $(PROJ_SOURCES) $(PROJ_HEADERS) $(PROJ_CONFIGS)
 
 .PHONY: all
 all: $(TARGET)

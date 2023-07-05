@@ -1,6 +1,7 @@
-set project sbc16 ;
+set project system16_dp ;
+set platform basys3 ;
 
-set xdc_file ${project}_basys3.xdc
+set xdc_file ${platform}.xdc
 
 read_verilog ${project}.v ;
 read_xdc $xdc_file ;

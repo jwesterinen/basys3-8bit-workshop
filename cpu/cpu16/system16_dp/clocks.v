@@ -1,0 +1,1 @@
+/home/jeff/devel/dp/pccore/peripherals/clocks.v

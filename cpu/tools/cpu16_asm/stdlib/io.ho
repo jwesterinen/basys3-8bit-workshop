@@ -1,0 +1,95 @@
+// void SetLed(state)
+//   Turn the LED on or off
+//   Args:
+//     state: the state to set the LED (on=-1, off=0)
+//   Return: none
+//
+//   Stack on entry:
+//     SP-> retaddr
+//          state   (SP-1)
+
+(SetLed) 
+    @SP                 // write the state value to the LED
+    A=M-1
+    D=M 
+    @LED
+    M=D
+(SetLed_return)    
+    @SP
+    M=M-1               // pop the return address from the stack and return
+    A=M+1
+    A=M
+    0;JMP
+(SetLed_end)    
+
+// void SetGpioDir(dir)
+//   Set the direction of the GPIO.
+//   Args:
+//     dir: the direction to set the GPIO (out=-1, in=0)
+//   Return: none
+//
+//   Stack frame:
+//     SP-> retaddr
+//          dir     (SP-1)
+
+(SetGpioDir) 
+    @SP                 // write the direction value of the GPIO pin
+    A=M-1
+    D=M 
+    @IODIR
+    M=D
+(SetGpioDir_return)    
+    @SP
+    M=M-1               // pop the return address from the stack and return
+    A=M+1
+    A=M
+    0;JMP
+(SetGpioDir_end)    
+
+
+// void SetGpio(state)
+//   Set the state of the GPIO ouput.
+//   Args:
+//     state: the state to set the GPIO output (on=-1, off=0)
+//   Return: none
+//
+//   Stack frame:
+//     SP-> retaddr
+//          state   (SP-1)
+
+(SetGpio) 
+    @SP                 // write the state value to the LED
+    A=M-1
+    D=M 
+    @IODAT
+    M=D
+(SetGpio_return)    
+    @SP
+    M=M-1               // pop the return address from the stack and return
+    A=M+1
+    A=M
+    0;JMP
+(SetGpio_end)    
+
+
+// int GetGpio()
+//   Get the current state of the GPIO input.
+//   Args: none
+//   Return: the state of the GPIO input (on=-1, off=0)
+//
+//   Stack frame:
+//     SP-> retaddr
+
+(GetGpio) 
+    @IODAT              // put the GPIO value into global RETVAL
+    D=M
+    @RETVAL
+    M=D
+(GetGpio_return)    
+    @SP                 // pop the return address and return
+    M=M-1
+    A=M+1
+    A=M
+    0;JMP
+(GetGpio_end)    
+
