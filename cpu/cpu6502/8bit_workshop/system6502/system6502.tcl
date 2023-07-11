@@ -1,8 +1,6 @@
 set project system6502 ;
 set xdc_file ${project}.xdc ;
 
-set_property ALLOW_COMBINATORIAL_LOOPS TRUE ;
-
 read_verilog ${project}.v ;
 read_xdc $xdc_file ;
 

@@ -50,37 +50,18 @@
     RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(system_clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
     cpu6502 cpu(system_clk, btnC, cpu_addr, cpu_din, cpu_dout, we, irq, nmi, ready);
     
-    
     // memory data source selection
-    assign cpu_din = (cpu_addr[15:12] == 4'h0) ? ram_dout :     // 0x0??? - RAM
-                     (cpu_addr == 16'h2000)    ? sw:            // 0x2000 - IO (switches)
-                     (cpu_addr[15:12] == 4'hf) ? rom_dout :     // 0xf??? - ROM
+    assign cpu_din = (cpu_addr[15:12] == 4'h0)  ? ram_dout :     // 0x0??? - RAM
+                     (cpu_addr[15:8]  == 8'h20) ? sw[7:0]:       // 0x20?? - IO (switches)
+                     (cpu_addr[15:12] == 4'hf)  ? rom_dout :     // 0xf??? - ROM
                      0;
     
     // I/O memory decoding
-    always @(*)
+    always @(posedge clk)
         if (cpu_addr == 16'h2001 & we)
             led_reg <= cpu_dout;
             
     assign led = led_reg;
     
-  // example ROM program code
-`ifdef EXT_INLINE_ASM
-    initial begin
-        program_rom = '{
-      __asm
-.arch femto16
-.org 0xF000
-.len 32768
-Loop:
-      zero  ax
-      zero  ax
-      zero  ax
-      jmp   Loop
-      __endasm
-    };
-    end
-`endif
-
 endmodule
 
