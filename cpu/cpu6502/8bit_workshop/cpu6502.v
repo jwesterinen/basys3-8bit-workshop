@@ -365,7 +365,7 @@ parameter
         ZEROPAGE  = 8'h00,
         STACKPAGE = 8'h01;
 
-always @*
+always @(posedge clk)
     case( state )
         ABSX1,
         INDX3,
@@ -373,19 +373,19 @@ always @*
         JMP1,
         JMPI1,
         RTI4,
-        ABS1:           AB = { DIMUX, ADD };
+        ABS1:           AB <= { DIMUX, ADD };
 
         BRA2,
         INDY3,
-        ABSX2:          AB = { ADD, ABL };
+        ABSX2:          AB <= { ADD, ABL };
 
-        BRA1:           AB = { ABH, ADD };
+        BRA1:           AB <= { ABH, ADD };
 
         JSR0,
         PUSH1,
         RTS0,
         RTI0,
-        BRK0:           AB = { STACKPAGE, regfile };
+        BRK0:           AB <= { STACKPAGE, regfile };
 
         BRK1,
         JSR1,
@@ -395,22 +395,23 @@ always @*
         RTI1,
         RTI2,
         RTI3,
-        BRK2:           AB = { STACKPAGE, ADD };
+        BRK2:           AB <= { STACKPAGE, ADD };
         
         INDY1,
         INDX1,
         ZPX1,
-        INDX2:          AB = { ZEROPAGE, ADD };
+        INDX2:          AB <= { ZEROPAGE, ADD };
 
         ZP0,
-        INDY0:          AB = { ZEROPAGE, DIMUX };
+        INDY0:          AB <= { ZEROPAGE, DIMUX };
 
         REG,
         READ,
-        WRITE:          AB = { ABH, ABL };
+        WRITE:          AB <= { ABH, ABL };
 
-        default:        AB = PC;
+        default:        AB <= PC;
     endcase
+
 
 /*
  * ABH/ABL pair is used for registering previous address bus state.
@@ -1368,4 +1369,5 @@ wire RDY=1;              // Ready signal. Pauses CPU when RDY=0
   end
   
 endmodule
+// ERROR: [DRC LUTLP-1] Combinatorial Loop Alert: 46 LUT cells form a combinatorial loop. This can create a race condition. Timing analysis may not be accurate. The preferred resolution is to modify the design to remove combinatorial logic loops. If the loop is known and understood, this DRC can be bypassed by acknowledging the condition and setting the following XDC constraint on any one of the nets in the loop: 'set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets <myHier/myNet>]'. One net in the loop is cpu/ALU/cpu_addr[0]. Please evaluate your design. The cells in the loop are: cpu/ALU/ABH[4]_i_1, cpu/ALU/ABH[4]_i_2, cpu/ALU/ABH[5]_i_1, cpu/ALU/ABH[5]_i_2, cpu/ALU/ABH[6]_i_1, cpu/ALU/ABH[6]_i_2, cpu/ALU/ABH[7]_i_2, cpu/ALU/AXYS_reg_0_3_0_0_i_5, cpu/ALU/AXYS_reg_0_3_0_0_i_6, cpu/ALU/AXYS_reg_0_3_0_0_i_20, cpu/ALU/AXYS_reg_0_3_0_0_i_21, cpu/ALU/AXYS_reg_0_3_0_0_i_27, cpu/ALU/AXYS_reg_0_3_0_0_i_28, cpu/ALU/AXYS_reg_0_3_0_0_i_29, cpu/ALU/IRHOLD[0]_i_1... and (the first 15 of 46 listed).
 
