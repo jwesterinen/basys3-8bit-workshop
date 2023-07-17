@@ -1336,38 +1336,3 @@ assign Z = ~|OUT;
 
 endmodule
 
-// test module
-module cpu6502_test_top(clk, reset, AB, DI, DO, WE);
-input clk,reset;
-output reg [15:0] AB;   // address bus
-output reg [7:0] DI;         // data in, read bus
-output wire [7:0] DO;        // data out, write bus
-output wire WE;              // write enable
-wire IRQ=0;              // interrupt request
-wire NMI=0;              // non-maskable interrupt request
-wire RDY=1;              // Ready signal. Pauses CPU when RDY=0 
-
-  cpu6502 cpu( clk, reset, AB, DI, DO, WE, IRQ, NMI, RDY );
-
-  always @(posedge clk)
-    begin
-      DI <= rom[AB[3:0]];
-    end
-  
-  reg [7:0] rom[0:15];
-  //        LDY #$13
-  // .loop: DEY
-  //        BNE .loop
-  //        BRK
-  initial begin
-    rom[0] = 8'ha0;
-    rom[1] = 8'h13;
-    rom[2] = 8'h88;
-    rom[3] = 8'hd0;
-    rom[4] = 8'hfd;
-    rom[5] = 8'h00;
-  end
-  
-endmodule
-// ERROR: [DRC LUTLP-1] Combinatorial Loop Alert: 46 LUT cells form a combinatorial loop. This can create a race condition. Timing analysis may not be accurate. The preferred resolution is to modify the design to remove combinatorial logic loops. If the loop is known and understood, this DRC can be bypassed by acknowledging the condition and setting the following XDC constraint on any one of the nets in the loop: 'set_property ALLOW_COMBINATORIAL_LOOPS TRUE [get_nets <myHier/myNet>]'. One net in the loop is cpu/ALU/cpu_addr[0]. Please evaluate your design. The cells in the loop are: cpu/ALU/ABH[4]_i_1, cpu/ALU/ABH[4]_i_2, cpu/ALU/ABH[5]_i_1, cpu/ALU/ABH[5]_i_2, cpu/ALU/ABH[6]_i_1, cpu/ALU/ABH[6]_i_2, cpu/ALU/ABH[7]_i_2, cpu/ALU/AXYS_reg_0_3_0_0_i_5, cpu/ALU/AXYS_reg_0_3_0_0_i_6, cpu/ALU/AXYS_reg_0_3_0_0_i_20, cpu/ALU/AXYS_reg_0_3_0_0_i_21, cpu/ALU/AXYS_reg_0_3_0_0_i_27, cpu/ALU/AXYS_reg_0_3_0_0_i_28, cpu/ALU/AXYS_reg_0_3_0_0_i_29, cpu/ALU/IRHOLD[0]_i_1... and (the first 15 of 46 listed).
-

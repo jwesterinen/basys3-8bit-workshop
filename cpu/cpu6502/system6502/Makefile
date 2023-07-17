@@ -1,9 +1,9 @@
-# make file for a cpu16 project from the 8-bit Workshop on the Basys3 board
+# make file for system6502
 
 PROJ = system6502
-PROJ_SOURCES = $(SRC_DIR)/../cpu6502.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(SRC_DIR)/rom.bin
+PROJ_SOURCES = $(SRC_DIR)/../cpu6502.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(COMMON_DIR)/basic_io_8.v $(SRC_DIR)/rom.bin
 
-COMMON_DIR = $(SRC_DIR)/../../..
+COMMON_DIR = $(SRC_DIR)/../..
 SRC_DIR = .
 XDC_DIR = $(COMMON_DIR)
 BUILD_DIR = build
