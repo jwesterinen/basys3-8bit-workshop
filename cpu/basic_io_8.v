@@ -23,7 +23,7 @@ module basic_io_8(
     input [7:0] addr,       // 8-bit local address space
     input [7:0] data_in,    // data from CPU
     output [7:0] data_out,  // data to CPU
-    input we,               // CPU write enable
+    input we,               // CPU write enable active LOW (actuall RD/WE_)
     input [15:0] sw,        // switches
     input [4:0] btn,        // buttons
     output [15:0] led,      // LEDs
@@ -47,14 +47,9 @@ module basic_io_8(
     end
     
     // local address decoding for writing to IO devices
-    //always @(posedge clk) begin
-    always @(posedge we) begin
-/*    
-        if      (we & addr[7:3] == 5'h01) led_buf[addr[1:0]] <= data_in;         // write to LEDs
-        else if (we & addr[7:3] == 5'h10) display_buf[addr[1:0]] <= data_in;     // write to displays
-*/        
-        if      (addr[7:3] == 5'h01) led_buf[addr[1:0]] <= data_in;         // write to LEDs
-        else if (addr[7:3] == 5'h10) display_buf[addr[1:0]] <= data_in;     // write to displays
+    always @(posedge clk) begin
+        if      (~we & addr[7:3] == 5'h01) led_buf[addr[1:0]] <= data_in;         // write to LEDs
+        else if (~we & addr[7:3] == 5'h10) display_buf[addr[1:0]] <= data_in;     // write to displays
     end
 
     // local address decoding for reading from IO devices

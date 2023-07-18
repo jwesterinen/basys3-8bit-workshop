@@ -450,7 +450,8 @@ always @*
  * Write Enable Generator
  */
 
-always @*
+//always @*
+always @(posedge clk)
     case( state )
         BRK0,   // writing to stack or memory
         BRK1,
@@ -458,16 +459,19 @@ always @*
         JSR0,
         JSR1,
         PUSH1,
-        WRITE:   WE = 1;
+        //WRITE:   WE <= 1;
+        WRITE:   WE <= 0;
 
         INDX3,  // only if doing a STA, STX or STY
         INDY3,
         ABSX2,
         ABS1,
         ZPX1,
-        ZP0:     WE = store;
+        //ZP0:     WE <= store;
+        ZP0:     WE <= ~store;
 
-        default: WE = 0;
+        //default: WE <= 0;
+        default: WE <= 1;
     endcase
 
 /*
