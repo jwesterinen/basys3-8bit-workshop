@@ -16,13 +16,14 @@
  *             0x2021: display reg 2
  *             0x2022: display reg 3
  *             0x2023: display reg 4
+ *             0x2024: display control reg
  *      0xe000-0xefff: RAM
  *      0xfffc-0xffff: reset vector
  *
  */
 
-`define TEST_BED 
-`ifndef TEST_BED
+`ifdef SYNTHESIS
+`include "../../prescaler.v"
 `include "../../rom_sync.v"
 `include "../../ram_sync.v"
 `include "../../basic_io_8.v"
@@ -47,7 +48,7 @@
     wire [15:0] cpu_addr;
     wire [7:0] cpu_din;
     wire [7:0] cpu_dout;
-    wire we;
+    wire rdwr_;
     
     wire [7:0] rom_dout;
     wire [7:0] ram_dout;
@@ -64,9 +65,9 @@
     
     // system components
     ROM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) rom4k(clk, cpu_addr[11:0], rom_dout);
-    RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
-    cpu6502 cpu(system_clk, btn[0], cpu_addr, cpu_din, cpu_dout, we, irq, nmi, ready);
-    basic_io_8 io(system_clk, cpu_addr[7:0], cpu_dout, io_dout, we, sw, btn, led, seg, dp, an);
+    RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(clk, cpu_addr[11:0], cpu_dout, ram_dout, rdwr_);
+    cpu6502 cpu(system_clk, btn[0], cpu_addr, cpu_din, cpu_dout, rdwr_, irq, nmi, ready);
+    basic_io_8 io(system_clk, cpu_addr[7:0], cpu_dout, io_dout, rdwr_, sw, btn, led, seg, dp, an);
     
     // memory data source selection
     assign cpu_din = 

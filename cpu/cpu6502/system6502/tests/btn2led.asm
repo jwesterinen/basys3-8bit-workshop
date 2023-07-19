@@ -2,6 +2,6 @@
 
 Start:
     lda $2002
-    sta $2003
+    sta $2010
     jmp Start
 

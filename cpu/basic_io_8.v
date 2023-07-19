@@ -16,14 +16,15 @@
  *      0x21: display 1
  *      0x22: display 2
  *      0x23: display 3
+ *      0x24: display control - 0 = pattern display, !0 = raw  display
  */
  
 module basic_io_8(
-    input  clk,             // system clock
+    input  clk,             // 50MHz system clock
     input [7:0] addr,       // 8-bit local address space
     input [7:0] data_in,    // data from CPU
     output [7:0] data_out,  // data to CPU
-    input we,               // CPU write enable active LOW (actuall RD/WE_)
+    input rdwr_,               // CPU write enable active LOW (actuall RD/rdwr__)
     input [15:0] sw,        // switches
     input [4:0] btn,        // buttons
     output [15:0] led,      // LEDs
@@ -39,35 +40,77 @@ module basic_io_8(
     reg [7:0] led_buf[0:1];
     reg [7:0] display_buf [0:3];
     reg [1:0] display_index = 0;
+    reg display_ctrl = 0;
+    
+    // display patterns
+    reg [7:0] display_pats[0:17];
         
-    integer i;
+    // TODO: complete this        
     initial begin
-        for (i = 0; i < 4; i=i+1)
-            display_buf[i] <= ~(7'b1000000);
+        display_pats[18'h000] <= 7'b1000000;    // '0'
+        display_pats[18'h001] <= 7'b1111001;    // '1'
+        display_pats[18'h002] <= 7'b0100100;    // '2'
+        display_pats[18'h003] <= 7'b0110000;    // '3'
+        display_pats[18'h004] <= 7'b0011001;    // '4'
+        display_pats[18'h005] <= 7'b0010010;    // '5'
+        display_pats[18'h006] <= 7'b0000010;    // '6'
+        display_pats[18'h007] <= 7'b1111000;    // '7'
+        display_pats[18'h008] <= 7'b0000000;    // '8'
+        display_pats[18'h009] <= 7'b0011000;    // '9'
+        display_pats[18'h00a] <= 7'b0001000;    // 'a'
+        display_pats[18'h00b] <= 7'b0000011;    // 'b'
+        display_pats[18'h00c] <= 7'b1000110;    // 'c'
+        display_pats[18'h00d] <= 7'b0100001;    // 'd'
+        display_pats[18'h00e] <= 7'b0000110;    // 'e'
+        display_pats[18'h00f] <= 7'b0001110;    // 'f'
+        display_pats[18'h010] <= 7'b1111111;    // blank
+        display_pats[18'h011] <= 7'b0111111;    // '-'
+
+        display_buf[0] <= 18'h010;
+        display_buf[1] <= 18'h010;
+        display_buf[2] <= 18'h010;
+        display_buf[3] <= 18'h010;
     end
+    
+    // scale the input clock to ~2ms ~= 500Hz
+    wire display_clk;
+    prescaler #(.N(16)) ps16(clk, display_clk);
+    
+    // display selection
+    always @(posedge display_clk)
+        display_index <= display_index + 1;
     
     // local address decoding for writing to IO devices
     always @(posedge clk) begin
-        if      (~we & addr[7:3] == 5'h01) led_buf[addr[1:0]] <= data_in;         // write to LEDs
-        else if (~we & addr[7:3] == 5'h10) display_buf[addr[1:0]] <= data_in;     // write to displays
+        if (~rdwr_)
+            casez (addr)
+                8'b0001000?: led_buf[addr[0]] <= data_in;       // write to LEDs
+                8'b001000??: display_buf[addr[1:0]] <= data_in; // write to displays
+                8'b00100100: display_ctrl <= data_in;           // write to display control reg
+            endcase
     end
 
     // local address decoding for reading from IO devices
-    assign data_out = (addr == 8'h00) ? sw[7:0]  : 
-                      (addr == 8'h01) ? sw[15:8] : 
-                      (addr == 8'h02) ? btn      : 
-                      0;
+    assign data_out = 
+        (rdwr_ & addr == 8'h00) ? sw[7:0]  :    // switch LSB
+        (rdwr_ & addr == 8'h01) ? sw[15:8] :    // switch MSB
+        (rdwr_ & addr == 8'h02) ? btn      :    // buttons
+                                  0;
 
-    // display selection
-    always @(posedge clk)
-        display_index <= display_index + 1;
-    
-    // attach output devices                
+    // LEDs
     assign led = {led_buf[1], led_buf[0]};
-    assign seg = display_buf[display_index];
-    assign an = (display_index == 2'h0) ? 4'b0111 :     // leftmost display
-                (display_index == 2'h1) ? 4'b1011 :     // next to leftmost display
-                (display_index == 2'h2) ? 4'b1101 :     // next to rightmost display
-                                          4'b1110 ;     // rightmost display
+    
+    // display segment
+    assign seg = 
+        (display_ctrl == 0) ? display_pats[display_buf[display_index]]: // pattern display
+                              ~(display_buf[display_index]);            // raw display
+                              
+    
+    // display selection                          
+    assign an = 
+        (display_index == 2'h0) ? 4'b0111 :     // leftmost display
+        (display_index == 2'h1) ? 4'b1011 :     // next to leftmost display
+        (display_index == 2'h2) ? 4'b1101 :     // next to rightmost display
+                                  4'b1110 ;     // rightmost display
 
 endmodule

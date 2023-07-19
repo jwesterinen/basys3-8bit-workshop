@@ -5,6 +5,6 @@ Start:
     sta $e005
     lda #0
     lda $e005
-    sta $2001
+    sta $2010
     jmp Start
 
