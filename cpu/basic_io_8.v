@@ -92,9 +92,9 @@ module basic_io_8(
 
     // local address decoding for reading from IO devices
     assign data_out = 
-        (rdwr_ & addr == 8'h00) ? sw[7:0]  :    // switch LSB
-        (rdwr_ & addr == 8'h01) ? sw[15:8] :    // switch MSB
-        (rdwr_ & addr == 8'h02) ? btn      :    // buttons
+        (addr == 8'h00) ? sw[7:0]  :    // switch LSB
+        (addr == 8'h01) ? sw[15:8] :    // switch MSB
+        (addr == 8'h02) ? btn      :    // buttons
                                   0;
 
     // LEDs
