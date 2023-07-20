@@ -22,9 +22,9 @@
 module basic_io_8(
     input  clk,             // 50MHz system clock
     input [7:0] addr,       // 8-bit local address space
-    input [7:0] data_in,    // data from CPU
-    output [7:0] data_out,  // data to CPU
-    input rdwr_,               // CPU write enable active LOW (actuall RD/rdwr__)
+    input [7:0] data_in,    // data input
+    output [7:0] data_out,  // data output
+    input we,               // write enable
     input [15:0] sw,        // switches
     input [4:0] btn,        // buttons
     output [15:0] led,      // LEDs
@@ -82,7 +82,7 @@ module basic_io_8(
     
     // local address decoding for writing to IO devices
     always @(posedge clk) begin
-        if (~rdwr_)
+        if (we)
             casez (addr)
                 8'b0001000?: led_buf[addr[0]] <= data_in;       // write to LEDs
                 8'b001000??: display_buf[addr[1:0]] <= data_in; // write to displays

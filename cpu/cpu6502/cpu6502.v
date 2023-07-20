@@ -318,8 +318,12 @@ always @*
 
         BRA2:           PC_temp = { ADD, PCL };
 
-        BRK2:           PC_temp =      res ? 16'hfffc : 
-                                  NMI_edge ? 16'hfffa : 16'hfffe;
+// FIXME: need to sort out why reset vector does not get set (need to init?)
+//        for now commandeer the IRQ vector
+        BRK2:           PC_temp =      res ? 16'hfffc :     // reset vector
+                                  NMI_edge ? 16'hfffa :     // NMI vector
+//                                             16'hfffe;      // IRQ vector
+                                             16'hfffc;      // IRQ vector
 
         default:        PC_temp = PC;
     endcase

@@ -10,7 +10,7 @@
     
 */
 
-module RAM_sync(clk, addr, din, dout, we_);
+module RAM_sync(clk, addr, din, dout, we);
   
     parameter ADDR_WIDTH = 16;
     parameter DATA_WIDTH = 16;
@@ -18,14 +18,14 @@ module RAM_sync(clk, addr, din, dout, we_);
     input  clk;		                    // clock
     input  [ADDR_WIDTH-1:0] addr;       // address
     input  [DATA_WIDTH-1:0] din;        // input data
-    input  we_;		                    // write enable - active low
+    input  we;		                    // write enable - active low
 
     output reg [DATA_WIDTH-1:0] dout;   // output data latch
 
     reg [DATA_WIDTH-1:0] mem [0:(1<<ADDR_WIDTH)-1];  // memory array
 
     always @(posedge clk) begin
-        if (~we_)
+        if (we)
             mem[addr] <= din;
         dout <= mem[addr];
     end
