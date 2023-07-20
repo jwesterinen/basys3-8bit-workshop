@@ -53,28 +53,47 @@
     wire [7:0] rom_dout;
     wire [7:0] ram_dout;
     wire [7:0] io_dout;
+    wire we;
+    
+    // vector table
+    reg [7:0] vector_tbl[0:5];
     
     initial begin
         system_clk = 0;
+        
+        // TODO: for now all vectors are the same
+        vector_tbl[0] <= 8'h00;     // reset vector
+        vector_tbl[1] <= 8'he0;
+        vector_tbl[2] <= 8'h00;     // NMI vector
+        vector_tbl[3] <= 8'he0;
+        vector_tbl[4] <= 8'h00;     // IRQ vector
+        vector_tbl[5] <= 8'he0;
     end
     
     // clocks - memory (100MHz) is clocked 2x the system clock (50MHz)
     reg system_clk;
-    always @(posedge clk)
+    wire mem_clk;
+    assign mem_clk = clk;
+    always @(posedge mem_clk)
         system_clk = ~system_clk;
+        
+    // conversion of 6502 rdwr_ signal to we for common components
+    assign we = ~rdwr_;
     
     // system components
-    ROM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) rom4k(clk, cpu_addr[11:0], rom_dout);
-    RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(clk, cpu_addr[11:0], cpu_dout, ram_dout, rdwr_);
+    ROM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) rom4k(mem_clk, cpu_addr[11:0], rom_dout);
+    RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(mem_clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
     cpu6502 cpu(system_clk, btn[0], cpu_addr, cpu_din, cpu_dout, rdwr_, irq, nmi, ready);
-    basic_io_8 io(system_clk, cpu_addr[7:0], cpu_dout, io_dout, rdwr_, sw, btn, led, seg, dp, an);
+    basic_io_8 io(system_clk, cpu_addr[7:0], cpu_dout, io_dout, we, sw, btn, led, seg, dp, an);
     
     // memory data source selection
     assign cpu_din = 
-        (cpu_addr[15:12] == 4'h0)   ? rom_dout :    // 0x0??? - ROM
-        (cpu_addr[15:8]  == 8'h20)  ? io_dout  :    // 0x20?? - I/O
-        (cpu_addr[15:12] == 4'he)   ? ram_dout :    // 0xe??? - RAM
-        0;                                          // reset vector = 0x0000
-        
+        (cpu_addr[15:12] == 4'h0)   ? ram_dout      :    // 0x0??? - RAM
+        (cpu_addr[15:8]  == 8'h20)  ? io_dout       :    // 0x20?? - I/O
+        (cpu_addr[15:12] == 4'he)   ? rom_dout      :    // 0xe??? - ROM
+        (cpu_addr == 16'hfffc)      ? vector_tbl[0] :    // reset vector LSB
+        (cpu_addr == 16'hfffd)      ? vector_tbl[1] :    // reset vector MSB
+        0;
+
 endmodule
 

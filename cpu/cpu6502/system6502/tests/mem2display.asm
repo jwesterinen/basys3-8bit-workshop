@@ -1,21 +1,22 @@
-.org 0x0000
+.org 0xe000
 
-    lda #0      ; store 1-4 @ e005-e008
-    sta $e005
+Begin:
+    lda #0      ; store 1-4 @ 0005-0008
+    sta $0005
     lda #1 
-    sta $e006
+    sta $0006
     lda #2
-    sta $e007
+    sta $0007
     lda #3
-    sta $e008
+    sta $0008
     
-    lda $e005   ; load contents of e005-e008 into displays
+    lda $0005   ; load contents of 0005-0008 into displays
     sta $2020
-    lda $e006
+    lda $0006
     sta $2021
-    lda $e007
+    lda $0007
     sta $2022
-    lda $e008
+    lda $0008
     sta $2023
     
 Loop:
