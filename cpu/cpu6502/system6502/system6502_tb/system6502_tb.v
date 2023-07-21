@@ -29,7 +29,8 @@ module system6502_tb;
         // reset
         buttons[0] <= 1; switches <= 'h1234;
 
-        #2 buttons[0] <= 0;
+        // come out of reset after 10 clocks then just spin and let the CPU execute from the ROM
+        #20 buttons[0] <= 0;
         #150
 
         $finish;
