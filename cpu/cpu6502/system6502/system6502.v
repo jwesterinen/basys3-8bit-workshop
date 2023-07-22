@@ -6,19 +6,27 @@
  *  4K words of synchronous RAM, 16 switches for input, and 16 LEDs for output.
  *
  *  The memory map for the system is as follows:
- *      0x0000-0x0fff: ROM
- *             0x2000: switch reg LSB
- *             0x2001: switch reg MSB
- *             0x2002: button reg
- *             0x2010: LED reg LSB
- *             0x2011: LED reg MSB
- *             0x2020: display reg 1
- *             0x2021: display reg 2
- *             0x2022: display reg 3
- *             0x2023: display reg 4
- *             0x2024: display control reg
- *      0xe000-0xefff: RAM
- *      0xfffc-0xffff: reset vector
+ *      0x0000-0x0fff: RAM
+ *                  0x0000-0x00ff: RAM zero page
+ *                  0x0100-0x01ff: stack
+ *                  0x0200-0x0ff0: general purpose RAM
+ *                  0x0ff0-0x0ff7: interrupt jump table
+ *      0x2000-0x20ff; basic I/O
+ *                  0x2000: switch reg LSB
+ *                  0x2001: switch reg MSB
+ *                  0x2002: button reg
+ *                  0x2010: LED reg LSB
+ *                  0x2011: LED reg MSB
+ *                  0x2020: display reg 1
+ *                  0x2021: display reg 2
+ *                  0x2022: display reg 3
+ *                  0x2023: display reg 4
+ *                  0x2024: display control reg
+ *      0xe000-0xefff: ROM
+ *      0xfffa-0xffff: vector table
+ *                  0xfffa-0xfffb: NMI vector (0x0ffa)
+ *                  0xfffc-0xfffd: reset vector (0xe000)
+ *                  0xfffc-0xffff: IRQ vector (0x0ffd)
  *
  */
 
@@ -55,19 +63,22 @@
     wire [7:0] io_dout;
     wire we;
     
+    wire reset;
+    reg hold_reset = 1;
+    reg [2:0] por = 8;      // power on reset counter
+    
     // vector table
     reg [7:0] vector_tbl[0:5];
     
     initial begin
         system_clk = 0;
         
-        // TODO: for now all vectors are the same
-        vector_tbl[0] <= 8'h00;     // reset vector
-        vector_tbl[1] <= 8'he0;
-        vector_tbl[2] <= 8'h00;     // NMI vector
+        vector_tbl[0] <= 8'hf0;     // NMI vector: 0x0ff0
+        vector_tbl[1] <= 8'h0f;
+        vector_tbl[2] <= 8'h00;     // reset vector
         vector_tbl[3] <= 8'he0;
-        vector_tbl[4] <= 8'h00;     // IRQ vector
-        vector_tbl[5] <= 8'he0;
+        vector_tbl[4] <= 8'hf4;     // IRQ vector: 0x0ff4
+        vector_tbl[5] <= 8'h0f;
     end
     
     // clocks - memory (100MHz) is clocked 2x the system clock (50MHz)
@@ -83,16 +94,30 @@
     // system components
     ROM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) rom4k(mem_clk, cpu_addr[11:0], rom_dout);
     RAM_sync #(.ADDR_WIDTH(12), .DATA_WIDTH(8)) ram4k(mem_clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
-    cpu6502 cpu(system_clk, btn[0], cpu_addr, cpu_din, cpu_dout, rdwr_, irq, nmi, ready);
+    //cpu6502 cpu(system_clk, btn[0], cpu_addr, cpu_din, cpu_dout, rdwr_, irq, nmi, ready);
+    cpu6502 cpu(system_clk, reset, cpu_addr, cpu_din, cpu_dout, rdwr_, irq, nmi, ready);
     basic_io_8 io(system_clk, cpu_addr[7:0], cpu_dout, io_dout, we, sw, btn, led, seg, dp, an);
+    
+    // POR: hold the cpu in reset for 8 clocks at power up
+    always @(posedge system_clk) begin
+        if (hold_reset == 1 && por != 0)
+            por <= por - 1;
+        else
+            hold_reset <= 0;
+    end
+    assign reset = (hold_reset) ? 1 : btn[0];
     
     // memory data source selection
     assign cpu_din = 
         (cpu_addr[15:12] == 4'h0)   ? ram_dout      :    // 0x0??? - RAM
         (cpu_addr[15:8]  == 8'h20)  ? io_dout       :    // 0x20?? - I/O
         (cpu_addr[15:12] == 4'he)   ? rom_dout      :    // 0xe??? - ROM
-        (cpu_addr == 16'hfffc)      ? vector_tbl[0] :    // reset vector LSB
-        (cpu_addr == 16'hfffd)      ? vector_tbl[1] :    // reset vector MSB
+        (cpu_addr == 16'hfffa)      ? vector_tbl[0] :    // NMI vector LSB
+        (cpu_addr == 16'hfffb)      ? vector_tbl[1] :    // NMI vector MSB
+        (cpu_addr == 16'hfffc)      ? vector_tbl[2] :    // reset vector LSB
+        (cpu_addr == 16'hfffd)      ? vector_tbl[3] :    // reset vector MSB
+        (cpu_addr == 16'hfffe)      ? vector_tbl[4] :    // IRQ vector LSB
+        (cpu_addr == 16'hffff)      ? vector_tbl[5] :    // IRQ vector MSB
         0;
 
 endmodule

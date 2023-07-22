@@ -1,5 +1,3 @@
-.org 0xe000
-
 Loop:
     lda $2000
     sta $2010
