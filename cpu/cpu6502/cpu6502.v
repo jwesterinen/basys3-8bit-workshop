@@ -430,28 +430,27 @@ always @(posedge clk)
 /*
  * Data Out MUX 
  */
-always @*
+always @(posedge clk)
     case( state )
-        WRITE:   DO = ADD;
+        WRITE:   DO <= ADD;
 
         JSR0,
-        BRK0:    DO = PCH;
+        BRK0:    DO <= PCH;
 
         JSR1,
-        BRK1:    DO = PCL;
+        BRK1:    DO <= PCL;
 
-        PUSH1:   DO = php ? P : ADD;
+        PUSH1:   DO <= php ? P : ADD;
 
-        BRK2:    DO = (IRQ | NMI_edge) ? (P & 8'b1110_1111) : P;
+        BRK2:    DO <= (IRQ | NMI_edge) ? (P & 8'b1110_1111) : P;
 
-        default: DO = regfile;
+        default: DO <= regfile;
     endcase
 
 /*
  * Write Enable Generator
  */
 
-//always @*
 always @(posedge clk)
     case( state )
         BRK0,   // writing to stack or memory
@@ -460,7 +459,6 @@ always @(posedge clk)
         JSR0,
         JSR1,
         PUSH1,
-        //WRITE:   WE <= 1;
         WRITE:   WE <= 0;
 
         INDX3,  // only if doing a STA, STX or STY
@@ -468,10 +466,8 @@ always @(posedge clk)
         ABSX2,
         ABS1,
         ZPX1,
-        //ZP0:     WE <= store;
         ZP0:     WE <= ~store;
 
-        //default: WE <= 0;
         default: WE <= 1;
     endcase
 

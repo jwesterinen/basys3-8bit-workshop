@@ -1,1 +1,3 @@
 xa $1.asm -o - | od -A n -t x1 > $1.bin
+cp $1.bin ../rom.bin
+cp $1.bin ../system6502_tb/rom.bin
