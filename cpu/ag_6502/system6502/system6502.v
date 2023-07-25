@@ -102,13 +102,8 @@
         vector_tbl[5] <= 8'h0f;
     end
     
-    // 25MHz clock
-    wire base_clk;
-    prescaler #(.N(2)) ps2(clk, base_clk);
-    
     // clocks - memory (100MHz) is clocked 2x the system clock (50MHz)
-    //assign mem_clk = clk;
-    assign mem_clk = base_clk;
+    assign mem_clk = clk;
     always @(posedge mem_clk)
         system_clk = ~system_clk;
         
