@@ -1,0 +1,8 @@
+system6502_tb.v
+../system6502.v
+../../ag_6502.v
+../../../prescaler.v
+../../../rom_sync.v
+../../../ram_sync.v
+../../../basic_io_8.v
+

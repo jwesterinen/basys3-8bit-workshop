@@ -10,10 +10,9 @@ LoadOps:
     sta op2
     
 Begin:
-;    clc
+    clc
     lda op1
     adc op2
-;    sbc op2
     sta LED_LSB
 
 End:
