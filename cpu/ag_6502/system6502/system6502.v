@@ -86,8 +86,8 @@
     initial begin
         system_clk <= 0;
         
-        irq <= 0;       // no interrupts
-        nmi <= 0;
+        irq <= 1;       // no interrupts
+        nmi <= 1;
         ready <= 1;     // always ready
         so <= 1;        // no external overflow
         
