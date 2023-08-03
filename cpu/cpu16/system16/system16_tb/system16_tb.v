@@ -7,17 +7,18 @@ module system16_tb;
 
     // Inputs
     reg clk = 1;
-    reg reset = 0;
-    //reg hold = 0;
     reg [15:0] switches;
+    reg [4:0] buttons;
 
     // Output
-    //wire busy;
     wire [15:0] leds;
+    wire [6:0] segments;
+    wire decimal_point;
+    wire [3:0] anode;
 
     // Instantiate DUT (device under test)
     //system16 system16_test(clk, reset, hold, switches, busy, leds);
-    system16 system16_test(clk, reset, switches, leds);
+    system16 system16_test(clk, switches, buttons, leds, segments, decimal_point, anode);
 
     initial
         forever #1 clk = ~clk;
@@ -29,9 +30,9 @@ module system16_tb;
         $dumpvars(0, system16_tb);
 
         // reset
-        reset <= 1; switches <= 'h1234;
+        buttons <= 5'b00001; switches <= 'h1234;
 
-        #2 reset <= 0;
+        #2 buttons[0] <= 0;
         #200
 
         $finish;

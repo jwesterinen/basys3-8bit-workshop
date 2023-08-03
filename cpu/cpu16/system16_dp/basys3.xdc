@@ -1,1 +1,0 @@
-/home/jeff/devel/dp/pccore/fpgaboards/basys3/basys3.xdc

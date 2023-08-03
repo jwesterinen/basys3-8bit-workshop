@@ -1,7 +1,7 @@
 # make file for a cpu16 project from the 8-bit Workshop on the Basys3 board
 
 PROJ = system16
-PROJ_SOURCES = $(SRC_DIR)/../cpu16.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(COMMON_DIR)/basic_io.v $(SRC_DIR)/rom.bin
+PROJ_SOURCES = $(SRC_DIR)/../cpu16.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(COMMON_DIR)/basic_io_16.v $(SRC_DIR)/rom.bin
 PROJ_XDC_FILE = $(SRC_DIR)/$(PROJ).xdc
 
 COMMON_DIR = $(SRC_DIR)/../..

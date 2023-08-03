@@ -4,7 +4,7 @@
 Loop:
       mov   bx,@0x2000
       mov   ax,[bx]
-      mov   bx,@0x2002
+      mov   bx,@0x2010
       mov   [bx],ax
       jmp   Loop
 

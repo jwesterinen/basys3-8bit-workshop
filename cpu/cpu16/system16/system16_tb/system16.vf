@@ -1,6 +1,8 @@
 system16_tb.v
 ../system16.v
-../rom_sync.v
-../ram_sync.v
-../cpu16.v
+../../cpu16.v
+../../../prescaler.v
+../../../rom_sync.v
+../../../ram_sync.v
+../../../basic_io_16.v
 

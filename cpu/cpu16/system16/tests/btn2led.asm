@@ -1,10 +1,10 @@
 .arch femto16
 .org 0xf000
-.len 4096
+
 Loop:
-      mov   bx,@0x2001
+      mov   bx,@0x2002  ; move button state to LEDs
       mov   ax,[bx]
-      mov   bx,@0x2002
+      mov   bx,@0x2010
       mov   [bx],ax
       jmp   Loop
 
