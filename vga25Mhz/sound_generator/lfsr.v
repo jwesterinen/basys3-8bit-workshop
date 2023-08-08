@@ -22,6 +22,10 @@ module LFSR(clk, reset, enable, lfsr);
     output reg [NBITS-1:0] lfsr;    // shift register
 
     wire feedback = lfsr[NBITS-1] ^ INVERT;
+    
+    initial begin
+        lfsr = 8'b11111111;          // init with all 1s - note this won't work for other sizes of the lfst reg
+    end
 
     always @(posedge clk)
     begin
