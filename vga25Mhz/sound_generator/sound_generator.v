@@ -20,8 +20,12 @@
  *
  */
 
-`include "../prescaler.v"
-`include "SN76477.v"
+`ifdef SYNTHESIS
+ `include "../prescaler.v"
+ `include "SN76477.v"
+ `include "lfsr.v"
+`endif
+
 
 module sound_generator (
     input  clk,         // 100MHz clock
@@ -44,7 +48,7 @@ module sound_generator (
         .vco1_select(sw[8]),
         .vco2_select(sw[9]),
         .noise_select(sw[10]),
-        .lfo_shift({0'b0,sw[11],1'b0}),
+        .lfo_shift({1'b0,sw[11],1'b0}),
         .mixer({sw[15],sw[14],sw[13],sw[12]}),
         .signal_out(JA7)
     );

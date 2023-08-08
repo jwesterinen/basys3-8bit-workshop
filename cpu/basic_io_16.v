@@ -7,19 +7,19 @@
  *  decimal point for output.  This module is based on a 16-bit data bus.
  *
  *  The local memory map for this module is as follows:
- *      0x00: switches
- *      0x02: buttons: 00001 = btnC, 00010 = btnU, 00100 = btnL, 01000 = btnR, 10000 = btnD
- *      0x10: LEDs
- *      0x20: display 0
- *      0x21: display 1
- *      0x22: display 2
- *      0x23: display 3
- *      0x24: display control - 0 = pattern display, !0 = raw  display
+ *      BASE_ADDR + 0x00: switches
+ *      BASE_ADDR + 0x02: buttons: 00001 = btnC, 00010 = btnU, 00100 = btnL, 01000 = btnR, 10000 = btnD
+ *      BASE_ADDR + 0x10: LEDs
+ *      BASE_ADDR + 0x20: display 0
+ *      BASE_ADDR + 0x21: display 1
+ *      BASE_ADDR + 0x22: display 2
+ *      BASE_ADDR + 0x23: display 3
+ *      BASE_ADDR + 0x24: display control - 0 = pattern display, !0 = raw  display
  */
  
 module basic_io_16(
     input  clk,             // system clock
-    input [7:0] addr,       // 8-bit local address space
+    input [15:0] addr,      // register addresses
     input [15:0] data_in,   // data input
     output [15:0] data_out, // data output
     input we,               // write enable
@@ -30,6 +30,8 @@ module basic_io_16(
     output dp,              // display decimal point
     output [3:0] an         // display select
 );
+	parameter BASE_ADDR = 1000; // base address for registers
+	
     // input buffers
     reg [15:0] sw_buf;
     reg [4:0] btn_buf;
@@ -82,16 +84,16 @@ module basic_io_16(
     always @(posedge clk) begin
         if (we)
             casez (addr)
-                8'b00010000: led_buf <= data_in;                // write to LEDs
-                8'b001000??: display_buf[addr[1:0]] <= data_in; // write to displays
-                8'b00100100: display_ctrl <= data_in;           // write to display control reg
+                {BASE_ADDR[15:8],8'b00010000}: led_buf <= data_in;                // write to LEDs
+                {BASE_ADDR[15:8],8'b001000??}: display_buf[addr[1:0]] <= data_in; // write to displays
+                {BASE_ADDR[15:8],8'b00100100}: display_ctrl <= data_in;           // write to display control reg
             endcase
     end
 
     // local address decoding for reading from IO devices
     assign data_out = 
-        (addr == 8'h00) ? sw                    :    // switches
-        (addr == 8'h02) ? {11'b00000000000,btn} :    // buttons
+        (addr == {BASE_ADDR[15:8],8'h00}) ? sw                    :    // switches
+        (addr == {BASE_ADDR[15:8],8'h02}) ? {11'b00000000000,btn} :    // buttons
         0;
 
     // LEDs

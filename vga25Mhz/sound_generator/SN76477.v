@@ -1,6 +1,3 @@
-
-`include "lfsr.v"
-
 /*
  * Module: SN76477
  *

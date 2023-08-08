@@ -15,10 +15,10 @@ module system16_tb;
     wire [6:0] segments;
     wire decimal_point;
     wire [3:0] anode;
+    wire signal_out;
 
     // Instantiate DUT (device under test)
-    //system16 system16_test(clk, reset, hold, switches, busy, leds);
-    system16 system16_test(clk, switches, buttons, leds, segments, decimal_point, anode);
+    system16 system16_test(clk, switches, buttons, leds, segments, decimal_point, anode, signal_out);
 
     initial
         forever #1 clk = ~clk;

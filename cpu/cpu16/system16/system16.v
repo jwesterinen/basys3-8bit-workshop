@@ -16,6 +16,14 @@
  *          0x2022: display reg 3
  *          0x2023: display reg 4
  *          0x2024: display control reg
+ *      0x3000-0x30ff: sound I/O
+ *          0x3000: VCO1 freq
+ *          0x3001: VCO2 freq
+ *          0x3002: noise freq
+ *          0x3003: LFO freq
+ *          0x3005: LFO modulation depth
+ *          0x3004: modulation select: {0.., noise, VCO2, VCO1}
+ *          0x3006: mixer: {0.., LFO, noise, VCO2, VCO1}
  *      0xf000-0xffff: ROM
  *
  */
@@ -25,6 +33,9 @@
  `include "../../rom_sync.v"
  `include "../../ram_sync.v"
  `include "../../basic_io_16.v"
+ `include "../../sound_io_16.v"
+ `include "../../../vga25Mhz/sound_generator/SN76477.v"
+ `include "../../../vga25Mhz/sound_generator/lfsr.v"
  `include "../cpu16.v"
 `endif
  
@@ -35,7 +46,8 @@
     output [15:0] led,  // LEDs
     output [6:0] seg,   // display segments
     output dp,          // decimal point
-    output [3:0] an     // display anode
+    output [3:0] an,    // display anode
+    output JA7          // Pmod Audio left input (IL)
  );
     
     // for now just stub these
@@ -49,22 +61,21 @@
     
     wire [15:0] rom_dout;
     wire [15:0] ram_dout;
-    wire [15:0] io_dout;
-    
-    // 25MHz clock
-    //wire system_clk;
-    //prescaler #(.N(2)) ps2(clk, system_clk);
+    wire [15:0] basic_io_dout;
+    wire [15:0] sound_io_dout;
     
     // system components
     ROM_sync #(.ADDR_WIDTH(12)) rom4k(clk, cpu_addr[11:0], rom_dout);
     RAM_sync #(.ADDR_WIDTH(12)) ram4k(clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
     CPU16 cpu(clk, btn[0], hold, busy, cpu_addr, cpu_din, cpu_dout, we);
-    basic_io_16 io(clk, cpu_addr[7:0], cpu_dout, io_dout, we, sw, btn, led, seg, dp, an);
+    basic_io_16 #(.BASE_ADDR(16'h2000)) io(clk, cpu_addr, cpu_dout, basic_io_dout, we, sw, btn, led, seg, dp, an);
+    sound_io_16 #(.BASE_ADDR(16'h3000)) sndgen(clk, btn[0], cpu_addr, cpu_dout, sound_io_dout, we, JA7);
 
     // memory data source selection
-    assign cpu_din = (cpu_addr[15:12] == 4'b0000) ? ram_dout :
-                     (cpu_addr[15:12] == 4'b0010) ? io_dout  :
-                     (cpu_addr[15:12] == 4'b1111) ? rom_dout :
+    assign cpu_din = (cpu_addr[15:12] == 4'b0000) ? ram_dout        :   // 0x0???
+                     (cpu_addr[15:12] == 4'b0010) ? basic_io_dout   :   // 0x20??
+                     (cpu_addr[15:12] == 4'b0011) ? sound_io_dout   :   // 0x30??
+                     (cpu_addr[15:12] == 4'b1111) ? rom_dout        :   // 0xf000
                      0;
     
 endmodule
