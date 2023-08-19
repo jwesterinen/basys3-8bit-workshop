@@ -1,10 +1,12 @@
-.arch femto16
 .org 0xf000
-.len 4096
+
+.define SWITCH_REG 0x2000
+.define LED_REG 0x2010
+
 Loop:
-      mov   bx,@0x2000
+      mov   bx,@SWITCH_REG
       mov   ax,[bx]
-      mov   bx,@0x2010
+      mov   bx,@LED_REG
       mov   [bx],ax
       jmp   Loop
 

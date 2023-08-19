@@ -32,8 +32,8 @@ module system16_tb;
         // reset
         buttons <= 5'b00001; switches <= 'h1234;
 
-        #2 buttons[0] <= 0;
-        #200
+        #4 buttons[0] <= 0;
+        #400
 
         $finish;
     end

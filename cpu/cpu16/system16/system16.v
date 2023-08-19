@@ -64,12 +64,23 @@
     wire [15:0] basic_io_dout;
     wire [15:0] sound_io_dout;
     
+    initial begin
+        system_clk = 0;
+    end
+    
+    // clocks - memory (100MHz) is clocked 2x the system clock (50MHz)
+    reg system_clk;
+    wire mem_clk;
+    assign mem_clk = clk;
+    always @(posedge mem_clk)
+        system_clk = ~system_clk;
+        
     // system components
-    ROM_sync #(.ADDR_WIDTH(12)) rom4k(clk, cpu_addr[11:0], rom_dout);
-    RAM_sync #(.ADDR_WIDTH(12)) ram4k(clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
-    CPU16 cpu(clk, btn[0], hold, busy, cpu_addr, cpu_din, cpu_dout, we);
-    basic_io_16 #(.BASE_ADDR(16'h2000)) io(clk, cpu_addr, cpu_dout, basic_io_dout, we, sw, btn, led, seg, dp, an);
-    sound_io_16 #(.BASE_ADDR(16'h3000)) sndgen(clk, btn[0], cpu_addr, cpu_dout, sound_io_dout, we, JA7);
+    ROM_sync #(.ADDR_WIDTH(12)) rom4k(mem_clk, cpu_addr[11:0], rom_dout);
+    RAM_sync #(.ADDR_WIDTH(12)) ram4k(mem_clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
+    CPU16 #(.RAM_WAIT(0)) cpu(system_clk, btn[0], hold, busy, cpu_addr, cpu_din, cpu_dout, we);
+    basic_io_16 #(.BASE_ADDR(16'h2000)) io(system_clk, cpu_addr, cpu_dout, basic_io_dout, we, sw, btn, led, seg, dp, an);
+    sound_io_16 #(.BASE_ADDR(16'h3000)) sndgen(system_clk, btn[0], cpu_addr, cpu_dout, sound_io_dout, we, JA7);
 
     // memory data source selection
     assign cpu_din = (cpu_addr[15:12] == 4'b0000) ? ram_dout        :   // 0x0???

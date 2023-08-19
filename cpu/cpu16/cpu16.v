@@ -60,14 +60,14 @@ module ALU(A, B, carry, aluop, Y);
 endmodule
 
 /*
-00000aaa 0++++bbb	operation A+B->A
-00001aaa 0++++bbb	operation A+[B]->A
-00011aaa 0++++000	operation A+imm16 -> A
+00000aaa 0++++bbb	operation A + B -> A
+00001aaa 0++++bbb	operation A + [B] -> A
+00011aaa 0++++000	operation A + imm16 -> A
 00101aaa ########	load zero page
 00110aaa ########	store zero page
-01001aaa #####bbb	load [B+#] -> A
-01010aaa #####bbb	store A -> [B+#]
-01101aaa 0++++000	store A -> A+[imm16]
+01001aaa #####bbb	load [B + #] -> A
+01010000 00000aaa   store A -> [imm16]
+01011aaa 01011000   load [imm16] -> A
 01110aaa 00cccbbb	store A -> [B], C -> IP
 1000tttt ########	conditional branch
 */
@@ -103,12 +103,14 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
     wire Bload  = opcode[11]; // ALU B = data bus
 
     // CPU states
-    localparam S_RESET        = 0;
-    localparam S_SELECT       = 1;
-    localparam S_DECODE       = 2;
-    localparam S_COMPUTE      = 3;
-    localparam S_DECODE_WAIT  = 4;
-    localparam S_COMPUTE_WAIT = 5;
+    localparam S_RESET              = 0;
+    localparam S_SELECT             = 1;
+    localparam S_DECODE             = 2;
+    localparam S_COMPUTE            = 3;
+    localparam S_COMPUTE_ADDR       = 6;
+    localparam S_COMPUTE_ADDR_WAIT  = 7;
+    localparam S_DECODE_WAIT        = 4;
+    localparam S_COMPUTE_WAIT       = 5;
 
     localparam SP = 6; // stack ptr = register 6
     localparam IP = 7; // IP = register 7
@@ -198,7 +200,17 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         state <= S_SELECT;
                     end
                     
-                    //  01001aaa#####bbb	[B+#] -> A
+                    //  01000bbb00000aaa	store A->[B]
+                    16'b01000???00000???: begin
+                        address <= regs[data_in[10:8]];
+                        data_out <= regs[data_in[2:0]];
+                        write <= 1;
+                        state <= S_SELECT;
+                        if (data_in[2:0] == SP)
+                            regs[SP] <= regs[SP] + 1;
+                    end
+                    
+                    //  01001aaa#####bbb	load [B+#] -> A
                     16'b01001???????????: begin
                         //address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
                         address <= regs[data_in[2:0]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
@@ -207,30 +219,37 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                             regs[SP] <= regs[SP] + 1;
                     end
                     
-                    // !!! this is not recognized by the 8bit workshop assembler !!!
-                    //  01010aaa#####bbb	store A -> [B+#]
+                    //  01010aaa#####bbb    store A -> [B+#]
                     16'b01010???????????: begin
                         //address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
-                   	    address <= regs[data_in[2:0]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
+                        address <= regs[data_in[2:0]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
                         data_out <= regs[data_in[10:8]];
                         write <= 1;
                         state <= S_SELECT;
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] - 1;
                     end
+
+                    //  0110000000000aaa    store A -> [imm16] -- direct address store
+                    16'b0110000000000???: begin
+                        address <= regs[IP];
+                        data_out <= regs[data_in[2:0]];
+                        regs[IP] <= regs[IP] + 1;
+                        state <= RAM_WAIT && data_in[11] ? S_COMPUTE_ADDR_WAIT : S_COMPUTE_ADDR;
+                    end
                     
-                    //  01011aaa0++++000	operation A+[imm16] -> A
-                    16'b01011????????000: begin
-                    address <= regs[IP];
-                    regs[IP] <= regs[IP] + 1;
-                    aluop <= data_in[6:3];
+                    //  01101aaa01011000	load [imm16] -> A -- direct address load
+                    16'b01101???01011000: begin
+                        address <= regs[IP];
+                        regs[IP] <= regs[IP] + 1;
+                        aluop <= `OP_LOAD_B;
+                        state <= RAM_WAIT && data_in[11] ? S_COMPUTE_ADDR_WAIT : S_COMPUTE_ADDR;
                     end
                     
                     //  01110aaa00cccbbb	store A -> [B], C -> IP
                     16'b01110???00??????: begin
                         address <= regs[data_in[2:0]];
                         data_out <= regs[data_in[10:8]];
-                        write <= 1;
                         state <= S_SELECT;
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] - 1;
@@ -259,7 +278,22 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                 endcase
                 opcode <= data_in; // (only use opcode next cycle)
             end
-            
+
+            // state 6: compute a direct address
+            S_COMPUTE_ADDR: begin
+                if (opcode[15:11] == 5'b01100) begin
+                    // direct address store -- transfer the second word to the address bus then go on to the next instruction
+                    address <= data_in;
+                    write <= 1;
+                    state <= S_SELECT;
+                end
+                else begin
+                    // direct address load -- transfer the second word to the address bus then go on to compute
+                    address <= Y[15:0];
+                    state <= S_COMPUTE;
+                end
+            end
+                        
             // state 3: compute ALU op and flags
             S_COMPUTE: begin
                 // transfer ALU output to destination
@@ -284,6 +318,11 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
             // state 5: wati 1 cycle for RAM read
             S_COMPUTE_WAIT : begin
                 state <= S_COMPUTE;
+            end
+            
+            // state 7: wait 1 cycle for RAM read
+            S_COMPUTE_WAIT : begin
+                state <= S_COMPUTE_ADDR;
             end
         endcase
     end
