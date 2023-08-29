@@ -33,7 +33,7 @@ module system16_tb;
         buttons <= 5'b00001; switches <= 'h1234;
 
         #4 buttons[0] <= 0;
-        #400
+        #800
 
         $finish;
     end

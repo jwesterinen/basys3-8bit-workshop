@@ -59,17 +59,21 @@ module ALU(A, B, carry, aluop, Y);
 
 endmodule
 
+// TODO: need a direct subroutine call
 /*
 00000aaa 0++++bbb	operation A + B -> A
 00001aaa 0++++bbb	operation A + [B] -> A
 00011aaa 0++++000	operation A + imm16 -> A
 00101aaa ########	load zero page
 00110aaa ########	store zero page
+01000bbb 00000aaa	store A -> [B]
 01001aaa #####bbb	load [B + #] -> A
-01010000 00000aaa   store A -> [imm16]
-01011aaa 01011000   load [imm16] -> A
+01010aaa #####bbb   store A -> [B + #]
+01100000 00000aaa   store A -> [imm16]
+01101aaa 01+++000	operation A <op> [imm16] -> A - Note: _only_ binary ops
 01110aaa 00cccbbb	store A -> [B], C -> IP
 1000tttt ########	conditional branch
+11+++aaa ########	immediate binary operation
 */
 
 module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
@@ -101,16 +105,18 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
     wire [2:0] rsrc = opcode[2:0]; // ALU B input reg.
     wire Bconst = opcode[15]; // ALU B = 8-bit constant
     wire Bload  = opcode[11]; // ALU B = data bus
+    
+    reg [15:0] sub_addr;
 
     // CPU states
     localparam S_RESET              = 0;
     localparam S_SELECT             = 1;
     localparam S_DECODE             = 2;
     localparam S_COMPUTE            = 3;
-    localparam S_COMPUTE_ADDR       = 6;
-    localparam S_COMPUTE_ADDR_WAIT  = 7;
     localparam S_DECODE_WAIT        = 4;
     localparam S_COMPUTE_WAIT       = 5;
+    localparam S_COMPUTE_ADDR       = 6;
+    localparam S_COMPUTE_SUB_ADDR   = 7;
 
     localparam SP = 6; // stack ptr = register 6
     localparam IP = 7; // IP = register 7
@@ -166,7 +172,7 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         aluop <= data_in[6:3];
                     end
                     
-                    //  00001aaa01+++bbb	operation A+[B]->A
+                    //  00001aaa01+++bbb	operation A+[B]->A - Note: _only_ binary ops
                     16'b00001???01??????: begin
                         address <= regs[data_in[2:0]];
                         aluop <= data_in[6:3];
@@ -200,15 +206,13 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         state <= S_SELECT;
                     end
                     
-                    //  01000bbb00000aaa	store A->[B]
+                    //  0100011100000110	store IP -> [SP], <immed16> -> IP - essence of direct subroutine call
                     16'b01000???00000???: begin
-                        address <= regs[data_in[10:8]];
-                        data_out <= regs[data_in[2:0]];
-                        write <= 1;
-                        state <= S_SELECT;
-                        if (data_in[2:0] == SP)
-                            regs[SP] <= regs[SP] + 1;
-                    end
+                        //address <= regs[IP];
+                        data_out <= regs[IP];
+                        regs[IP] <= regs[IP] + 1;
+                        state <= S_COMPUTE_ADDR;
+                   end
                     
                     //  01001aaa#####bbb	load [B+#] -> A
                     16'b01001???????????: begin
@@ -222,8 +226,8 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                     //  01010aaa#####bbb    store A -> [B+#]
                     16'b01010???????????: begin
                         //address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
-                        address <= regs[data_in[2:0]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
-                        data_out <= regs[data_in[10:8]];
+                        address <= regs[data_in[10:8]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
+                        data_out <= regs[data_in[2:0]];
                         write <= 1;
                         state <= S_SELECT;
                         if (data_in[2:0] == SP)
@@ -235,36 +239,57 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         address <= regs[IP];
                         data_out <= regs[data_in[2:0]];
                         regs[IP] <= regs[IP] + 1;
-                        state <= RAM_WAIT && data_in[11] ? S_COMPUTE_ADDR_WAIT : S_COMPUTE_ADDR;
+                        state <= S_COMPUTE_ADDR;
                     end
                     
-                    //  01101aaa01011000	load [imm16] -> A -- direct address load
-                    16'b01101???01011000: begin
+                    //  01101aaa01+++000	operation A <op> [imm16] -> A - Note: _only_ binary ops
+                    16'b01101???01???000: begin
                         address <= regs[IP];
                         regs[IP] <= regs[IP] + 1;
-                        aluop <= `OP_LOAD_B;
-                        state <= RAM_WAIT && data_in[11] ? S_COMPUTE_ADDR_WAIT : S_COMPUTE_ADDR;
+                        aluop <= data_in[6:3];
+                        state <= S_COMPUTE_ADDR;
                     end
                     
-                    //  01110aaa00cccbbb	store A -> [B], C -> IP
+                    //  01110aaa00cccbbb	store A -> [B], C -> IP - essence of subroutine call
                     16'b01110???00??????: begin
                         address <= regs[data_in[2:0]];
                         data_out <= regs[data_in[10:8]];
+                        write <= 1;
                         state <= S_SELECT;
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] - 1;
                         regs[IP] <= regs[data_in[5:3]];
                     end
-                    
-                    //  1000????########	conditional branch
+
+                    //  1000tttt########	conditional branch
                     16'b1000????????????: begin
                         if (
+                            (data_in[11:8] == 4'b0000) ||             // bra - branch always
                             (data_in[8] && (data_in[11] == carry)) ||
                             (data_in[9] && (data_in[11] == zero)) ||
                             (data_in[10] && (data_in[11] == neg))) 
                         begin
                             // relative branch, sign extended
                             //regs[IP] <= regs[IP] + 16'($signed(data_in[7:0]));
+                            regs[IP] <= regs[IP] + ((data_in[7]) ? {8'b11111111, data_in[7:0]} : {8'b00000000, data_in[7:0]});
+                        end
+                        state <= S_SELECT;
+                    end
+                    
+                    //  1010tttt########	conditional subroutine branch, bsa, bsxx
+                    16'b1010????????????: begin
+                        if (
+                            (data_in[11:8] == 4'b0000) ||             // bra - branch always
+                            (data_in[8] && (data_in[11] == carry)) ||
+                            (data_in[9] && (data_in[11] == zero)) ||
+                            (data_in[10] && (data_in[11] == neg))) 
+                        begin
+                            // relative branch, sign extended                            
+                            address <= regs[SP];
+                            data_out <= regs[IP];
+                            write <= 1;
+                            state <= S_SELECT;
+                            regs[SP] <= regs[SP] - 1;
                             regs[IP] <= regs[IP] + ((data_in[7]) ? {8'b11111111, data_in[7:0]} : {8'b00000000, data_in[7:0]});
                         end
                         state <= S_SELECT;
@@ -281,19 +306,39 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
 
             // state 6: compute a direct address
             S_COMPUTE_ADDR: begin
-                if (opcode[15:11] == 5'b01100) begin
-                    // direct address store -- transfer the second word to the address bus then go on to the next instruction
-                    address <= data_in;
-                    write <= 1;
-                    state <= S_SELECT;
-                end
-                else begin
-                    // direct address load -- transfer the second word to the address bus then go on to compute
-                    address <= Y[15:0];
-                    state <= S_COMPUTE;
-                end
+                casez (opcode[15:11])
+                    5'b01000: begin
+                        // direct address subroutine call -- push the IP onto the stack and save the second word as the subroutine address
+                        address <= regs[SP];
+                        data_out <= regs[IP];
+                        sub_addr <= data_in;
+                        write <= 1;
+                        regs[SP] <= regs[SP] - 1;
+                        state <= S_COMPUTE_SUB_ADDR;
+                    end
+                    
+                    5'b01100: begin
+                        // direct address store -- transfer the second word to the address bus then go on to the next instruction
+                        address <= data_in;
+                        write <= 1;
+                        state <= S_SELECT;
+                    end
+                    
+                    5'b01101: begin
+                        // direct address load -- transfer the second word to the address bus then go on to compute
+                        address <= data_in;
+                        state <= S_COMPUTE;
+                    end
+                endcase
             end
                         
+            S_COMPUTE_SUB_ADDR: begin
+                // direct address subroutine call -- load the IP from the saved subroutine address then go on to the next instruction
+                regs[IP] <= sub_addr;                
+                write <= 0;
+                state <= S_SELECT;
+            end
+            
             // state 3: compute ALU op and flags
             S_COMPUTE: begin
                 // transfer ALU output to destination
@@ -320,10 +365,6 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                 state <= S_COMPUTE;
             end
             
-            // state 7: wait 1 cycle for RAM read
-            S_COMPUTE_WAIT : begin
-                state <= S_COMPUTE_ADDR;
-            end
         endcase
     end
 
