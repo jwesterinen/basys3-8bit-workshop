@@ -1,5 +1,8 @@
 ; asm16 consistency tests
 
+.define TooBigFor8bits 0x1234
+.define TooBigFor16bits 0x12345
+
 .org 0xf000
 
 Unop:
@@ -15,16 +18,16 @@ Unop:
     sbb     ax
 
 UndefinedId:
-    bra     Foo
-    bcc     Foo
-    bcs     Foo
-    bnz     Foo
-    bz      Foo
-    bpl     Foo
-    bmi     Foo
-    bras    Foo
-    jmp     Foo
-    jsr     Foo
+    bra     UndefinedLabel
+    bcc     UndefinedLabel
+    bcs     UndefinedLabel
+    bnz     UndefinedLabel
+    bz      UndefinedLabel
+    bpl     UndefinedLabel
+    bmi     UndefinedLabel
+    bras    UndefinedLabel
+    jmp     UndefinedLabel
+    jsr     UndefinedLabel
 
 DuplicateLabel:
     zero    ax
@@ -36,20 +39,30 @@ Immed8:
     inc     ax,#255
     or      ax,#256
     mov     ax,[#1234]
+    mov     ax,[#TooBigFor8bits]
     mov     [#0x100],ax
+    mov     [#TooBigFor8bits],ax
     mov     ax,[ip+256]
+    mov     ax,[ip+TooBigFor8bits]
     mov     [ip+0x100],ax
+    mov     [ip+TooBigFor8bits],ax
+    and     ax,#TooBigFor8bits
+    mov     ax,#TooBigFor8bits
         
 Immed16:
     inc     ax,@1234
     zero    ax
     or      ax,@65536
-    or      ax,[0x10000]
-    mov     [0x10000],ax
+    or      ax,@TooBigFor16bits
+    mov     ax,@TooBigFor16bits
+    or      ax,TooBigFor16bits
+    mov     ax,TooBigFor16bits
+    mov     TooBigFor16bits,ax
+    mov     ax,@UndefinedLabel
 
 IpRel:
-    bra     Bar
-    bras    Bar
+    bra     Baz
+    bras    Baz
 
 Filler:
     zero    ax
@@ -313,6 +326,6 @@ Filler:
     zero    ax
     zero    ax
 
-Bar:
+OutOfBranchRange:
     zero    ax
             

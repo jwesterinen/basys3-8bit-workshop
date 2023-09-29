@@ -5,13 +5,14 @@
 struct Symbol
 {
     const char*     s_name;
-    unsigned short  s_addr;
+    int             s_defined;
+    unsigned short  s_value;
     struct Symbol*  s_next;
 };
-struct Symbol* symbolTable;
-struct Symbol* symtabHead;
-struct Symbol* symtabTail;
 
 struct Symbol *s_create(char *name);
 struct Symbol *s_find(const char *name);
+void s_lookup(int yylex);
+int s_define(struct Symbol *label, unsigned short value);
+int chk_identifier(struct Symbol *label);
 

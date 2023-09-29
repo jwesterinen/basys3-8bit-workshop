@@ -178,26 +178,27 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }  
     cur_addr = 0xf000;      
-    yyparse();
-    
-    // run the second pass
-    asm_pass = 2;
-    
-    // redirect infileName as stdin      
-    if (infileName && !freopen(infileName, "r", stdin))
-    {
-        perror(infileName);
-        exit(EXIT_FAILURE);
+    if (yyparse() == 0)
+    {    
+        // run the second pass if there were no errors or if there were errors and error recovery was possible
+        asm_pass = 2;
+        
+        // redirect infileName as stdin      
+        if (infileName && !freopen(infileName, "r", stdin))
+        {
+            perror(infileName);
+            exit(EXIT_FAILURE);
+        }
+        
+        // run the C preprocessor
+        if (cppflag && cpp(argc, argv))
+        {
+            perror("C preprocessor");
+            exit(EXIT_FAILURE);
+        }        
+        cur_addr = 0xf000;      
+        yyparse();
     }
-    
-    // run the C preprocessor
-    if (cppflag && cpp(argc, argv))
-    {
-        perror("C preprocessor");
-        exit(EXIT_FAILURE);
-    }        
-    cur_addr = 0xf000;      
-    yyparse();
 }
 
 // end of main.c

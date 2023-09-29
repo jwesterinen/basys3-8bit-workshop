@@ -14,7 +14,7 @@ int yylex(void);
 extern FILE* yyout;
 
 #define NAME(x)     (((struct Symbol *)x)->s_name)
-#define ADDR(x)     (((struct Symbol *)x)->s_addr)
+#define VALUE(x)     (((struct Symbol *)x)->s_value)
 
 extern int asm_pass;
 extern unsigned short cur_addr;
@@ -80,6 +80,7 @@ unsigned short instr;
 %token BMIS
 %token RESET
 %token ORIGIN
+%token DEFINITION
 
 %%
 
@@ -105,7 +106,9 @@ commands
 	| commands command
 	
 command
-    : label
+    : origin
+    | definition
+    | label
     | one_word_instr
         {
             cur_addr++;
@@ -115,27 +118,39 @@ command
             cur_addr++;
             cur_addr++;
         }
-    | ORIGIN Immediate
+
+origin
+    : ORIGIN Immediate
         {
             cur_addr = $2;
         }
-    
-label
-    : Label
+
+definition
+    : DEFINITION Identifier Immediate
         {
             if (asm_pass == 1)
             {
-                if ($1)
+                if (s_define($2, $3))
                 {
                     if (verbose)
                     {
-                        fprintf(stdout, "Label %s is at address 0x%04X\n", NAME($1), ADDR($1));
+                        fprintf(stdout, "%s is is defined as 0x%04X\n", NAME($2), VALUE($2));
                     }
                 }
-                else
+            }
+        }
+            
+label
+    : Identifier':'
+        {
+            if (asm_pass == 1)
+            {
+                if (s_define($1, cur_addr))
                 {
-                    yyerror("duplicate label");
-                    GenErrorCode();
+                    if (verbose)
+                    {
+                        fprintf(stdout, "Label %s is at address 0x%04X\n", NAME($1), VALUE($1));
+                    }
                 }
             }
         }
@@ -224,12 +239,34 @@ immediate8_instr
                 GenImmed8Code(IMMEDIATE8_OPCODE, aluop, destReg, $5);
             }
         }
+    | binop dreg',''#'Identifier
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($5))
+                {
+                    // use immed8 instruction format
+                    GenImmed8Code(IMMEDIATE8_OPCODE, aluop, destReg, VALUE($5));
+                }
+            }
+        }
     | MOV dreg',''#'Immediate
         {
             if (asm_pass == 2)
             {
-                // use immed8 instruction formaat
+                // use immed8 instruction format
                 GenImmed8Code(IMMEDIATE8_OPCODE, MOV_ALU_OP, destReg, $5);
+            }
+        }
+    | MOV dreg',''#'Identifier
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($5))
+                {
+                    // use immed8 instruction format
+                    GenImmed8Code(IMMEDIATE8_OPCODE, MOV_ALU_OP, destReg, VALUE($5));
+                }
             }
         }
     
@@ -242,6 +279,17 @@ load_zp_instr
                 GenZPCode(ZP_LOAD_OPCODE, destReg, $6);
             }
         }
+    | MOV dreg',''[''#'Identifier']'
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($6))
+                {
+                    // use ZP instruction format
+                    GenZPCode(ZP_LOAD_OPCODE, destReg, VALUE($6));
+                }
+            }
+        }
 
 store_zp_instr        
     : MOV '[''#'Immediate']'','sreg
@@ -250,6 +298,17 @@ store_zp_instr
             {
                 // use ZP instruction format
                 GenZPCode(ZP_STORE_OPCODE, srcReg, $4);
+            }
+        }
+    | MOV '[''#'Identifier']'','sreg
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($4))
+                {
+                    // use ZP instruction format
+                    GenZPCode(ZP_STORE_OPCODE, srcReg, VALUE($4));
+                }
             }
         }
 
@@ -262,6 +321,17 @@ load_index5_instr
                 GenIndexedCode(INDEX5_LOAD_OPCODE, destReg, $7, srcReg);
             }
         }
+    | MOV dreg',''['sreg'+'Identifier']'
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($7))
+                {
+                    // use Indexed instruction format
+                    GenIndexedCode(INDEX5_LOAD_OPCODE, destReg, VALUE($7), srcReg);
+                }
+            }
+        }
 
 store_index5_instr   
     : MOV '['dreg'+'Immediate']'','sreg
@@ -270,6 +340,17 @@ store_index5_instr
             {
                 // use Indexed instruction format
                 GenIndexedCode(INDEX5_STORE_OPCODE, srcReg, $5, destReg);
+            }
+        }
+    | MOV '['dreg'+'Identifier']'','sreg
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($5))
+                {
+                    // use Indexed instruction format
+                    GenIndexedCode(INDEX5_STORE_OPCODE, srcReg, VALUE($5), destReg);
+                }
             }
         }
 
@@ -289,16 +370,11 @@ ip_rel_branch_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if ($2)
+                if (chk_identifier($2))
                 {
                     // use IP-relative instruction format
-                    int offset = ADDR($2) - (cur_addr + 1);
+                    int offset = VALUE($2) - (cur_addr + 1);
                     GenIPRelativeCode(IP_REL_BRANCH_OPCODE, brcond, offset);
-                }
-                else
-                {
-                    yyerror("undefined label");
-                    GenErrorCode();
                 }
             }
         }
@@ -309,16 +385,11 @@ ip_rel_call_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if ($2)
+                if (chk_identifier($2))
                 {
                     // use IP-relative instruction format
-                    int offset = ADDR($2) - (cur_addr + 1);
+                    int offset = VALUE($2) - (cur_addr + 1);
                     GenIPRelativeCode(IP_REL_CALL_OPCODE, brcond, offset);
-                }
-                else
-                {
-                    yyerror("undefined label");
-                    GenErrorCode();
                 }
             }
         }
@@ -374,6 +445,17 @@ immediate16_instr
                 GenDirectCode(IMMEDIATE16_OPCODE, destReg, aluop, 0, $5);
             }
         }
+    |  binop dreg',''@'Identifier
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($5))
+                {
+                    // use the Direct instruction format with no source reg
+                    GenDirectCode(IMMEDIATE16_OPCODE, destReg, aluop, 0, VALUE($5));
+                }
+            }
+        }
     |  MOV dreg',''@'Immediate
         {
             if (asm_pass == 2)
@@ -386,8 +468,11 @@ immediate16_instr
         {
             if (asm_pass == 2)
             {
-                // use the Direct instruction format with no source reg
-                GenDirectCode(IMMEDIATE16_OPCODE, destReg, MOV_ALU_OP, 0, ADDR($5));
+                if (chk_identifier($5))
+                {
+                    // use the Direct instruction format with no source reg
+                    GenDirectCode(IMMEDIATE16_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($5));
+                }
             }
         }
 
@@ -400,12 +485,34 @@ direct_instr
                 GenDirectCode(DIRECT_OPCODE, destReg, aluop, 0, $4);
             }
         }
+    |  binop dreg','Identifier
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($4))
+                {
+                    // use the Direct instruction format with no source reg
+                    GenDirectCode(DIRECT_OPCODE, destReg, aluop, 0, VALUE($4));
+                }
+            }
+        }
     |  MOV dreg','Immediate
         {
             if (asm_pass == 2)
             {
                 // use the Direct instruction format with no source reg
                 GenDirectCode(DIRECT_OPCODE, destReg, MOV_ALU_OP, 0, $4);
+            }
+        }
+    |  MOV dreg','Identifier
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($4))
+                {
+                    // use the Direct instruction format with no source reg
+                    GenDirectCode(DIRECT_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($4));
+                }
             }
         }
 
@@ -418,6 +525,17 @@ store_direct_instr
                 GenDirectCode(DIRECT_STORE_OPCODE, 0, 0, srcReg, $2);
             }
         }
+    |  MOV Identifier','sreg
+        {
+            if (asm_pass == 2)
+            {
+                if (chk_identifier($2))
+                {
+                    // use the Direct instruction format with no destination reg nor ALU opcode
+                    GenDirectCode(DIRECT_STORE_OPCODE, 0, 0, srcReg, VALUE($2));
+                }
+            }
+        }
 
 direct_call_instr
     : JSR Identifier
@@ -425,17 +543,11 @@ direct_call_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if ($2)
+                if (chk_identifier($2))
                 {
                     // use the Direct instruction format with the IP as the destinition, no ALU opcode, the SP as the source reg, and the address of the Identifier
-                    GenDirectCode(DIRECT_CALL_OPCODE, REG_IP, 0, REG_SP, ADDR($2));
+                    GenDirectCode(DIRECT_CALL_OPCODE, REG_IP, 0, REG_SP, VALUE($2));
                 }
-                else
-                {
-                    yyerror("undefined label");
-                    GenErrorCode();
-                }
-
             }
         }
 
@@ -444,15 +556,10 @@ direct_jump_instr
         {
             if (asm_pass == 2)
             {
-                if ($2)
+                if (chk_identifier($2))
                 {
                     // use the Direct instruction format with the IP as the destinition, the MOV ALU opcode, no source reg, and the address of the Identifier
-                    GenDirectCode(DIRECT_JUMP_OPCODE, REG_IP, MOV_ALU_OP, 0, ADDR($2));
-                }
-                else
-                {
-                    yyerror("undefined label");
-                    GenErrorCode();
+                    GenDirectCode(DIRECT_JUMP_OPCODE, REG_IP, MOV_ALU_OP, 0, VALUE($2));
                 }
             }
         }

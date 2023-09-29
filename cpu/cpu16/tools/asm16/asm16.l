@@ -68,20 +68,10 @@ other           .
 "bmis"                      return BMIS;
 "reset"                     return RESET;
 ".org"                      return ORIGIN;
-
-{letter}{letter_or_digit}*: {
-                                if (asm_pass == 1)
-                                {
-                                    yylval.y_sym = s_create(yytext);
-                                }
-                                return Label;
-                            }
+".define"                   return DEFINITION;
 
 {letter}{letter_or_digit}*  {
-                                if (asm_pass == 2)
-                                {
-                                    yylval.y_sym = s_find(yytext);
-                                }
+                                s_lookup(Identifier);
                                 return Identifier;
                             }
 

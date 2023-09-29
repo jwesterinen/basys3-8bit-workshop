@@ -2,6 +2,9 @@
 
 .org 0xf000
 
+.define Foo 0x12
+.define Bar 0x1234
+
 Begin:
 
 Unary:                  ; unary op test
@@ -36,9 +39,10 @@ IndirectReg:
 
 Immed8:    
     or      ax,#00
-    and     bx,#01
+    and     bx,#Foo
     xor     cx,#2
     mov     dx,#04
+    mov     dx,#Foo
     add     ex,#0xa
     sub     bp,#20
     adc     sp,#55
@@ -62,7 +66,7 @@ IPRel:
 
 ZP:    
     mov     ax,[#00]
-    mov     bx,[#01]
+    mov     bx,[#Foo]
     mov     cx,[#2]
     mov     dx,[#04]
     mov     ex,[#0xa]
@@ -70,7 +74,7 @@ ZP:
     mov     sp,[#55]
     mov     ip,[#0xff]
     mov     [#00],ax
-    mov     [#01],bx
+    mov     [#Foo],bx
     mov     [#2],cx
     mov     [#04],dx
     mov     [#0xa],ex
@@ -80,7 +84,7 @@ ZP:
     
 Indexed:
     mov     ax,[ip+00]
-    mov     bx,[sp+01]
+    mov     bx,[sp+Foo]
     mov     cx,[bp+2]
     mov     dx,[ex+04]
     mov     ex,[dx+0xa]
@@ -88,7 +92,7 @@ Indexed:
     mov     sp,[bx+31]
     mov     ip,[ax+0x1f]
     mov     [ip+00],ax
-    mov     [sp+01],bx
+    mov     [sp+Foo],bx
     mov     [bp+2],cx
     mov     [ex+04],dx
     mov     [dx+0xa],ex
@@ -139,24 +143,26 @@ Pop:
     
 Direct:
     or      ax,@0
-    and     bx,@01
+    and     bx,@Bar
     xor     cx,@200
     mov     dx,@4004
     mov     dx,@Pop
+    mov     dx,@Bar
     add     ex,@0xa
     sub     bp,@0x55
     adc     sp,@0x550
     sbb     ip,@0xffff
     or      ax,0
-    and     bx,01
+    and     bx,Bar
     xor     cx,200
     mov     dx,4004
+    mov     dx,Bar
     add     ex,0xa
     sub     bp,0x55
     adc     sp,0x550
     sbb     ip,0xffff
     mov     0,ax
-    mov     01,bx
+    mov     Bar,bx
     mov     200,cx
     mov     4004,dx
     mov     0xa,ex
