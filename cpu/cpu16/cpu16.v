@@ -208,7 +208,7 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                     
                     //  0100011100000110	store IP -> [SP], <immed16> -> IP - essence of direct subroutine call
                     16'b01000???00000???: begin
-                        //address <= regs[IP];
+                        address <= regs[IP];
                         data_out <= regs[IP];
                         regs[IP] <= regs[IP] + 1;
                         state <= S_COMPUTE_ADDR;

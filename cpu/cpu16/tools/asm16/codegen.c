@@ -19,21 +19,33 @@
  *      3. ZP:              00101 aaa ########                      load            A <- (00000000########)         mov         <reg>,[#<immed8>]           
  *                          00110 aaa ########                      store           [00000000########] <- A         mov         [#<immed8>],<reg>           
  *
- *      4. indexed:         01001 aaa ##### bbb                     load            A <- (B+#####)                  mov         <dreg>,[<sreg>+<immed5>]    
- *                          01010 aaa ##### bbb                     store           [B]+##### <- A                  mov         [<dreg>+<immed5>],<sreg>    
- *                          01010 aaa ##### bbb                     store 0 index   [B] <- A                        mov         [<dreg>],<sreg>             
+ *      4. indexed5:        01001 aaa ##### bbb                     load            A <- (B+#####)                  mov         <dreg>,[<sreg>+<immed5>]    
+ *                          01001 aaa 00001 110                     load            A <- (SP+0)                     pop         <reg>
+ *                          01001 111 00001 110                     load            IP <- SP                        rts
+ *                          01010 aaa ##### bbb                     store           [B+#####] <- A                  mov         [<dreg>+<immed5>],<sreg>    
+ *                          01010 aaa ##### bbb                     store 0 index   [B+0] <- A                      mov         [<dreg>],<sreg>             
+ *                          01010 aaa 00000 110                     store 0 index   [SP+0] <- A                     push        <reg>
  *
  *      5. call:            01110 111 00 ccc 110                    call            [SP] <- IP, IP <- C             jsr         <reg>                       
  *
- *      6. direct:          00011 aaa 0++++ 000 ################    immed op        A <- A <op> <immed16>           <binop>     <reg>,@<immed16>            
- *                          01101 aaa 0++++ 000 ################    direct op       A <- A <op> <addr16>            <binop>     <reg>,<addr16>              
- *                          01111 aaa 0++++ 000 ################    indirect op     A <- A <op> [<addr16>]          <binop>     <reg>,[<addr16>]            
- *                          01100 000 00000 bbb ################    direct store    [<addr16>] <- B                 mov         <addr16>,<reg>              
+ *      6. value16:         00011 aaa 0++++ 000 ################    op              A <- A <op> <value16>           <binop>     <reg>,@<value16>
+ *            
+ *      6a. direct:         01101 aaa 0++++ 000 ################    op              A <- A <op> <addr16>            <binop>     <reg>,<addr16>              
+ *                          01100 000 00000 bbb ################    store           <addr16> <- B                   mov         <addr16>,<reg>              
  *                          00011 111 00000 000 ################    jump            IP <- <addr16>                  jmp         <label>                     
  *                          01000 111 00000 110 ################    call            [SP] <- IP, IP <- <addr16>      jsr         <label>                     
  *
  *      7. IP relative:     1000 tttt ########                      branch          IP <- (IP+########)             <brcond>    <label>                     
- *                          1010 tttt ########	                    call            [B] <- A, IP <- (IP+########)   <bccond>    <label>                     
+ *                          1010 tttt ########	                    call            [B] <- A, IP <- (IP+########)   <bccond>    <label>
+ *
+ *      Possible new instructions:
+ *
+ *      8. indirect         01111 aaa 0++++ 000 ################    indirect op     A <- A <op> [<addr16>]          mov         <reg>,[<addr16>]            
+ *                          00010 000 00000 bbb ################    indirect store  [<addr16>] <- B                 mov         [<addr16>],<reg>
+ *
+ *      9. indexed8         ????? aaa ######## ################     indexed load    A <- <addr16>+########          mov         <reg>,<addr16>+<immed8>              
+ *                          ????? aaa ######## ################     indexed store   <addr16>+######## <- A          mov         <addr16+immed8>,<reg>              
+ *       - 
  *
  *      Legend:
  *          aaa: destination register
@@ -44,6 +56,8 @@
  *          ########: 8-bit immediate
  *          ################: 16-bit immediate
  *          tttt: branch condition
+ *
+ *      Note: Immediate values can also be defined symbols using the .define directive, e.g. "mov ax,0x1234" is the same instruction as "mov ax,foo" with ".define foo 0x1234"
  */
 
 #include <stdio.h>
@@ -130,12 +144,12 @@ void GenCallCode(unsigned char opCode, unsigned char destReg, unsigned char addr
     fprintf(yyout, "%04X\n", instr);
 }
 
-void GenDirectCode(unsigned char opCode, unsigned char destReg, unsigned char aluOp, unsigned char srcReg, int immed16)
+void GenDirectCode(unsigned char opCode, unsigned char destReg, unsigned char aluOp, unsigned char srcReg, int value16)
 {
     unsigned short instr = 0x0000;
     
     // immediate value must fit in 16 bits
-    if (immed16 > 0xffff)
+    if (value16 > 0xffff)
     {
         yyerror("The immediate value is too large to fit in 16 bits.");
         fprintf(yyout, "****\n");
@@ -146,7 +160,7 @@ void GenDirectCode(unsigned char opCode, unsigned char destReg, unsigned char al
     instr |= (aluOp     << ALU_OP_SHIFT)    & ALU_OP_MASK;
     instr |= (srcReg    << SREG_SHIFT)      & SREG_MASK;
     fprintf(yyout, "%04X ", instr);
-    fprintf(yyout, "%04X\n", immed16);
+    fprintf(yyout, "%04X\n", value16);
 }
 
 void GenIPRelativeCode(unsigned char opCode, unsigned char condition, int offset)

@@ -97,14 +97,19 @@ void s_lookup(int yylex)
 }
 
 // define symbol
-int s_define(struct Symbol *label, unsigned short value)
+int s_define(struct Symbol *label, unsigned value)
 {
     if (label->s_defined)
     {
         error("label %s has already been defined", label->s_name);
         return 0;
     }
-    label->s_value = value;
+    if (value > 0xffff)
+    {
+        error("attemp to define label %s with a value that is too large to fit in 16 bits", label->s_name);
+        return 0;
+    }
+    label->s_value = (unsigned short)value;
     label->s_defined = 1;
     return 1;
 }

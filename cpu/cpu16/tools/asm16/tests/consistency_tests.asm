@@ -61,8 +61,8 @@ Immed16:
     mov     ax,@UndefinedLabel
 
 IpRel:
-    bra     Baz
-    bras    Baz
+    bra     UndefinedBranchTarget
+    bras    UndefineSubroutine
 
 Filler:
     zero    ax

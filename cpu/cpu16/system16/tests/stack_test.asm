@@ -1,25 +1,45 @@
-; stack test
+;   stack_test
 
-; SP = 0x0fff;
-; while (1)
-; {
-;     push(GetSwitch());
-;     display(pop());
-; }
+;   This program performs arithmetic in a subroutine:
+;
+;    Display(1, Calc(1));
+;    Display(2, Calc(2));
+;
+;   This test the following address modes:
+;    - jsr reg
+;    - jsr direct
+;    - push
+;    - pop
+;    - rts
 
 #include "../system16.h"
 
-.org 0xf000
-
+; call a subroutine that will perform RPN calculations. This should display 4.
 Begin:
-    mov     sp,@0x0fff
-    
-Loop:
-    mov     ax,SWITCH_REG
-    push    ax
-    pop     bx
-    mov     LED_REG,bx
+    mov     sp,@0x0fff          ; setup the stack
+
+    mov     ex,@Calc
+    mov     ax,#1               ; jsr reg
+    jsr     ex
+    mov     DISPLAY1_REG,ax
+
+    mov     ax,#2        
+    jsr     Calc                ; jsr direct
+    mov     DISPLAY2_REG,ax
     
 End:
-    bra     Loop
+    bra     End    
+    
+Calc:
+    push    ax                  ; push instruction
+    inc     ax
+    push    ax
+    inc     ax
+    push    ax
+    pop     bx                  ; pop instruction
+    pop     ax
+    add     ax,bx
+    pop     bx
+    sub     ax,bx
+    rts                         ; rts instruction
 

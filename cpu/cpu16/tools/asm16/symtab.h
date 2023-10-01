@@ -13,6 +13,6 @@ struct Symbol
 struct Symbol *s_create(char *name);
 struct Symbol *s_find(const char *name);
 void s_lookup(int yylex);
-int s_define(struct Symbol *label, unsigned short value);
+int s_define(struct Symbol *label, unsigned value);
 int chk_identifier(struct Symbol *label);
 

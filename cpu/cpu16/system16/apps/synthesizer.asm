@@ -16,10 +16,10 @@
 ; LFO selection is on display 1, and the mixer selection is shown on the 
 ; high nibble of the LEDs.
 
-#include "../system16.h"
+#include "../system16.asm"
 
 ; variables
-#define swVal            0x10
+.define swVal            0x10
 
 .org 0xf000
 
