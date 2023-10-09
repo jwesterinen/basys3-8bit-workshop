@@ -38,7 +38,7 @@ struct Symbol *s_create(char *name)
         if (newSymbol)
         {
             newSymbol->s_name = strsave(name);
-            newSymbol->s_defined = 0;
+            newSymbol->s_type = ST_UNDEF;
             newSymbol->s_value = 0;
             newSymbol->s_next = (struct Symbol*)NULL;
             
@@ -97,9 +97,9 @@ void s_lookup(int yylex)
 }
 
 // define symbol
-int s_define(struct Symbol *label, unsigned value)
+int s_define(struct Symbol *label, int type, unsigned value)
 {
-    if (label->s_defined)
+    if (label->s_type != ST_UNDEF)
     {
         error("label %s has already been defined", label->s_name);
         return 0;
@@ -109,19 +109,85 @@ int s_define(struct Symbol *label, unsigned value)
         error("attemp to define label %s with a value that is too large to fit in 16 bits", label->s_name);
         return 0;
     }
+    label->s_type = type;
     label->s_value = (unsigned short)value;
-    label->s_defined = 1;
     return 1;
 }
 
-int chk_identifier(struct Symbol *label)
+int chk_identifier(struct Symbol *symbol, int type)
 {
-    if (!label->s_defined)
+    if (symbol->s_type && type == 0)
     {
-        error("label %s is undefined", label->s_name);
+        switch(type)
+        {
+            case ST_UNDEF:
+                error("%s is undefined\n", symbol->s_name); 
+                break;
+            case ST_ID: 
+                error("%s has not been defined as an ID\n", symbol->s_name); 
+                break;
+            case ST_LABEL: 
+                error("%s has not been defined as a label\n", symbol->s_name); 
+                break;
+            case ST_ZPRAM_ADDR: 
+                error("%s has not been defined as a zero page RAM address\n", symbol->s_name); 
+                break;
+            case ST_RAM_ADDR: 
+                error("%s has not been defined as a RAM address\n", symbol->s_name); 
+                break;
+            default:
+                break;
+        }
         return 0;
     }
     return 1;
+}
+
+// RAM allocation
+#define FIRST_ZPRAM_ADDR 0x00
+#define MAX_ZPRAM_ADDR 0xff
+#define FIRST_RAM_ADDR 0x0100;
+#define MAX_RAM_ADDR 0x0dff
+
+int s_alloc_ram(struct Symbol *label, int type)
+{
+    static unsigned short nextZPAddr = FIRST_ZPRAM_ADDR;
+    static unsigned short nextAddr = FIRST_RAM_ADDR;
+    int retval = 0;
+
+    switch(type)
+    {
+        case ST_ZPRAM_ADDR:
+            // the symbol represents an address which needs to be allocated from ZP RAM
+            if (nextZPAddr < MAX_ZPRAM_ADDR)
+            {
+                if ((retval = s_define(label, ST_ZPRAM_ADDR, nextZPAddr)))
+                {
+                    nextZPAddr++;
+                }
+            }
+            else
+            {
+                error("max number of zero page variable has been reached");
+            }
+            break;
+        case ST_RAM_ADDR:
+            // the symbol represents an address which needs to be allocated from non-ZP RAM
+            if (nextAddr < MAX_RAM_ADDR)
+            {
+                if ((retval = s_define(label, ST_RAM_ADDR, nextAddr)))
+                {
+                    nextAddr++;
+                }
+            }
+            else
+            {
+                error("max number of variables has been reached");
+            } 
+            break;
+    } 
+    
+    return retval;       
 }
 
 // end of symtab.c

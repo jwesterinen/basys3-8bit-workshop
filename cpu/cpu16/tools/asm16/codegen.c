@@ -28,7 +28,7 @@
  *
  *      5. call:            01110 111 00 ccc 110                    call            [SP] <- IP, IP <- C             jsr         <reg>                       
  *
- *      6. value16:         00011 aaa 0++++ 000 ################    op              A <- A <op> <value16>           <binop>     <reg>,@<value16>
+ *      6. immed16:         00011 aaa 0++++ 000 ################    op              A <- A <op> <immed16>           <binop>     <reg>,@<immed16>
  *            
  *      6a. direct:         01101 aaa 0++++ 000 ################    op              A <- A <op> <addr16>            <binop>     <reg>,<addr16>              
  *                          01100 000 00000 bbb ################    store           <addr16> <- B                   mov         <addr16>,<reg>              

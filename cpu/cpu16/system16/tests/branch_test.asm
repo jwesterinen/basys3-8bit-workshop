@@ -88,9 +88,17 @@ TestCs:
     mov     bx,@0x5556
     add     ax,bx               ; set the CCs
     bcs     Cs                  ; if (carry set) c |= 0x40;
-    jmp     Print
+    jmp     TestForZero
 Cs:
     or      cx,#0x40
+
+TestForZero:    
+    mov     ax,@1
+    dec     ax                  ; dec op causes the zero bit to be set?????
+    bz      EndTestForZero      ; if (!x) c |= 0x80;
+    jmp     Print
+EndTestForZero:
+    or      cx,#0x80
 
 Print:    
     mov     LED_REG,cx          ; print c

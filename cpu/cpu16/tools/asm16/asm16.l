@@ -69,6 +69,8 @@ other           .
 "reset"                     return RESET;
 ".org"                      return ORIGIN;
 ".define"                   return DEFINITION;
+".dw"                       return DEFINE_WORD;
+".dz"                       return DEFINE_ZPWORD;
 
 {letter}{letter_or_digit}*  {
                                 s_lookup(Identifier);

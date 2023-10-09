@@ -4,6 +4,8 @@
 
 .define Foo 0x12
 .define Bar 0x1234
+.dz zpRamLocation
+.dw ramLocation
 
 Begin:
 
@@ -66,7 +68,7 @@ IPRel:
 
 ZP:    
     mov     ax,[#00]
-    mov     bx,[#Foo]
+    mov     bx,[#zpRamLocation]
     mov     cx,[#2]
     mov     dx,[#04]
     mov     ex,[#0xa]
@@ -74,7 +76,7 @@ ZP:
     mov     sp,[#55]
     mov     ip,[#0xff]
     mov     [#00],ax
-    mov     [#Foo],bx
+    mov     [#zpRamLocation],bx
     mov     [#2],cx
     mov     [#04],dx
     mov     [#0xa],ex
@@ -153,16 +155,16 @@ Direct:
     adc     sp,@0x550
     sbb     ip,@0xffff
     or      ax,0
-    and     bx,Bar
+    and     bx,ramLocation
     xor     cx,200
     mov     dx,4004
-    mov     dx,Bar
+    mov     dx,ramLocation
     add     ex,0xa
     sub     bp,0x55
     adc     sp,0x550
     sbb     ip,0xffff
     mov     0,ax
-    mov     Bar,bx
+    mov     ramLocation,bx
     mov     200,cx
     mov     4004,dx
     mov     0xa,ex

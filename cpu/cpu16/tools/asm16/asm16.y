@@ -81,6 +81,8 @@ unsigned short instr;
 %token RESET
 %token ORIGIN
 %token DEFINITION
+%token DEFINE_WORD;
+%token DEFINE_ZPWORD;
 
 %%
 
@@ -109,6 +111,8 @@ command
     : origin
     | definition
     | label
+    | zp_word_alloc
+    | word_alloc
     | one_word_instr
         {
             cur_addr++;
@@ -130,11 +134,11 @@ definition
         {
             if (asm_pass == 1)
             {
-                if (s_define($2, $3))
+                if (s_define($2, ST_ID, $3))
                 {
                     if (verbose)
                     {
-                        fprintf(stdout, "%s is is defined as 0x%04X\n", NAME($2), VALUE($2));
+                        fprintf(stdout, "%s is defined as 0x%04X\n", NAME($2), VALUE($2));
                     }
                 }
             }
@@ -145,7 +149,7 @@ label
         {
             if (asm_pass == 1)
             {
-                if (s_define($1, cur_addr))
+                if (s_define($1, ST_LABEL, cur_addr))
                 {
                     if (verbose)
                     {
@@ -155,6 +159,36 @@ label
             }
         }
         
+zp_word_alloc
+    : DEFINE_ZPWORD Identifier
+        {
+            if (asm_pass == 1)
+            {
+                if (s_alloc_ram($2, ST_ZPRAM_ADDR))
+                {
+                    if (verbose)
+                    {
+                        fprintf(stdout, "%s was allocated ZP offset 0x%02X\n", NAME($2), VALUE($2));
+                    }
+                }
+            }
+        }
+
+word_alloc
+    : DEFINE_WORD Identifier
+        {
+            if (asm_pass == 1)
+            {
+                if (s_alloc_ram($2, ST_RAM_ADDR))
+                {
+                    if (verbose)
+                    {
+                        fprintf(stdout, "%s was allocated address 0x%04X\n", NAME($2), VALUE($2));
+                    }
+                }
+            }
+        }
+
 one_word_instr
     : unary_instr 
     | reg_instr
@@ -243,7 +277,7 @@ immediate8_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5))
+                if (chk_identifier($5, ST_ID))
                 {
                     // use immed8 instruction format
                     GenImmed8Code(IMMEDIATE8_OPCODE, aluop, destReg, VALUE($5));
@@ -262,7 +296,7 @@ immediate8_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5))
+                if (chk_identifier($5, ST_ID))
                 {
                     // use immed8 instruction format
                     GenImmed8Code(IMMEDIATE8_OPCODE, MOV_ALU_OP, destReg, VALUE($5));
@@ -283,7 +317,7 @@ load_zp_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($6))
+                if (chk_identifier($6, ST_ZPRAM_ADDR))
                 {
                     // use ZP instruction format
                     GenZPCode(ZP_LOAD_OPCODE, destReg, VALUE($6));
@@ -304,7 +338,7 @@ store_zp_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($4))
+                if (chk_identifier($4, ST_ZPRAM_ADDR))
                 {
                     // use ZP instruction format
                     GenZPCode(ZP_STORE_OPCODE, srcReg, VALUE($4));
@@ -325,7 +359,7 @@ load_index5_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($7))
+                if (chk_identifier($7, ST_ID))
                 {
                     // use Indexed instruction format
                     GenIndexedCode(INDEX5_LOAD_OPCODE, destReg, VALUE($7), srcReg);
@@ -346,7 +380,7 @@ store_index5_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5))
+                if (chk_identifier($5, ST_ID))
                 {
                     // use Indexed instruction format
                     GenIndexedCode(INDEX5_STORE_OPCODE, srcReg, VALUE($5), destReg);
@@ -370,7 +404,7 @@ ip_rel_branch_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if (chk_identifier($2))
+                if (chk_identifier($2, ST_LABEL))
                 {
                     // use IP-relative instruction format
                     int offset = VALUE($2) - (cur_addr + 1);
@@ -385,7 +419,7 @@ ip_rel_call_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if (chk_identifier($2))
+                if (chk_identifier($2, ST_LABEL))
                 {
                     // use IP-relative instruction format
                     int offset = VALUE($2) - (cur_addr + 1);
@@ -449,7 +483,7 @@ immediate16_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5))
+                if (chk_identifier($5, ST_ID))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(IMMEDIATE16_OPCODE, destReg, aluop, 0, VALUE($5));
@@ -468,7 +502,7 @@ immediate16_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5))
+                if (chk_identifier($5, ST_ID|ST_LABEL))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(IMMEDIATE16_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($5));
@@ -489,7 +523,7 @@ direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($4))
+                if (chk_identifier($4, ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(DIRECT_OPCODE, destReg, aluop, 0, VALUE($4));
@@ -508,7 +542,7 @@ direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($4))
+                if (chk_identifier($4, ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(DIRECT_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($4));
@@ -529,7 +563,7 @@ store_direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($2))
+                if (chk_identifier($2, ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no destination reg nor ALU opcode
                     GenDirectCode(DIRECT_STORE_OPCODE, 0, 0, srcReg, VALUE($2));
@@ -543,7 +577,7 @@ direct_call_instr
             if (asm_pass == 2)
             {
                 // check for defined Identifier
-                if (chk_identifier($2))
+                if (chk_identifier($2, ST_LABEL))
                 {
                     // use the Direct instruction format with the IP as the destinition, no ALU opcode, the SP as the source reg, and the address of the Identifier
                     GenDirectCode(DIRECT_CALL_OPCODE, REG_IP, 0, REG_SP, VALUE($2));
@@ -556,7 +590,7 @@ direct_jump_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($2))
+                if (chk_identifier($2, ST_LABEL))
                 {
                     // use the Direct instruction format with the IP as the destinition, the MOV ALU opcode, no source reg, and the address of the Identifier
                     GenDirectCode(DIRECT_JUMP_OPCODE, REG_IP, MOV_ALU_OP, 0, VALUE($2));
