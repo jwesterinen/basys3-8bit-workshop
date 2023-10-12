@@ -8,14 +8,15 @@
 ;    - direct load
 ;    - direct jump
 
-#include "../system16.h"
+#include "../stdlib/system16.asm"
 
-.define switchVals  0x123   ; 16-bit RAM address
+.dw switchVals              ; 16-bit RAM address
 
 Loop:
     ; show the switch values on the LEDs
     mov     ax,SWITCH_REG   ; direct load
     mov     switchVals,ax   ; direct store to RAM
+    zero    bx
     mov     bx,switchVals   ; direct load from RAM
     mov     LED_REG,bx 
     jmp     Loop            ; direct jump

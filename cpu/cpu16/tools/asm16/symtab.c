@@ -116,7 +116,7 @@ int s_define(struct Symbol *label, int type, unsigned value)
 
 int chk_identifier(struct Symbol *symbol, int type)
 {
-    if (symbol->s_type && type == 0)
+    if (!(symbol->s_type & type))
     {
         switch(type)
         {
@@ -130,7 +130,7 @@ int chk_identifier(struct Symbol *symbol, int type)
                 error("%s has not been defined as a label\n", symbol->s_name); 
                 break;
             case ST_ZPRAM_ADDR: 
-                error("%s has not been defined as a zero page RAM address\n", symbol->s_name); 
+                error("%s has not been defined as a zero page RAM offset\n", symbol->s_name); 
                 break;
             case ST_RAM_ADDR: 
                 error("%s has not been defined as a RAM address\n", symbol->s_name); 

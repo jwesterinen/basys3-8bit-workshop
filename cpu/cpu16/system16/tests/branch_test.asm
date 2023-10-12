@@ -25,10 +25,13 @@
 ;       a = 0xaa + 0x56;
 ;       if (carry set) c |= 0x0040;
 ;       print c;
+;
+;   The test passes if the least significant 8 LEDs are turned on.
 
 
-#include "../system16.asm"
+#include "../stdlib/system16.asm"
 
+Main:
     zero    cx
     
 TestEq:

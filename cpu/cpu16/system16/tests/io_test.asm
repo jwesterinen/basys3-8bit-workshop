@@ -19,41 +19,43 @@
 
 
 
-#include "../system16.h"
+#include "../stdlib/system16.asm"
+#include "../stdlib/sys.asm"
 
-.define switchVals  0x10        ; 8-bit ZP offset
-.define buttonVals  0x11        ; 8-bit ZP offset
+.dw switchVals                      ; 8-bit ZP offset
+.dz buttonVals                      ; 8-bit ZP offset
 
-Begin:
+Main:
     ; set display mode to raw
-    mov bx,@DISPLAY_CTRL_REG    ; immed16 op
-    mov ax,#1                   ; immed8 op
-    mov [bx],ax                 ; indexed store 0 index
+    mov     bx,@DISPLAY_CTRL_REG    ; immed16 op
+    mov     ax,#1                   ; immed8 op
+    mov     [bx],ax                 ; indexed store 0 index
     
 Loop:
     ; show the switch values on the LEDs
-    mov bx,@SWITCH_REG
-    mov cx,bx                   ; reg direct op
-    mov ax,[cx]                 ; reg indirect op
-    mov bx,switchVals
-    mov [bx+5],ax               ; indexed store
-    mov cx,[bx+5]               ; indexed load
-    mov bx,@LED_REG           
-    mov [bx],cx 
+    mov     bx,@SWITCH_REG
+    mov     cx,bx                   ; reg direct op
+    mov     ax,[cx]                 ; reg indirect op
+    mov     bx,switchVals
+    mov     [bx+5],ax               ; indexed store
+    mov     cx,[bx+5]               ; indexed load
+    mov     bx,@LED_REG           
+    mov     [bx],cx 
 
     ; load all displays from buttons
-    mov bx,@BUTTON_REG
-    mov ax,[bx]
-    mov [#buttonVals],ax        ; ZP store
-    mov bx,@DISPLAY1_REG
-    mov cx,[#buttonVals]        ; ZP load
-    mov [bx],cx
-    inc bx                      ; reg unary op
-    mov [bx],cx
-    inc bx
-    mov [bx],cx
-    inc bx
-    mov [bx],cx
+    mov     bx,@BUTTON_REG
+    mov     ax,[bx]
+    mov     [#buttonVals],ax        ; ZP store
+    mov     bx,@DISPLAY1_REG
+    zero    dx
+    mov     dx,[#buttonVals]        ; ZP load
+    mov     [bx],dx
+    inc     bx                      ; reg unary op
+    mov     [bx],dx
+    inc     bx
+    mov     [bx],dx
+    inc     bx
+    mov     [bx],dx
     
-    bra Loop                    ; IP relative branch
+    bra     Loop                    ; IP relative branch
 

@@ -16,11 +16,11 @@
  *
  *      2. immed8:          11 +++ aaa ########                     op              A <- A <binop> ########         <binop>     <reg>,#<immed8>             
  *
- *      3. ZP:              00101 aaa ########                      load            A <- (00000000########)         mov         <reg>,[#<immed8>]           
+ *      3. ZP:              00101 aaa ########                      load            A <- [00000000########]         mov         <reg>,[#<immed8>]           
  *                          00110 aaa ########                      store           [00000000########] <- A         mov         [#<immed8>],<reg>           
  *
- *      4. indexed5:        01001 aaa ##### bbb                     load            A <- (B+#####)                  mov         <dreg>,[<sreg>+<immed5>]    
- *                          01001 aaa 00001 110                     load            A <- (SP+0)                     pop         <reg>
+ *      4. indexed5:        01001 aaa ##### bbb                     load            A <- [B+#####]                  mov         <dreg>,[<sreg>+<immed5>]    
+ *                          01001 aaa 00001 110                     load            A <- [SP+0]                     pop         <reg>
  *                          01001 111 00001 110                     load            IP <- SP                        rts
  *                          01010 aaa ##### bbb                     store           [B+#####] <- A                  mov         [<dreg>+<immed5>],<sreg>    
  *                          01010 aaa ##### bbb                     store 0 index   [B+0] <- A                      mov         [<dreg>],<sreg>             
@@ -40,11 +40,11 @@
  *
  *      Possible new instructions:
  *
- *      8. indirect         01111 aaa 0++++ 000 ################    indirect op     A <- A <op> [<addr16>]          mov         <reg>,[<addr16>]            
- *                          00010 000 00000 bbb ################    indirect store  [<addr16>] <- B                 mov         [<addr16>],<reg>
+ *      6b. indirect        01111 aaa 0++++ 000 ################    indirect op     A <- A <op> [<addr16>]          <binop>     <reg>,[<addr16>]            
+ *                          00010 aaa 00000 000 ################    indirect store  [<addr16>] <- A                 mov         [<addr16>],<reg>
  *
- *      9. indexed8         ????? aaa ######## ################     indexed load    A <- <addr16>+########          mov         <reg>,<addr16>+<immed8>              
- *                          ????? aaa ######## ################     indexed store   <addr16>+######## <- A          mov         <addr16+immed8>,<reg>              
+ *      8a. indexed8        01111 aaa ######## ################     indexed op      A <- A <op> [<addr16>+########] <binop>     <reg>,[<addr16>+<immed8>]              
+ *                          00010 aaa ######## ################     indexed store   [<addr16>+########] <- A        mov         [<addr16+immed8>],<reg>              
  *       - 
  *
  *      Legend:

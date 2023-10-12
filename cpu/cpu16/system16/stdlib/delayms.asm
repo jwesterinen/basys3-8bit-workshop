@@ -9,8 +9,9 @@
 ;   Return: none
 ;
 ;   Stack on entry:
-;     SP-> retaddr
-;          ms      (SP+1)
+;     SP-> 
+;      |    retaddr
+;      ->   ms      (SP+2)
 ;
 ;   Regs used:  ax, bx
 ;
@@ -18,12 +19,12 @@
 .define LOOPS_PER_MS 0x2710
 
 DelayMs:
-    mov     bx,sp               ; load bx with ms count
-    add     bx,#2
-    mov     ax,[bx]
+    mov     bp,sp               ; init the stack frame
+    
+    mov     ax,[bp+2]           ; load ax with the ms argument
     
 DelayMs_ms_count_loop:
-    or      ax,@0               ; if ms count == 0, exit
+    or      ax,@0               ; if (ms_count == 0) return
     bz      DelayMs_end    
     dec     ax                  ; dec ms count
     

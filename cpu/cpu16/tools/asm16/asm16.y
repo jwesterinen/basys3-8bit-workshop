@@ -523,7 +523,7 @@ direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($4, ST_RAM_ADDR))
+                if (chk_identifier($4, ST_ID|ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(DIRECT_OPCODE, destReg, aluop, 0, VALUE($4));
@@ -542,7 +542,7 @@ direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($4, ST_RAM_ADDR))
+                if (chk_identifier($4, ST_ID|ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(DIRECT_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($4));
@@ -563,7 +563,7 @@ store_direct_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($2, ST_RAM_ADDR))
+                if (chk_identifier($2, ST_ID|ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no destination reg nor ALU opcode
                     GenDirectCode(DIRECT_STORE_OPCODE, 0, 0, srcReg, VALUE($2));

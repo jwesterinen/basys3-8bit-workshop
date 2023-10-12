@@ -41,13 +41,11 @@
 ;       Gt(){c |= 0x0010;}
 ;       Cc(){c |= 0x0020;}
 ;       Cs(){c |= 0x0040;}
+;
+;   The test passes if the least significant 7 LEDs are turned on.
 
-#include "../system16.asm"
-
-Begin:
-    mov     sp,@0x0fff
-    bra     Main
-    
+#include "../stdlib/system16.asm"
+#include "../stdlib/sys.asm"
 
 ; subroutines IP relative negative
     

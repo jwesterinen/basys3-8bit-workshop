@@ -12,12 +12,12 @@
 ;    - pop
 ;    - rts
 
-#include "../system16.h"
+#include "../stdlib/system16.asm"
+#include "../stdlib/sys.asm"
 
-; call a subroutine that will perform RPN calculations. This should display 4.
-Begin:
-    mov     sp,@0x0fff          ; setup the stack
+; call a subroutine that will perform RPN calculations. The test passes if "45" is displayed.
 
+Main:
     mov     ex,@Calc
     mov     ax,#1               ; jsr reg
     jsr     ex
