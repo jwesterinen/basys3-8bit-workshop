@@ -16,22 +16,6 @@
 ;   Regs used:  ax, bx
 ;
 
-;------------------------------------------------------------------------------
-; test:
-;
-;#include "system16.asm"
-;#include "sys.asm"
-;;#include "display.asm"    ; this must exist in an app
-;
-;Main:
-;    mov     ax,@0xabcd
-;    push    ax
-;    jsr     Display
-;    pop     ax
-;End:
-;    bra     End
-;------------------------------------------------------------------------------
-
 Display:
     mov     bp,sp           ; init the stack frame
     
