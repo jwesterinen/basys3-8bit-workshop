@@ -1,20 +1,27 @@
-; Synthesizer
+;   Synthesizer
 
-; This is a system16 application that implements a synthesizer by writing to the 
-; sound I/O peripheral of the system.  It allows the control of the 2 VCOs and 
-; LFO frequencies, which ocillators will be modulated, and which oscillators 
-; will be mixed into the output signal.  The interface is as follows:
-;   sw[2:0]   controls the frequency of VCO1
-;   sw[5:3]   controls the frequency of VCO2
-;   sw[8:6]   controls the frequency of the LFO
-;   sw[11:9]  controls the modulation selection {noise, VCO2, VCO1}
-;   sw[15:12] controls the mixer: {LFO, noise, VCO2, VCO1}
-; Note that the noise frequency and LFO depth are hard coded.
+;   This is a system16 application that implements a synthesizer by writing to the 
+;   sound I/O peripheral of the system.  It allows the control of the 2 VCOs and 
+;   LFO frequencies, which ocillators will be modulated, and which oscillators 
+;   will be mixed into the output signal.  The interface is as follows:
+;     sw[2:0]   controls the frequency of VCO1
+;     sw[5:3]   controls the frequency of VCO2
+;     sw[8:6]   controls the frequency of the LFO
+;     sw[11:9]  controls the modulation selection {noise, VCO2, VCO1}
+;     sw[15:12] controls the mixer: {LFO, noise, VCO2, VCO1}
+;   Note that the noise frequency and LFO depth are hard coded.
 ;
-; The values of each selectable frequency is shown on the display, as follows:
-; VCO1 is on display 4, VC02 is on display 3, LFO freq is on display 2,
-; LFO selection is on display 1, and the mixer selection is shown on the 
-; high nibble of the LEDs.
+;   The values of each selectable frequency is shown on the display, as follows:
+;   VCO1 is on display 4, VC02 is on display 3, LFO freq is on display 2,
+;   LFO selection is on display 1, and the mixer selection is shown on the 
+;   high nibble of the LEDs.
+;
+;   Some cool patches are:
+;     1011-3464
+;     0011-3464
+;     0001-3464
+;     0011-3765
+;     0011-1465
 
 #include "../stdlib/system16.asm"
 #include "../stdlib/sys.asm"

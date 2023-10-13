@@ -11,11 +11,12 @@
 ;    - push
 ;    - pop
 ;    - rts
+;   Call a subroutine that will perform RPN calculations. 
+;   The test passes if "45" is displayed.
 
 #include "../stdlib/system16.asm"
 #include "../stdlib/sys.asm"
 
-; call a subroutine that will perform RPN calculations. The test passes if "45" is displayed.
 
 Main:
     mov     ex,@Calc

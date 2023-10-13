@@ -43,7 +43,7 @@ module basic_io_16(
     reg display_ctrl = 0;
     
     // display patterns
-    reg [7:0] display_pats[0:17];
+    reg [7:0] display_pats[0:31];
         
     // TODO: complete this        
     initial begin
@@ -65,6 +65,7 @@ module basic_io_16(
         display_pats[18'h00f] <= 7'b0001110;    // 'f'
         display_pats[18'h010] <= 7'b1111111;    // blank
         display_pats[18'h011] <= 7'b0111111;    // '-'
+        display_pats[18'h012] <= 7'b1100001;    // 'J'
 
         display_buf[0] <= 18'h010;
         display_buf[1] <= 18'h010;
@@ -94,6 +95,7 @@ module basic_io_16(
     assign data_out = 
         (addr == {BASE_ADDR[15:8],8'h00}) ? sw                    :    // switches
         (addr == {BASE_ADDR[15:8],8'h02}) ? {11'b00000000000,btn} :    // buttons
+        (addr == {BASE_ADDR[15:8],8'h10}) ? led_buf               :    // LED buffer to read back what was written
         0;
 
     // LEDs

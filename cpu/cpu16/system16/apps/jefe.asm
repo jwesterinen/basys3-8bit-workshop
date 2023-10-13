@@ -1,7 +1,7 @@
 ;   hello_world_hw
 ;
-;   This app displays "JEFE" and shows a bouncing LED going from one end of the
-;   LEDs to the other.
+;   This app shows a bouncing LED going from one end of the LEDs to
+;   the other at a speed chosen with the switches.
 
 #include "../stdlib/system16.asm"
 #include "../stdlib/sys.asm"
@@ -13,26 +13,23 @@ Main:
     push    ax
     jsr     Display
     pop     ax
-    mov     ax,@18          ; 'J'
-    mov     DISPLAY1_REG,ax
-
+    mov     ax,@0x0012
+    mov     DISPLAY1_REG,ax ; ('J')
+    
     mov     cx,@0xffff      ; init to moving right
     mov     ax,@0x0001      ; init LED value
 
 Loop:    
     mov     LED_REG,ax      ; set the current LED value
 
-Delay:                      ; delay 16mSec
-    mov     ax,@16
+Delay:
+    mov     ax,@16          ; delay 16 mSec
     push    ax
-    jsr     Display
-    ;pop     ax
-    ;push    ax
     jsr     DelayMs
     pop     ax
 
-CheckEndCases:              ; if (value == 0x8000 || value == 0x0001) change direction
-    mov     ax,LED_REG
+CheckEndCases:
+    mov     ax,LED_REG      ; if (value == 0x8000 || value == 0x0001) change direction
     mov     bx,ax
     sub     bx,@0x8000
     bz      ChangeDir
