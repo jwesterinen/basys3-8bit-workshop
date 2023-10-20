@@ -7,8 +7,9 @@
 
 Unop:
     inc     ax,bx               ; try to perform a unary operation on 2 operands
+    zero    ax
 
-    or      ax                  ; try to perform a binary operation on a single operand
+    or      ax                  ; these don't fail in this test but will fail standalone
     and     ax
     xor     ax
     mov     ax
@@ -51,14 +52,15 @@ Immed8:
         
 Immed16:
     inc     ax,@1234
-    zero    ax
     or      ax,@65536
-    or      ax,@TooBigFor16bits
-    mov     ax,@TooBigFor16bits
-    or      ax,TooBigFor16bits
-    mov     ax,TooBigFor16bits
-    mov     TooBigFor16bits,ax
-    mov     ax,@UndefinedLabel
+    or      ax,@0x12345
+    mov     ax,@0x12345
+    or      ax,0x12345
+    mov     ax,0x12345
+    mov     0x12345,ax
+    mov     ax,@UndefinedId     ; this doesn't fail in this test but will fail standalone
+    mov     ax,UndefinedId
+    mov     UndefinedId,ax
 
 IpRel:
     bra     UndefinedBranchTarget

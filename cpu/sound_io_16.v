@@ -18,15 +18,15 @@
  */
  
 module sound_io_16(
-    input clk,              // system clock
-    input reset,            // active-high reset
-    input [15:0] addr,      // register address
-    input [15:0] data_in,   // data input
-    output [15:0] data_out, // data input
-    input we,               // write enable
-    output signal_out       // sound output
+    input clk,                  // system clock
+    input reset,                // active-high reset
+    input [15:0] addr,          // register address
+    input [15:0] data_in,       // data input
+    output [15:0] data_out,     // data input
+    input we,                   // write enable
+    output signal_out           // sound output
 );
-	parameter BASE_ADDR = 1000; // base address for registers
+	parameter BASE_ADDR = 0;    // base address for registers
 	
     // input buffers
     reg [11:0] vco1_freq;   // VCO frequency (12 bits)

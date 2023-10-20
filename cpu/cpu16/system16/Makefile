@@ -3,7 +3,7 @@
 PROJ = system16
 
 PROJ_SOURCES = $(SRC_DIR)/../cpu16.v $(COMMON_DIR)/rom_sync.v $(COMMON_DIR)/ram_sync.v $(COMMON_DIR)/basic_io_16.v $(COMMON_DIR)/sound_io_16.v $(SRC_DIR)/rom.bin \
-               $(VGA_DIR)/sound_generator/SN76477.v $(VGA_DIR)/sound_generator/lfsr.v
+               $(VGA_DIR)/sound_generator/SN76477.v $(VGA_DIR)/sound_generator/lfsr.v $(COMMON_DIR)/keypad_io_16.v $(COMMON_DIR)/PmodKYPD.v
 
 PROJ_XDC_FILE = $(SRC_DIR)/$(PROJ).xdc
 

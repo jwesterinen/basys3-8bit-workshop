@@ -116,26 +116,24 @@ int s_define(struct Symbol *label, int type, unsigned value)
 
 int chk_identifier(struct Symbol *symbol, int type)
 {
-    if (!(symbol->s_type & type))
+    if ((symbol->s_type & type) == 0)
     {
         switch(type)
         {
-            case ST_UNDEF:
-                error("%s is undefined\n", symbol->s_name); 
-                break;
             case ST_ID: 
-                error("%s has not been defined as an ID\n", symbol->s_name); 
+                error("%s has not been defined as an ID", symbol->s_name); 
                 break;
             case ST_LABEL: 
-                error("%s has not been defined as a label\n", symbol->s_name); 
+                error("%s has not been defined as a label", symbol->s_name); 
                 break;
             case ST_ZPRAM_ADDR: 
-                error("%s has not been defined as a zero page RAM offset\n", symbol->s_name); 
+                error("%s has not been defined as a zero page RAM offset", symbol->s_name); 
                 break;
             case ST_RAM_ADDR: 
-                error("%s has not been defined as a RAM address\n", symbol->s_name); 
+                error("%s has not been defined as a RAM address", symbol->s_name); 
                 break;
             default:
+                error("%s is undefined", symbol->s_name); 
                 break;
         }
         return 0;

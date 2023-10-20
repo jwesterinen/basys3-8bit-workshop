@@ -18,19 +18,19 @@
  */
  
 module basic_io_16(
-    input  clk,             // system clock
-    input [15:0] addr,      // register addresses
-    input [15:0] data_in,   // data input
-    output [15:0] data_out, // data output
-    input we,               // write enable
-    input [15:0] sw,        // switches
-    input [4:0] btn,        // buttons
-    output [15:0] led,      // LEDs
-    output [6:0] seg,       // display segments
-    output dp,              // display decimal point
-    output [3:0] an         // display select
+    input  clk,                 // system clock
+    input [15:0] addr,          // register addresses
+    input [15:0] data_in,       // data input
+    output [15:0] data_out,     // data output
+    input we,                   // write enable
+    input [15:0] sw,            // switches
+    input [4:0] btn,            // buttons
+    output [15:0] led,          // LEDs
+    output [6:0] seg,           // display segments
+    output dp,                  // display decimal point
+    output [3:0] an             // display select
 );
-	parameter BASE_ADDR = 1000; // base address for registers
+	parameter BASE_ADDR = 0;    // base address for registers
 	
     // input buffers
     reg [15:0] sw_buf;

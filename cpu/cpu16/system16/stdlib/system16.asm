@@ -21,4 +21,6 @@
 .define MOD_SEL_REG         0x3004      ; {0.., noise, VCO2, VCO1}
 .define MIXER_SEL_REG       0x3006      ; {0.., LFO, noise, VCO2, VCO1}
 
+; keypad register
+.define KEYPAD_REG          0x4000
 

@@ -24,6 +24,7 @@
  *          0x3005: LFO modulation depth
  *          0x3004: modulation select: {0.., noise, VCO2, VCO1}
  *          0x3006: mixer: {0.., LFO, noise, VCO2, VCO1}
+ *      0x4000: keypad data reg
  *      0xf000-0xffff: ROM
  *
  */
@@ -36,6 +37,8 @@
  `include "../../sound_io_16.v"
  `include "../../../vga25Mhz/sound_generator/SN76477.v"
  `include "../../../vga25Mhz/sound_generator/lfsr.v"
+ `include "../../keypad_io_16.v"
+ `include "../../PmodKYPD.v"
  `include "../cpu16.v"
 `endif
  
@@ -47,7 +50,8 @@
     output [6:0] seg,   // display segments
     output dp,          // decimal point
     output [3:0] an,    // display anode
-    output JA7          // Pmod Audio left input (IL)
+    output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
+	inout [7:0] JB      // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
  );
     
     // for now just stub these
@@ -63,13 +67,15 @@
     wire [15:0] ram_dout;
     wire [15:0] basic_io_dout;
     wire [15:0] sound_io_dout;
+    wire [15:0] keypad_io_dout;
+    
+    reg system_clk;
     
     initial begin
         system_clk = 0;
     end
     
     // clocks - memory (100MHz) is clocked 2x the system clock (50MHz)
-    reg system_clk;
     wire mem_clk;
     assign mem_clk = clk;
     always @(posedge mem_clk)
@@ -81,12 +87,14 @@
     CPU16 #(.RAM_WAIT(0)) cpu(system_clk, btn[0], hold, busy, cpu_addr, cpu_din, cpu_dout, we);
     basic_io_16 #(.BASE_ADDR(16'h2000)) io(system_clk, cpu_addr, cpu_dout, basic_io_dout, we, sw, btn, led, seg, dp, an);
     sound_io_16 #(.BASE_ADDR(16'h3000)) sndgen(system_clk, btn[0], cpu_addr, cpu_dout, sound_io_dout, we, JA7);
+	keypad_io_16 #(.BASE_ADDR(16'h4000)) keypad(system_clk, cpu_addr, JB[7:4], JB[3:0], keypad_io_dout);
 
     // memory data source selection
-    assign cpu_din = (cpu_addr[15:12] == 4'b0000) ? ram_dout        :   // 0x0???
-                     (cpu_addr[15:12] == 4'b0010) ? basic_io_dout   :   // 0x20??
-                     (cpu_addr[15:12] == 4'b0011) ? sound_io_dout   :   // 0x30??
-                     (cpu_addr[15:12] == 4'b1111) ? rom_dout        :   // 0xf000
+    assign cpu_din = (cpu_addr[15:12] ==  4'b0000) ? ram_dout        :   // 0x0???
+                     (cpu_addr[15:12] ==  4'b0010) ? basic_io_dout   :   // 0x20??
+                     (cpu_addr[15:12] ==  4'b0011) ? sound_io_dout   :   // 0x30??
+                     (cpu_addr        == 16'h4000) ? keypad_io_dout  :   // 0x4000
+                     (cpu_addr[15:12] ==  4'b1111) ? rom_dout        :   // 0xf???
                      0;
     
 endmodule
