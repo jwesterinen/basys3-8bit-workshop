@@ -69,40 +69,40 @@ TestEq:
     mov     ax,#1        
     mov     bx,ax    
     sub     ax,bx               ; set the CCs
-    bzs     Eq                  ; if (a == b) Eq();
+    bsz     Eq                  ; if (a == b) Eq();
     
 TestNe: 
     mov     ax,#1   
     mov     bx,#2    
     sub     ax,bx               ; set the CCs
-    bnzs    Ne                  ; if (a != b) Ne();
+    bsnz    Ne                  ; if (a != b) Ne();
 
 TestLt:
     mov     ax,#1    
     sub     ax,bx               ; set the CCs
-    bmis    Lt                  ; if (a < b) Lt();
+    bsmi    Lt                  ; if (a < b) Lt();
 
 TestGe:    
     mov     ax,#2
     sub     ax,bx               ; set the CCs
-    bpls    Ge                  ; if (a >= b) Ge();
+    bspl    Ge                  ; if (a >= b) Ge();
     
 TestGt:    
     mov     ax,#3    
     sub     ax,bx               ; set the CCs
-    bpls    Gt                  ; if (a > b) Gt();
+    bspl    Gt                  ; if (a > b) Gt();
     
 TestCc:    
     mov     ax,@0xaaaa
     mov     bx,@0x5555
     add     ax,bx               ; set the CCs
-    bccs    Cc                  ; if (carry clear) Cc();
+    bscc    Cc                  ; if (carry clear) Cc();
     
 TestCs:    
     mov     ax,@0xaaaa
     mov     bx,@0x5556
     add     ax,bx               ; set the CCs
-    bcss    Cs                  ; if (carry set) Cs();
+    bscs    Cs                  ; if (carry set) Cs();
 
 Print:    
     mov     LED_REG,cx          ; print c

@@ -19,9 +19,9 @@
 
 
 Main:
-    mov     ex,@Calc
+    mov     dx,@Calc
     mov     ax,#1               ; jsr reg
-    jsr     ex
+    jsr     dx
     mov     DISPLAY1_REG,ax
 
     mov     ax,#2        

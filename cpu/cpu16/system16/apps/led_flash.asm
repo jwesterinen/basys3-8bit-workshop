@@ -1,12 +1,11 @@
-;   hello_world_hw
+;   led_flash.asm
 ;
 ;   This app shows a bouncing LED going from one end of the LEDs to
 ;   the other at a speed chosen with the switches.
 
 #include "../stdlib/system16.asm"
 #include "../stdlib/sys.asm"
-#include "../stdlib/delayms.asm"
-#include "../stdlib/display.asm"
+#include "../stdlib/libasm.asm"
 
 Main:
     mov     cx,@0xffff      ; init to moving right
@@ -50,10 +49,10 @@ L5:
 
 Delay:                      ; delay and display the speed
     push    ax
-    jsr     Display
+    jsr     _Display
     ;pop     ax
     ;push    ax
-    jsr     DelayMs
+    jsr     _DelayMs
     pop     ax
 
 CheckEndCases:              ; if (value == 0x8000 || value == 0x0001) change direction

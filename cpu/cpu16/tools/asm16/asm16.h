@@ -50,7 +50,7 @@ enum regIds
     REG_BX,
     REG_CX,
     REG_DX,
-    REG_EX,
+    REG_EP,
     REG_BP,
     REG_SP,
     REG_IP
@@ -87,7 +87,7 @@ enum AluOpIds
 #define INDEX5_STORE_OPCODE     0b01010
 #define IP_REL_BRANCH_OPCODE    0b10000
 #define IP_REL_CALL_OPCODE      0b10100
-#define REG_CALL_OPCODE          0b01110
+#define REG_CALL_OPCODE         0b01110
 
 // two word instruction opcode definitions
 #define IMMEDIATE16_OPCODE      0b00011

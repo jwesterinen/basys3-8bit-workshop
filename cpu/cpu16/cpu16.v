@@ -117,6 +117,8 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
     localparam S_COMPUTE_ADDR       = 6;
     localparam S_COMPUTE_SUB_ADDR   = 7;
 
+    localparam EP = 4; // eval stack ptr = register 4
+    localparam BP = 5; // base ptr = register 5
     localparam SP = 6; // stack ptr = register 6
     localparam IP = 7; // IP = register 7
 
@@ -197,7 +199,6 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         aluop <= `OP_LOAD_B;
                     end
                     
-                    // TODO: the register should be a "source" register -- this is inconsistent
                     //  00110aaa########	store ZP memory
                     16'b00110???????????: begin
                         address <= {8'b0, data_in[7:0]};
@@ -219,8 +220,12 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         //address <= regs[data_in[2:0]] + 16'($signed(data_in[7:3]));
                         address <= regs[data_in[2:0]] + ((data_in[7]) ? {11'b11111111111, data_in[7:3]} : {11'b00000000000, data_in[7:3]});
                         aluop <= `OP_LOAD_B;
+                        // with SP this is a "pop" so autoincrement the SP -- used for the system stack
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] + 1;
+                        // with EP this is a "pope" so autoincrement the EP -- used for the expression stack
+                        if (data_in[2:0] == EP)
+                            regs[EP] <= regs[EP] + 1;
                     end
                     
                     //  01010aaa#####bbb    store A -> [B+#]
@@ -230,8 +235,12 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         data_out <= regs[data_in[10:8]];
                         write <= 1;
                         state <= S_SELECT;
+                        // with SP this is a "push" so autodecrement the SP -- used for the system stack
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] - 1;
+                        // with EP this is a "pushe" so autodecrement the EP -- used for the expression stack
+                        if (data_in[2:0] == EP)
+                            regs[EP] <= regs[EP] - 1;
                     end
 
                     //  0110000000000aaa    store A -> [imm16] -- direct address store

@@ -27,7 +27,7 @@ other           .
 "bx"                        return BX;
 "cx"                        return CX;
 "dx"                        return DX;
-"ex"                        return EX;
+"ep"                        return EP;
 "bp"                        return BP;
 "sp"                        return SP;
 "ip"                        return IP;
@@ -48,7 +48,9 @@ other           .
 "adc"                       return ADC;
 "sbb"                       return SBB;
 "push"                      return PUSH;
+"pushe"                     return PUSHE;
 "pop"                       return POP;
+"pope"                      return POPE;
 "rts"                       return RTS;
 "jsr"                       return JSR;
 "jmp"                       return JMP;
@@ -59,18 +61,19 @@ other           .
 "bz"                        return BZ;
 "bpl"                       return BPL;
 "bmi"                       return BMI;
-"bras"                      return BRAS;
-"bccs"                      return BCCS;
-"bcss"                      return BCSS;
-"bnzs"                      return BNZS;
-"bzs"                       return BZS;
-"bpls"                      return BPLS;
-"bmis"                      return BMIS;
+"bsr"                       return BSR;
+"bscc"                      return BSCC;
+"bscs"                      return BSCS;
+"bsnz"                      return BSNZ;
+"bsz"                       return BSZ;
+"bspl"                      return BSPL;
+"bsmi"                      return BSMI;
 "reset"                     return RESET;
 ".org"                      return ORIGIN;
 ".define"                   return DEFINITION;
 ".dw"                       return DEFINE_WORD;
 ".dz"                       return DEFINE_ZPWORD;
+".ds"                       return DEFINE_STORAGE;
 
 {letter}{letter_or_digit}*  {
                                 s_lookup(Identifier);

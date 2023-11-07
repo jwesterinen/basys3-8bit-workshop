@@ -1,17 +1,16 @@
-;   hello_world_hw
+;   jefe.asm
 ;
 ;   This app shows a bouncing LED going from one end of the LEDs to
 ;   the other at a speed chosen with the switches.
 
 #include "../stdlib/system16.asm"
 #include "../stdlib/sys.asm"
-#include "../stdlib/delayms.asm"
-#include "../stdlib/display.asm"
+#include "../stdlib/libasm.asm"
 
 Main:
     mov     ax,@0x0efe      ; display "JEFE"
     push    ax
-    jsr     Display
+    jsr     _Display
     pop     ax
     mov     ax,@0x0012
     mov     DISPLAY1_REG,ax ; ('J')
@@ -25,7 +24,7 @@ Loop:
 Delay:
     mov     ax,@16          ; delay 16 mSec
     push    ax
-    jsr     DelayMs
+    jsr     _DelayMs
     pop     ax
 
 CheckEndCases:

@@ -11,7 +11,7 @@ Main:
     mov     ax,SWITCH_REG   ; get the switch value
     mov     LED_REG,ax      ; show the value on the LEDs
     push    ax              ; display the value
-    jsr     Display
+    jsr     _Display
     pop     ax 
     jmp     Main
 

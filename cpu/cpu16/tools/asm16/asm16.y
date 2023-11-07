@@ -39,7 +39,7 @@ unsigned short instr;
 %token BX
 %token CX
 %token DX
-%token EX
+%token EP
 %token BP
 %token SP
 %token IP
@@ -60,7 +60,9 @@ unsigned short instr;
 %token ADC
 %token SBB
 %token PUSH
+%token PUSHE
 %token POP
+%token POPE
 %token RTS
 %token JSR
 %token JMP
@@ -71,18 +73,19 @@ unsigned short instr;
 %token BZ
 %token BPL
 %token BMI
-%token BRAS
-%token BCCS
-%token BCSS
-%token BNZS
-%token BZS
-%token BPLS
-%token BMIS
+%token BSR
+%token BSCC
+%token BSCS
+%token BSNZ
+%token BSZ
+%token BSPL
+%token BSMI
 %token RESET
 %token ORIGIN
 %token DEFINITION
 %token DEFINE_WORD;
 %token DEFINE_ZPWORD;
+%token DEFINE_STORAGE;
 
 %%
 
@@ -113,6 +116,7 @@ command
     | label
     | zp_word_alloc
     | word_alloc
+    | heap_alloc
     | one_word_instr
         {
             cur_addr++;
@@ -164,7 +168,7 @@ zp_word_alloc
         {
             if (asm_pass == 1)
             {
-                if (s_alloc_ram($2, ST_ZPRAM_ADDR))
+                if (s_alloc_ram($2, ST_ZPRAM_ADDR, 1))
                 {
                     if (verbose)
                     {
@@ -179,11 +183,26 @@ word_alloc
         {
             if (asm_pass == 1)
             {
-                if (s_alloc_ram($2, ST_RAM_ADDR))
+                if (s_alloc_ram($2, ST_RAM_ADDR, 1))
                 {
                     if (verbose)
                     {
                         fprintf(stdout, "%s was allocated address 0x%04X\n", NAME($2), VALUE($2));
+                    }
+                }
+            }
+        }
+
+heap_alloc
+    : DEFINE_STORAGE Identifier Immediate
+        {
+            if (asm_pass == 1)
+            {
+                if (s_alloc_ram($2, ST_HEAP_ADDR, $3))
+                {
+                    if (verbose)
+                    {
+                        fprintf(stdout, "%d words were allocated as %s beginning at address 0x%04X\n", $3, NAME($2), VALUE($2));
                     }
                 }
             }
@@ -202,7 +221,9 @@ one_word_instr
     | ip_rel_branch_instr
     | ip_rel_call_instr    	
     | push_instr
+    | push_eval_instr
     | pop_instr
+    | pop_eval_instr
     | rts_instr
     | reg_call_instr
 
@@ -438,6 +459,16 @@ push_instr
             }
         }
     
+push_eval_instr
+    : PUSHE dreg
+        {
+            if (asm_pass == 2)
+            {
+                // use Indexed instruction format with SP as source and no index
+                GenIndexedCode(INDEX5_STORE_OPCODE, destReg, 0, REG_EP);
+            }
+        }
+    
 pop_instr 
     : POP dreg
         {
@@ -446,6 +477,17 @@ pop_instr
                 // use Indexed instruction format with SP as source 
                 // and 1 as index to compensate for the way the stack works
                 GenIndexedCode(INDEX5_LOAD_OPCODE, destReg, 1, REG_SP);
+            }
+        }
+    
+pop_eval_instr 
+    : POPE dreg
+        {
+            if (asm_pass == 2)
+            {
+                // use Indexed instruction format with SP as source 
+                // and 1 as index to compensate for the way the stack works
+                GenIndexedCode(INDEX5_LOAD_OPCODE, destReg, 1, REG_EP);
             }
         }
     
@@ -483,7 +525,7 @@ immediate16_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5, ST_ID))
+                if (chk_identifier($5, ST_ID|ST_LABEL|ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(IMMEDIATE16_OPCODE, destReg, aluop, 0, VALUE($5));
@@ -502,7 +544,7 @@ immediate16_instr
         {
             if (asm_pass == 2)
             {
-                if (chk_identifier($5, ST_ID|ST_LABEL))
+                if (chk_identifier($5, ST_ID|ST_LABEL|ST_RAM_ADDR))
                 {
                     // use the Direct instruction format with no source reg
                     GenDirectCode(IMMEDIATE16_OPCODE, destReg, MOV_ALU_OP, 0, VALUE($5));
@@ -634,20 +676,20 @@ bcond
 
 
 bscond                
-    : BRAS  {brcond = BRCOND_ALLWAYS;} 
-    | BCCS  {brcond = BRCOND_CARRY_CLEAR;} 
-    | BCSS  {brcond = BRCOND_CARRY_SET;} 
-    | BNZS  {brcond = BRCOND_NOT_ZERO;} 
-    | BZS   {brcond = BRCOND_ZERO;} 
-    | BPLS  {brcond = BRCOND_PLUS;} 
-    | BMIS  {brcond = BRCOND_MINUS;} 
+    : BSR   {brcond = BRCOND_ALLWAYS;} 
+    | BSCC  {brcond = BRCOND_CARRY_CLEAR;} 
+    | BSCS  {brcond = BRCOND_CARRY_SET;} 
+    | BSNZ  {brcond = BRCOND_NOT_ZERO;} 
+    | BSZ   {brcond = BRCOND_ZERO;} 
+    | BSPL  {brcond = BRCOND_PLUS;} 
+    | BSMI  {brcond = BRCOND_MINUS;} 
 
 reg                   
     : AX    {regId = REG_AX;}
     | BX    {regId = REG_BX;}
     | CX    {regId = REG_CX;}
     | DX    {regId = REG_DX;}
-    | EX    {regId = REG_EX;}
+    | EP    {regId = REG_EP;}
     | BP    {regId = REG_BP;}
     | SP    {regId = REG_SP;}
     | IP    {regId = REG_IP;}

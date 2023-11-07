@@ -91,10 +91,20 @@ module basic_io_16(
             endcase
     end
 
+    // scale the input clock to ~50Hz (~20mS period)
+    wire switch_clk;
+    prescaler #(.N(20)) ps20(clk, switch_clk);
+    
+    // debounce the buttons and switches
+    always @(posedge switch_clk) begin
+        sw_buf = sw;
+        btn_buf = btn;
+    end
+    
     // local address decoding for reading from IO devices
     assign data_out = 
-        (addr == {BASE_ADDR[15:8],8'h00}) ? sw                    :    // switches
-        (addr == {BASE_ADDR[15:8],8'h02}) ? {11'b00000000000,btn} :    // buttons
+        (addr == {BASE_ADDR[15:8],8'h00}) ? sw_buf                    :    // switches
+        (addr == {BASE_ADDR[15:8],8'h02}) ? {11'b00000000000,btn_buf} :    // buttons
         (addr == {BASE_ADDR[15:8],8'h10}) ? led_buf               :    // LED buffer to read back what was written
         0;
 

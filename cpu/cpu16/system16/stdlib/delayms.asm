@@ -1,11 +1,15 @@
 ;   delayms.asm
 ;
-;   This file contains the Ms delay subroutine.
+;   Subroutine: _DelayMs
 ;
-; void DelayMs(int ms)
-;   Delay the given number of mSec.
+;   Description: This subroutine performs a blocking delay.  It delays the 
+;   number of mSec in AX.
+;
+;   Synopsis: void _DelayMs(int ms)
+;
 ;   Args:
-;     ms: the number of mSec to delay
+;     ax: the number of mSec to delay
+;
 ;   Return: none
 ;
 ;   Stack on entry:
@@ -13,28 +17,32 @@
 ;      |    retaddr
 ;      ->   ms      (SP+2)
 ;
-;   Regs used:  ax, bx
-;
+
+#ifndef DELAY_ASM
+#define DELAY_ASM
 
 .define LOOPS_PER_MS 0x2710
 
-DelayMs:
-    mov     bp,sp               ; init the stack frame
+_DelayMs:
+    mov     bp,sp               ; setup the stack frame
+    push    bx
     
-    mov     ax,[bp+2]           ; load ax with the ms argument
+    mov     ax,[bp+2]           ; load ax with the ms argument    
     
-DelayMs_ms_count_loop:
-    or      ax,@0               ; if (ms_count == 0) return
-    bz      DelayMs_end    
-    dec     ax                  ; dec ms count
+_DelayMs_ms_count_loop:
+    or      ax,@0               ; mS count loop
+    bz      _DelayMs_end    
+    dec     ax
     
-    mov     bx,@LOOPS_PER_MS    ; loop for the number of cycles for one ms
-DelayMs_1_ms_loop:
+    mov     bx,@LOOPS_PER_MS    ; 1mS delay loop
+_DelayMs_1_ms_loop:
     dec     bx
-    bnz     DelayMs_1_ms_loop
+    bnz     _DelayMs_1_ms_loop
     
-    bra     DelayMs_ms_count_loop
+    bra     _DelayMs_ms_count_loop
 
-DelayMs_end:
+_DelayMs_end:
+    pop     bx
     rts    
-    
+
+#endif // DELAY_ASM       

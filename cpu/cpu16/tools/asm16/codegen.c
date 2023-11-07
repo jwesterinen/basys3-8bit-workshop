@@ -19,12 +19,14 @@
  *      3. ZP:              00101 aaa ########                      load            A <- [00000000########]         mov         <reg>,[#<immed8>]           
  *                          00110 aaa ########                      store           [00000000########] <- A         mov         [#<immed8>],<reg>           
  *
- *      4. indexed5:        01001 aaa ##### bbb                     load            A <- [B+#####]                  mov         <dreg>,[<sreg>+<immed5>]    
- *                          01001 aaa 00001 110                     load            A <- [SP+0]                     pop         <reg>
- *                          01001 111 00001 110                     load            IP <- SP                        rts
+ *      4. indexed5:        01001 aaa ##### bbb                     load            A <- [B+#####]                  mov         <dreg>,[<sreg>+#<immed5>]    
  *                          01010 aaa ##### bbb                     store           [B+#####] <- A                  mov         [<dreg>+<immed5>],<sreg>    
  *                          01010 aaa ##### bbb                     store 0 index   [B+0] <- A                      mov         [<dreg>],<sreg>             
  *                          01010 aaa 00000 110                     store 0 index   [SP+0] <- A                     push        <reg>
+ *                          01010 aaa 00000 110                     store 0 index   [EP+0] <- A                     pushe       <reg>
+ *                          01001 aaa 00001 110                     stack           A <- [SP+0]                     pop         <reg>
+ *                          01001 aaa 00001 110                     eval stack      A <- [EP+0]                     pope        <reg>
+ *                          01001 111 00001 110                     subroutine      IP <- SP                        rts
  *
  *      5. call:            01110 111 00 ccc 110                    call            [SP] <- IP, IP <- C             jsr         <reg>                       
  *
@@ -36,7 +38,8 @@
  *                          01000 111 00000 110 ################    call            [SP] <- IP, IP <- <addr16>      jsr         <label>                     
  *
  *      7. IP relative:     1000 tttt ########                      branch          IP <- (IP+########)             <brcond>    <label>                     
- *                          1010 tttt ########	                    call            [B] <- A, IP <- (IP+########)   <bccond>    <label>
+ *                          1010 0000 ########	                    call            [SP] <- IP, IP <- (IP+########) bsr         <label>
+ *                          1010 tttt ########	                    call            [SP] <- IP, IP <- (IP+########) <bscond>    <label>
  *
  *      Possible new instructions:
  *
@@ -55,7 +58,35 @@
  *          #####: 5-bit immediate
  *          ########: 8-bit immediate
  *          ################: 16-bit immediate
- *          tttt: branch condition
+ *          tttt: 
+ *
+ *      Unops:
+ *          - zero  clear
+ *          - loada 
+ *          - inc   increment
+ *          - dec   decrement
+ *          - asl   arithmetic shift left
+ *          - lsr   logical shift right
+ *          - rol   rotate left
+ *          - ror   rotate right
+ *          
+ *      branch condition (brcond):
+ *          - bra    always
+ *          - bcc    carry clear
+ *          - bcs    carry set
+ *          - bnz    not zero - i.e. negative or positive
+ *          - bz     zero
+ *          - bpl    plus - i.e. zero or positive, not negative
+ *          - bmi    minus - i.e. negative, not zero or positive
+ *
+ *      relative subroutine call condition (bscond):
+ *          - bra    always
+ *          - bscc   carry clear
+ *          - bscs   carry set
+ *          - bsnz   not zero - i.e. negative or positive
+ *          - bsz    zero
+ *          - bspl   plus - i.e. zero or positive, not negative
+ *          - bsmi   minus - i.e. negative, not zero or positive
  *
  *      Note: Immediate values can also be defined symbols using the .define directive, e.g. "mov ax,0x1234" is the same instruction as "mov ax,foo" with ".define foo 0x1234"
  */

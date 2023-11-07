@@ -33,7 +33,7 @@ module keypad (
     output reg [4:0] KEYCODE    // returned key code
 );
 
-    // scale the input clock to ~96Hz
+    // scale the input clock to ~96Hz (10mS period)
     wire CLK_96Hz;
     prescaler #(.N(19)) ps2(CLK, CLK_96Hz);
     

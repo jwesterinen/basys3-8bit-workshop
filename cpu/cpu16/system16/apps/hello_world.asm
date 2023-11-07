@@ -14,7 +14,7 @@ Loop:
 
     mov     ax,@1000        ; call DelayMs(500)
     push    ax
-    jsr     DelayMs
+    jsr     _DelayMs
     pop     ax              ; (clean up the stack)
     
 DelayMs_toggle_leds:

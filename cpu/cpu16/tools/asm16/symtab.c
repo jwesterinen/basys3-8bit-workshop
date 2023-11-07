@@ -142,24 +142,36 @@ int chk_identifier(struct Symbol *symbol, int type)
 }
 
 // RAM allocation
-#define FIRST_ZPRAM_ADDR 0x00
-#define MAX_ZPRAM_ADDR 0xff
-#define FIRST_RAM_ADDR 0x0100;
-#define MAX_RAM_ADDR 0x0dff
 
-int s_alloc_ram(struct Symbol *label, int type)
+// FIXME: there is a bug, likely in the sound generator, that corrupts zero page memory locations below 0x0010
+#define FIRST_ZPRAM_ADDR    0x10    // Zero Page indeces are allocated from 0x10 to 0xff
+#define ZPRAM_LENGTH        0x100
+
+#define FIRST_RAM_ADDR      0x0100  // RAM locations are allocated from 0x0100 to 0x07ff
+#define RAM_LENGTH          0x0300
+
+#define FIRST_HEAP_ADDR     0x0400  // heap locations are allocated from 0x0800 to 0x0dff
+#define HEAP_LENGTH         0x0300
+
+// the stack resides in the range 0x0700 - 0x0FFF
+// the "sp" should be initialized to the end of RAM (0x0FFF) - the stack grows downward
+// for the C compiler, the "ep" register should be initialized to point to 1/2 down the stack
+// to create an evaluation stack - the eval stack grows downware
+
+int s_alloc_ram(struct Symbol *symbol, int type, int size)
 {
     static unsigned short nextZPAddr = FIRST_ZPRAM_ADDR;
-    static unsigned short nextAddr = FIRST_RAM_ADDR;
+    static unsigned short nextRamAddr = FIRST_RAM_ADDR;
+    static unsigned short nextHeapAddr = FIRST_HEAP_ADDR;
     int retval = 0;
 
     switch(type)
     {
         case ST_ZPRAM_ADDR:
             // the symbol represents an address which needs to be allocated from ZP RAM
-            if (nextZPAddr < MAX_ZPRAM_ADDR)
+            if (nextZPAddr < FIRST_ZPRAM_ADDR + ZPRAM_LENGTH)
             {
-                if ((retval = s_define(label, ST_ZPRAM_ADDR, nextZPAddr)))
+                if ((retval = s_define(symbol, ST_ZPRAM_ADDR, nextZPAddr)))
                 {
                     nextZPAddr++;
                 }
@@ -171,16 +183,30 @@ int s_alloc_ram(struct Symbol *label, int type)
             break;
         case ST_RAM_ADDR:
             // the symbol represents an address which needs to be allocated from non-ZP RAM
-            if (nextAddr < MAX_RAM_ADDR)
+            if (nextRamAddr < FIRST_RAM_ADDR + RAM_LENGTH)
             {
-                if ((retval = s_define(label, ST_RAM_ADDR, nextAddr)))
+                if ((retval = s_define(symbol, ST_RAM_ADDR, nextRamAddr)))
                 {
-                    nextAddr++;
+                    nextRamAddr++;
                 }
             }
             else
             {
                 error("max number of variables has been reached");
+            } 
+            break;
+        case ST_HEAP_ADDR:
+            // the symbol represents a range of addresses which needs to be allocated from the heap
+            if (nextHeapAddr < FIRST_HEAP_ADDR + HEAP_LENGTH)
+            {
+                if ((retval = s_define(symbol, ST_RAM_ADDR, nextHeapAddr)))
+                {
+                    nextHeapAddr += size;
+                }
+            }
+            else
+            {
+                error("max amount of heap has been reached");
             } 
             break;
     } 
