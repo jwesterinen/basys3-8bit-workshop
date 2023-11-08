@@ -8,7 +8,7 @@
 #ifndef BEEP_ASM
 #define BEEP_ASM
 
-#include "../stdlib/delayms.asm"
+#include <asm16/delayms.asm>
 
 .dz _beep_tone                      ; static beep tone
 .dz _beep_duration                  ; static beep duration

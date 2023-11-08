@@ -8,7 +8,7 @@
 ;    - direct load
 ;    - direct jump
 
-#include "../stdlib/system16.asm"
+#include <asm16/system16.asm>
 
 .dw switchVals              ; 16-bit RAM address
 

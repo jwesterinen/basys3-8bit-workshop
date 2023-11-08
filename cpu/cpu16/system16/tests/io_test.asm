@@ -19,8 +19,8 @@
 
 
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
 
 .dw switchVals                      ; 8-bit ZP offset
 .dz buttonVals                      ; 8-bit ZP offset

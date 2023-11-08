@@ -9,8 +9,8 @@
 
 TARGET = asm16
 
-PREFIX ?= /usr/local
-INST_BIN_DIR = $(PREFIX)/bin
+#PREFIX ?= /usr/local
+#INST_BIN_DIR = $(PREFIX)/bin
 
 #DEFINES = -DYYDEBUG -DTRACE
 #DEFINES = -DTRACE
@@ -22,6 +22,7 @@ HEADERS = error.h symtab.h message.h codegen.h asm16.h
 OBJECTS = main.o error.o symtab.o message.o codegen.o lex.yy.o y.tab.o
 
 all: $(TARGET)
+	make -C stdlib
 
 $(TARGET): lex.yy.c y.tab.c y.tab.h $(OBJECTS)
 	cc $(OBJECTS) $(LIBS) -o $@
@@ -40,9 +41,11 @@ clean:
 
 install:
 	/usr/bin/install -m 755 $(TARGET) $(INST_BIN_DIR)
+	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib install
 
 uninstall:
 	rm -f $(INST_BIN_DIR)/$(TARGET)
+	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib uninstall
 
 .PHONY: clean install uninstall
 	

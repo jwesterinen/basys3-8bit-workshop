@@ -7,7 +7,7 @@
 ;     display(pop());
 ; }
 
-#include "../system16.asm"
+#include <asm16/system16.asm>
 
 Begin:
     mov     sp,@0x0fff

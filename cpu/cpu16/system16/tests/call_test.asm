@@ -44,8 +44,8 @@
 ;
 ;   The test passes if the least significant 7 LEDs are turned on.
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
 
 ; subroutines IP relative negative
     

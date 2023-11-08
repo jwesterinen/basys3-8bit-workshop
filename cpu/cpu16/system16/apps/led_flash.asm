@@ -3,9 +3,9 @@
 ;   This app shows a bouncing LED going from one end of the LEDs to
 ;   the other at a speed chosen with the switches.
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
-#include "../stdlib/libasm.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
+#include <asm16/libasm.asm>
 
 Main:
     mov     cx,@0xffff      ; init to moving right

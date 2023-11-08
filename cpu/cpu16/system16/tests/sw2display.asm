@@ -3,9 +3,9 @@
 ;   This program tests the Display() function.  It shows the switch values on the LEDs and display.
 
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
-#include "../stdlib/display.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
+#include <asm16/display.asm>
 
 Main:
     mov     ax,SWITCH_REG   ; get the switch value

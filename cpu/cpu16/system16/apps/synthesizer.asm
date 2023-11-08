@@ -23,8 +23,8 @@
 ;     0011-3765
 ;     0011-1465
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
 
 Main:
     mov     ax,#90              ; hard code noise = 90

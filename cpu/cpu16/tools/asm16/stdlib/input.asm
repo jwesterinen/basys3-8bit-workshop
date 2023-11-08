@@ -22,7 +22,7 @@
 #ifndef INPUT_ASM
 #define INPUT_ASM
 
-#include "../stdlib/beep.asm"
+#include <asm16/beep.asm>
 
 _ReadKeypad:
     push    bx

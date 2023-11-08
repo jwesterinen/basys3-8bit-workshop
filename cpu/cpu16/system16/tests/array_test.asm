@@ -4,8 +4,8 @@
 ;
 ;   The test passes if "A6" is displayed.
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
 
 .ds array1 20
 .ds array2 20

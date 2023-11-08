@@ -20,10 +20,26 @@
 ;       5. press Add
 ;       6. the value "3579" should be displayed
 ;
+;   Test case 3 -- RPN city
+;       Enter      Display
+;       2           0002
+;       <enter>     0002
+;       3           0003
+;       <enter>     0003
+;       4           0004
+;       <enter>     0004
+;       5           0005
+;       <enter>     0005
+;       6           0006
+;       <enter>     0006
+;       +           000b
+;       +           000F
+;       +           0012
+;       +           0014
 
-#include "../stdlib/system16.asm"
-#include "../stdlib/sys.asm"
-#include "../stdlib/libasm.asm"
+#include <asm16/system16.asm>
+#include <asm16/sys.asm>
+#include <asm16/libasm.asm>
 
 .dz curVal                      ; the current value displayed
 .dz buttonCode                  ; the code of the last button pressed

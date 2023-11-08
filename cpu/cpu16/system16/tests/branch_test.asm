@@ -29,7 +29,7 @@
 ;   The test passes if the least significant 8 LEDs are turned on.
 
 
-#include "../stdlib/system16.asm"
+#include <asm16/system16.asm>
 
 Main:
     zero    cx
