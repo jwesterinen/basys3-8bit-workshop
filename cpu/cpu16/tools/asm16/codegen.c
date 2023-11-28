@@ -43,6 +43,8 @@
  *
  *      Possible new instructions:
  *
+ *                          01010 aaa 0++++ bbb                     store 0 index   [A] <- [A] <op> B               <binop>     [<dreg>],<sreg>   
+ *          
  *      6b. indirect        01111 aaa 0++++ 000 ################    indirect op     A <- A <op> [<addr16>]          <binop>     <reg>,[<addr16>]            
  *                          00010 aaa 00000 000 ################    indirect store  [<addr16>] <- A                 mov         [<addr16>],<reg>
  *

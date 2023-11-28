@@ -1,16 +1,13 @@
 #
 #  Name: Makefile
 # 
-#  Description: This is the Makefile for the asm16 assembler.
+#  Description: This is the Makefile for cc16, the asm16 C compiler.
 #
 #  Copyright:   Copyright (C) 2023 Jeff Westerinen
 #               All rights reserved.
 # 
 
-TARGET = asm16
-
-#PREFIX ?= /usr/local
-#INST_BIN_DIR = $(PREFIX)/bin
+TARGET = cc16
 
 #DEFINES = -DYYDEBUG -DTRACE
 #DEFINES = -DTRACE
@@ -18,8 +15,8 @@ TARGET = asm16
 CFLAGS = -O0 -g -Wall -c
 LIBS = -ll
 
-HEADERS = error.h symtab.h message.h codegen.h asm16.h
-OBJECTS = main.o error.o symtab.o message.o codegen.o lex.yy.o y.tab.o
+HEADERS = error.h symtab.h message.h gen.h gen_cpu16.h
+OBJECTS = main.o error.o symtab.o message.o gen.o gen_cpu16.o lex.yy.o y.tab.o
 
 all: $(TARGET)
 
@@ -40,11 +37,9 @@ clean:
 
 install:
 	/usr/bin/install -m 755 $(TARGET) $(INST_BIN_DIR)
-	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib install
 
 uninstall:
 	rm -f $(INST_BIN_DIR)/$(TARGET)
-	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib uninstall
 
 .PHONY: clean install uninstall
 	

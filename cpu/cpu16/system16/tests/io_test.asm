@@ -22,7 +22,6 @@
 #include <asm16/system16.asm>
 #include <asm16/sys.asm>
 
-.dw switchVals                      ; 8-bit ZP offset
 .dz buttonVals                      ; 8-bit ZP offset
 
 Main:
@@ -36,7 +35,6 @@ Loop:
     mov     bx,@SWITCH_REG
     mov     cx,bx                   ; reg direct op
     mov     ax,[cx]                 ; reg indirect op
-    mov     bx,switchVals
     mov     [bx+5],ax               ; indexed store
     mov     cx,[bx+5]               ; indexed load
     mov     bx,@LED_REG           

@@ -17,7 +17,8 @@ Loop:
     mov     ax,SWITCH_REG   ; direct load
     mov     switchVals,ax   ; direct store to RAM
     zero    bx
-    mov     bx,switchVals   ; direct load from RAM
+    ;mov     bx,switchVals   ; direct load from RAM
+    mov     bx,@0x100
     mov     LED_REG,bx 
     jmp     Loop            ; direct jump
 

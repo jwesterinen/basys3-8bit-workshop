@@ -1,0 +1,205 @@
+
+// begin program
+    @256
+    D=A
+    @SP
+    M=D
+    @0
+    D=A
+    @BP
+    M=D
+    @512
+    D=A
+    @GLB
+    M=D
+    @768
+    D=A
+    @EP
+    M=D
+    @main
+    0;JMP
+
+// entry
+(main)
+    @BP
+    D=M
+    @SP
+    M=M+1
+    A=M
+    M=D
+    @SP
+    D=M
+    @BP
+    M=D
+    @_LP1
+    D=A
+    @SP
+    M=D+M
+
+// load immed
+    @2	// constant
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+
+// load indirect
+    @1	// local a[]
+    D=A
+    @BP
+    A=D+M
+    D=A
+    @SP
+    A=M
+    M=M+D
+    A=M
+    D=M
+    @SP
+    A=M
+    M=D
+
+// pop
+    @SP
+    M=M-1
+
+// load immed
+    @2	// constant
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+
+// load indirect
+    @1	// local a[]
+    D=A
+    @BP
+    A=D+M
+    D=A
+    @SP
+    A=M
+    M=M+D
+    A=M
+    D=M
+    @SP
+    A=M
+    M=D
+
+// store
+    @4	// local x
+    D=A
+    @BP
+    A=D+M
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+    @SP
+    A=M
+    A=A-1
+    D=M
+    @SP
+    M=M-1
+    A=M+1
+    A=M
+    M=D
+
+// pop
+    @SP
+    M=M-1
+
+// load immed
+    @3	// constant
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+
+// load indirect
+    @1	// global b[]
+    D=A
+    @GLB
+    A=M+D
+    D=A
+    @SP
+    A=M
+    M=M+D
+    A=M
+    D=M
+    @SP
+    A=M
+    M=D
+
+// pop
+    @SP
+    M=M-1
+
+// load immed
+    @3	// constant
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+
+// load indirect
+    @1	// global b[]
+    D=A
+    @GLB
+    A=M+D
+    D=A
+    @SP
+    A=M
+    M=M+D
+    A=M
+    D=M
+    @SP
+    A=M
+    M=D
+
+// store
+    @6	// global n
+    D=A
+    @GLB
+    A=M+D
+    D=A
+    @SP
+    M=M+1
+    A=M
+    M=D
+    @SP
+    A=M
+    A=A-1
+    D=M
+    @SP
+    M=M-1
+    A=M+1
+    A=M
+    M=D
+
+// pop
+    @SP
+    M=M-1
+
+// return
+    @BP
+    D=M-1
+    @SP
+    M=D
+    @SP
+    A=M+1
+    D=M
+    @BP
+    M=D
+    @__Exit
+    0;JMP
+_LP1	equ	4
+
+// end program
+(__Exit)
+    @__Exit
+    0;JMP
+

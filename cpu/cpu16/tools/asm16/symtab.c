@@ -155,8 +155,6 @@ int chk_identifier(struct Symbol *symbol, int type)
 
 // the stack resides in the range 0x0700 - 0x0FFF
 // the "sp" should be initialized to the end of RAM (0x0FFF) - the stack grows downward
-// for the C compiler, the "ep" register should be initialized to point to 1/2 down the stack
-// to create an evaluation stack - the eval stack grows downware
 
 int s_alloc_ram(struct Symbol *symbol, int type, int size)
 {
