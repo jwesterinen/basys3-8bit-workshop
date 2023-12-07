@@ -24,7 +24,7 @@
 
 .dz buttonVals                      ; 8-bit ZP offset
 
-Main:
+main:
     ; set display mode to raw
     mov     bx,@DISPLAY_CTRL_REG    ; immed16 op
     mov     ax,#1                   ; immed8 op

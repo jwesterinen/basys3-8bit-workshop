@@ -223,9 +223,6 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         // with SP this is a "pop" so autoincrement the SP -- used for the system stack
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] + 1;
-                        // with EP this is a "pope" so autoincrement the EP -- used for the expression stack
-                        if (data_in[2:0] == EP)
-                            regs[EP] <= regs[EP] + 1;
                     end
                     
                     //  01010aaa#####bbb    store A -> [B+#]
@@ -238,9 +235,6 @@ module CPU16(clk, reset, hold, busy, address, data_in, data_out, write);
                         // with SP this is a "push" so autodecrement the SP -- used for the system stack
                         if (data_in[2:0] == SP)
                             regs[SP] <= regs[SP] - 1;
-                        // with EP this is a "pushe" so autodecrement the EP -- used for the expression stack
-                        if (data_in[2:0] == EP)
-                            regs[EP] <= regs[EP] - 1;
                     end
 
                     //  0110000000000aaa    store A -> [imm16] -- direct address store

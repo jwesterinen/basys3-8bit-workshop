@@ -2,7 +2,7 @@
  *  This tests pre/post inc/dec.  The test passes if the 6 LS LEDs are on.
  */
 
-#include "system16.h"
+#include <system16/system16.h>
 
 int main()
 {

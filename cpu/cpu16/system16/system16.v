@@ -62,7 +62,9 @@
     wire [15:0] cpu_din;
     wire [15:0] cpu_dout;
     wire we;
-    
+
+    wire ram_cs;
+        
     wire [15:0] rom_dout;
     wire [15:0] ram_dout;
     wire [15:0] basic_io_dout;
@@ -83,18 +85,21 @@
         
     // system components
     ROM_sync #(.ADDR_WIDTH(12)) rom4k(mem_clk, cpu_addr[11:0], rom_dout);
-    RAM_sync #(.ADDR_WIDTH(12)) ram4k(mem_clk, cpu_addr[11:0], cpu_dout, ram_dout, we);
+    RAM_sync #(.ADDR_WIDTH(12)) ram4k(mem_clk, cpu_addr[11:0], cpu_dout, ram_cs, ram_dout, we);
     CPU16 #(.RAM_WAIT(0)) cpu(system_clk, btn[0], hold, busy, cpu_addr, cpu_din, cpu_dout, we);
     basic_io_16 #(.BASE_ADDR(16'h2000)) io(system_clk, cpu_addr, cpu_dout, basic_io_dout, we, sw, btn, led, seg, dp, an);
     sound_io_16 #(.BASE_ADDR(16'h3000)) sndgen(system_clk, btn[0], cpu_addr, cpu_dout, sound_io_dout, we, JA7);
 	keypad_io_16 #(.BASE_ADDR(16'h4000)) keypad(system_clk, cpu_addr, JB[7:4], JB[3:0], keypad_io_dout);
 
+    // memory device chip selection
+    assign ram_cs = (cpu_addr[15:12] ==  4'h0) ? 1 : 0; // 0x0???
+    
     // memory data source selection
-    assign cpu_din = (cpu_addr[15:12] ==  4'b0000) ? ram_dout        :   // 0x0???
-                     (cpu_addr[15:12] ==  4'b0010) ? basic_io_dout   :   // 0x20??
-                     (cpu_addr[15:12] ==  4'b0011) ? sound_io_dout   :   // 0x30??
+    assign cpu_din = (cpu_addr[15:12] ==  4'h0)    ? ram_dout        :   // 0x0???
+                     (cpu_addr[15:8]  ==  8'h20)   ? basic_io_dout   :   // 0x20??
+                     (cpu_addr[15:8]  ==  8'h30)   ? sound_io_dout   :   // 0x30??
                      (cpu_addr        == 16'h4000) ? keypad_io_dout  :   // 0x4000
-                     (cpu_addr[15:12] ==  4'b1111) ? rom_dout        :   // 0xf???
+                     (cpu_addr[15:12] ==  4'hf)    ? rom_dout        :   // 0xf???
                      0;
     
 endmodule

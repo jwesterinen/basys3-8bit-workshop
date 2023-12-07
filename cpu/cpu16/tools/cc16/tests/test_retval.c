@@ -1,6 +1,9 @@
-main()
+#include <system16/system16.h>
+
+int main()
 {
-    Printsd(Five());
+    int *pLeds = LED_REG;
+    *pLeds = Five();
 }
 
 int Five()

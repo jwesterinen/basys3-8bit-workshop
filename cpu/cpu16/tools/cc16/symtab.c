@@ -21,7 +21,8 @@ static int blknum = 0;
 
 // offsets
 // FIXME: there is a bug that corrupts low RAM so start past the corruption zone
-int g_offset = 0x10,        // offset in global region
+//int g_offset = 0x10,        // offset in global region
+int g_offset = 0,        // offset in global region
     l_offset = 0,           // offset in local region
     l_max;                  // size of local region
     

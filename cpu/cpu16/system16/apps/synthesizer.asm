@@ -26,7 +26,9 @@
 #include <asm16/system16.asm>
 #include <asm16/sys.asm>
 
-Main:
+.dz swVal
+
+main:
     mov     ax,#90              ; hard code noise = 90
     mov     NOISE_REG,ax
     
@@ -35,6 +37,7 @@ Main:
     
 Loop:
     mov     ax,SWITCH_REG       ; cache the switches
+    mov     [#swVal],ax
     
     and     ax,@0x0007          ; VCO1 = (sw & 0x0007) << 6
     mov     DISPLAY4_REG,ax     ; display the VCO1 switches on display 4
@@ -46,7 +49,8 @@ Loop:
     asl     ax
     mov     VCO1_REG,ax
 
-    mov     ax,SWITCH_REG       ; VCO2 = ((sw & 0x0038) >> 3) << 6
+    //mov     ax,SWITCH_REG       ; VCO2 = ((sw & 0x0038) >> 3) << 6
+    mov     ax,[#swVal]       ; VCO2 = ((sw & 0x0038) >> 3) << 6
     and     ax,@0x0038
     lsr     ax
     lsr     ax
@@ -60,7 +64,8 @@ Loop:
     asl     ax
     mov     VCO2_REG,ax
 
-    mov     ax,SWITCH_REG       ; LFO = ((sw & 0x01c0) >> 6) << 7
+    //mov     ax,SWITCH_REG       ; LFO = ((sw & 0x01c0) >> 6) << 7
+    mov     ax,[#swVal]       ; LFO = ((sw & 0x01c0) >> 6) << 7
     and     ax,@0x01c0
     lsr     ax
     lsr     ax
@@ -78,7 +83,8 @@ Loop:
     asl     ax
     mov     LFO_REG,ax
     
-    mov     ax,SWITCH_REG       ; modulation = (sw & 0x0e00) >> 9
+    //mov     ax,SWITCH_REG       ; modulation = (sw & 0x0e00) >> 9
+    mov     ax,[#swVal]       ; modulation = (sw & 0x0e00) >> 9
     and     ax,@0x0e00
     lsr     ax
     lsr     ax
@@ -92,7 +98,8 @@ Loop:
     mov     DISPLAY1_REG,ax     ; display the modulation selection switches on display 1
     mov     LFO_MOD_REG,ax
     
-    mov     ax,SWITCH_REG       ; mixer = (sw & 0xf000) >> 12
+    //mov     ax,SWITCH_REG       ; mixer = (sw & 0xf000) >> 12
+    mov     ax,[#swVal]       ; mixer = (sw & 0xf000) >> 12
     and     ax,@0xf000
     mov     LED_REG,ax          ; display the mixer selection switches on the high nibble of the LEDs
     lsr     ax

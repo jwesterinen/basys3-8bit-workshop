@@ -7,7 +7,7 @@
 #include <asm16/sys.asm>
 #include <asm16/display.asm>
 
-Main:
+main:
     mov     ax,SWITCH_REG   ; get the switch value
     mov     LED_REG,ax      ; show the value on the LEDs
     push    ax              ; display the value

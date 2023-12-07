@@ -10,7 +10,7 @@
 .ds array1 20
 .ds array2 20
 
-Main:
+main:
     bsr     Test1
     mov     DISPLAY1_REG,cx     
     bsr     Test2

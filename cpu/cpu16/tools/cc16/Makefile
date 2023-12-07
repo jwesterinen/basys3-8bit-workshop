@@ -9,6 +9,9 @@
 
 TARGET = cc16
 
+#PREFIX ?= /usr/local
+#INST_BIN_DIR = $(PREFIX)/bin
+
 #DEFINES = -DYYDEBUG -DTRACE
 #DEFINES = -DTRACE
 
@@ -37,9 +40,11 @@ clean:
 
 install:
 	/usr/bin/install -m 755 $(TARGET) $(INST_BIN_DIR)
+	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib install
 
 uninstall:
 	rm -f $(INST_BIN_DIR)/$(TARGET)
+	make INST_INCL_DIR=$(INST_INCL_DIR) -C stdlib uninstall
 
 .PHONY: clean install uninstall
 	

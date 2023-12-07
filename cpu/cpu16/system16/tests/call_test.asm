@@ -62,7 +62,7 @@ Lt:
     rts
 
     
-Main:
+main:
     zero    cx
     
 TestEq:

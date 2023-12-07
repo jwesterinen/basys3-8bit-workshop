@@ -1,25 +1,28 @@
-// test arrays
+/*
+ *  This tests local and global array assignments.
+ *  The test passes if:
+ *    - D1 = "1"
+ *    - D2 = "2"
+ *    - D3 = "3"
+ *    - D4 = "4"
+ *    - LEDs ="0000000000001111"
+ */
 
-#include "system16.h"
+#include <system16/system16.h>
 
 int b[5];
 
 int *pD1, *pD2, *pD3, *pD4;
 
-void foo3(int n[])
+void AssignArray(int b[], int n)
 {
-    n[3] = 3;
-}
-
-void foo4(int n[])
-{
-    n[4] = 4;
+    b[n] = n;
 }
 
 void main()
 {
     int a[5];
-    int x;
+    int x, y;
 
     int *pLeds = LED_REG;
     *pLeds = 0;
@@ -40,17 +43,19 @@ void main()
 	    *pLeds = *pLeds | 0x0004;
     *pD2 = b[2];                    // should display 2            
 
-    foo3(a);
-    x = a[3];                       // local array parameter
-    if (x == 3)
+    y = 3;
+    AssignArray(a, y);
+    x = a[y];                       // local array parameter
+    if (x == y)
 	    *pLeds = *pLeds | 0x0002;
-    *pD3 = a[3];                    // should display 3            
+    *pD3 = a[y];                    // should display 3            
 
-    foo4(b); 
-    x = b[4];                       // global array parameter    
-    if (x == 4)
+    y = 4;
+    AssignArray(b, y); 
+    x = b[y];                       // global array parameter    
+    if (x == y)
 	    *pLeds = *pLeds | 0x0001;
-    *pD4 = b[4];                    // should display 4
+    *pD4 = b[y];                    // should display 4
 }
 
 

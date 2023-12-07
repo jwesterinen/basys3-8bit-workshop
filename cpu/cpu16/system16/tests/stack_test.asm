@@ -18,7 +18,7 @@
 #include <asm16/sys.asm>
 
 
-Main:
+main:
     mov     dx,@Calc
     mov     ax,#1               ; jsr reg
     jsr     dx

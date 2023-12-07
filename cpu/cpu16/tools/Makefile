@@ -9,8 +9,8 @@
 
 PREFIX ?= /usr/local
 INST_BIN_DIR = $(PREFIX)/bin
-INST_LIB_DIR = $(PREFIX)/lib/asm16
-INST_INCL_DIR = $(PREFIX)/include/asm16
+INST_LIB_DIR = $(PREFIX)/lib/system16
+INST_INCL_DIR = $(PREFIX)/include/system16
 
 all:
 	make -C cc16 all
@@ -21,11 +21,11 @@ clean:
 	make -C asm16 clean
 
 install:
-	make INST_BIN_DIR=$(INST_BIN_DIR) -C cc16 install
+	make INST_BIN_DIR=$(INST_BIN_DIR) INST_INCL_DIR=$(INST_INCL_DIR) -C cc16 install
 	make INST_BIN_DIR=$(INST_BIN_DIR) INST_INCL_DIR=$(INST_INCL_DIR) -C asm16 install
 
 uninstall:
-	make INST_BIN_DIR=$(INST_BIN_DIR) -C cc16 uninstall
+	make INST_BIN_DIR=$(INST_BIN_DIR) INST_INCL_DIR=$(INST_INCL_DIR) -C cc16 uninstall
 	make INST_BIN_DIR=$(INST_BIN_DIR) INST_INCL_DIR=$(INST_INCL_DIR) -C asm16 uninstall
 
 .PHONY: clean install uninstall

@@ -31,7 +31,7 @@
 
 #include <asm16/system16.asm>
 
-Main:
+main:
     zero    cx
     
 TestEq:

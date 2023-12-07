@@ -1,4 +1,4 @@
-#include "system16.h"
+#include <system16/system16.h>
 
 int *gptr;          // global pointer
 int a;
