@@ -70,9 +70,13 @@ int is_void_expr = 0;
 %token  TE
 %token  DE
 %token  RE
+%token  AE
+%token  OE
 %token  PP
 %token  MM
 %token  ','
+
+// TODO: add <<, >>, and %
 
 /*
  *	typed non-terminal symbols
@@ -86,7 +90,7 @@ int is_void_expr = 0;
  *	precedence table
  */
 
-%right	'=' PE ME TE DE RE
+%right	'=' PE ME TE DE RE AE OE
 %left   LOR
 %left   LAND
 %left   OR
@@ -644,6 +648,26 @@ binary
 	  binary
 	    { 
 	        gen_alu(ALU_MOD, "%");
+	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
+	    }
+	| Identifier AE
+	    { 
+	        chk_var($1); 
+	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
+	    }
+	  binary
+	    { 
+	        gen_alu(ALU_AND, "&");
+	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
+	    }
+	| Identifier OE
+	    { 
+	        chk_var($1); 
+	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
+	    }
+	  binary
+	    { 
+	        gen_alu(ALU_OR, "|");
 	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
 	    }
 

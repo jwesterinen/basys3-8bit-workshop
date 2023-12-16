@@ -8,7 +8,7 @@
 # 
 
 
-SYS_ASM_FILES = multiply.asm divide.asm beep.asm delayms.asm display.asm expr_stack.asm input.asm sys.asm
+SYS_ASM_FILES = multiply.asm divide.asm beep.asm delayms.asm display.asm read_button.asm read_keypad.asm append_key_value.asm read_switches.asm show_leds.asm sys.asm
 HEADER = libasm.asm
 DEFS = system16.asm
 

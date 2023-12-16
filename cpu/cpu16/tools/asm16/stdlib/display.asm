@@ -1,6 +1,8 @@
 ;   display.asm
 ;
-;   This function displays a 16-bit value in hex.
+;   Subroutine: _Display
+;
+;   Description: This subroutine displays a 16-bit value in hex on the four 7-segment displays
 ;
 ;   Synopsis: void _Display(int value);
 ;
@@ -14,18 +16,18 @@
 ;          retaddr
 ;          value      (SP+2)
 ;
-;   Regs used:  ax, bx
-;
 
 #ifndef DISPLAY_ASM
 #define DISPLAY_ASM
+
+#define VALUE [bp+3]
 
 _Display:
     push    bp              ; setup the stack frame
     mov     bp,sp
     push    bx
     
-    mov     ax,[bp+3]       ; display high nibble in display1
+    mov     ax,VALUE        ; display high nibble in display1
     and     ax,@0xf000
     mov     bx,#12
 _Display_L1:
@@ -34,7 +36,7 @@ _Display_L1:
     bnz     _Display_L1
     mov     DISPLAY1_REG,ax
     
-    mov     ax,[bp+3]       ; display next to highest nibble in display2
+    mov     ax,VALUE        ; display next to highest nibble in display2
     and     ax,@0x0f00
     mov     bx,#8
 _Display_L2:
@@ -43,7 +45,7 @@ _Display_L2:
     bnz     _Display_L2
     mov     DISPLAY2_REG,ax
     
-    mov     ax,[bp+3]       ; display next to lowest nibble in display3
+    mov     ax,VALUE        ; display next to lowest nibble in display3
     and     ax,@0x00f0
     mov     bx,#4
 _Display_L3:
@@ -52,13 +54,13 @@ _Display_L3:
     bnz     _Display_L3
     mov     DISPLAY3_REG,ax
     
-    mov     ax,[bp+3]       ; display lowest nibble in display4
+    mov     ax,VALUE        ; display lowest nibble in display4
     and     ax,@0x000f
     mov     DISPLAY4_REG,ax
     
 _Display_end:
-    pop     bx
-    mov     sp,bp               ; return from the subroutine
+    pop     bx              ; restore stack and return
+    mov     sp,bp
     pop     bp
     rts    
     

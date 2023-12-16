@@ -37,34 +37,44 @@
 ;       +           0012
 ;       +           0014
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
-#include <asm16/libasm.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
+#include <system16/libasm.asm>
 
 .dz curVal                      ; the current value displayed
 .dz buttonCode                  ; the code of the last button pressed
+.ds exprStack 20                ; the expression stack is 20 words long
 
-Main:
+
+main:
     zero    ep                  ; reset the expression stack pointer
-    jsr     _Beep_Init          ; init the beep
     
 Init:
     zero    ax                  ; init current value to "0000"
     mov     [#curVal],ax
-    mov     dx,#1               ; set new entry flag
+    mov     dx,@0xffff          ; set new entry flag to true
     
 MainLoop:
     mov     ax,[#curVal]        ; display the current value
     push    ax
     jsr     _Display
-    pop     ax    
+    ;pop     ax    
 
 CheckKeys:
-    jsr     _AppendKeyValue     ; attempt to modify the current value
-    mov     [#curVal],ax        ; store the modified value
+    ;push    ax                  ; attempt to modify the current value
+    push    dx
+    jsr     _AppendKeyValue
+    pop     dx                  ; clear the args from the stack
+    pop     bx
+    mov     cx,ax               ; new value is in cx and ax
+    mov     bx,[#curVal]        ; current value is in bx
+    sub     cx,bx               ; if the return value is different than the original value 
+    bz      CheckButtons 
+    mov     [#curVal],ax        ; update the new value 
+    zero    dx                  ; and clear the new entry flag
 
-CheckButtons:    
-    jsr     _ReadButton         ; store the next button pressed
+CheckButtons: 
+    jsr     _ReadButton         ; check for a button 
     mov     [#buttonCode],ax
     or      ax,@0
     bz      MainLoop
@@ -108,4 +118,47 @@ Subtract:
     mov     [#curVal],ax        ; set the difference as the current value
     mov     dx,#1               ; set new entry flag
     bra     MainLoop
+
+; push the value in ax onto the expression stack    
+_ExprPush:
+    push    bx
+    inc     ep
+    mov     bx,@exprStack
+    add     bx,ep
+    mov     [bx],ax
+    pop     bx
+    rts
+    
+; pop the top of the expression stack into ax - if EP is 0, return 0    
+_ExprPop:
+    zero    ax
+    or      ep,#0
+    bz      _ExprPop_End
+    push    bx
+    mov     bx,@exprStack
+    add     bx,ep
+    mov     ax,[bx]
+    dec     ep
+    pop     bx
+_ExprPop_End:
+    rts
+    
+; copy the top of the expression stack into ax
+_ExprTop:
+    push    bx
+    mov     bx,@exprStack
+    add     bx,ep
+    mov     ax,[bx]
+    pop     bx
+    rts
+
+; copy ax into the top of the expression stack    
+_ExprPut:
+    push    bx
+    mov     bx,@exprStack
+    add     bx,ep
+    mov     [bx],ax
+    pop     bx
+    rts
+
 

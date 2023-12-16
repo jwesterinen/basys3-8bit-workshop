@@ -1,7 +1,7 @@
 ;   pointer_test.asm
 
-#include <asm16/sys.asm>
-#include <asm16/system16.asm>
+#include <system16/sys.asm>
+#include <system16/system16.asm>
 
 
 main:

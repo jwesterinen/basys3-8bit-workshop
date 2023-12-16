@@ -8,11 +8,13 @@
 #ifndef LIBASM_H
 #define LIBASM_H
 
-//#include <asm16/beep.asm>
-//#include <asm16/delayms.asm>
+int _AppendKeyValue(int value, int newEntry);
+void _DelayMs(int ms);
 void _Display(int value);
-//#include <asm16/expr_stack.asm>
-//#include <asm16/input.asm>
+int _ReadButton();
+int _ReadKeypad();
+int _ReadSwitches();
+void _ShowLeds(int value);
 
 #endif // LIBASM_H
     

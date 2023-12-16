@@ -2,13 +2,12 @@
 ;
 ;   Subroutine: _DelayMs
 ;
-;   Description: This subroutine performs a blocking delay.  It delays the 
-;   number of mSec in AX.
+;   Description: millisecond delay
 ;
 ;   Synopsis: void _DelayMs(int ms)
 ;
 ;   Args:
-;     ax: the number of mSec to delay
+;       ms: the number of mSec to delay
 ;
 ;   Return: none
 ;
@@ -21,28 +20,31 @@
 #ifndef DELAY_ASM
 #define DELAY_ASM
 
+#define MS [bp+3]
+  
 .define LOOPS_PER_MS 0x2710
 
 _DelayMs:
+    push    bp
     mov     bp,sp               ; setup the stack frame
     push    bx
     
-    mov     ax,[bp+2]           ; load ax with the ms argument    
-    
-_DelayMs_ms_count_loop:
-    or      ax,@0               ; mS count loop
+    mov     ax,MS               ; mS count loop
+_DelayMs_msCountLoop:
+    or      ax,@0
     bz      _DelayMs_end    
     dec     ax
     
     mov     bx,@LOOPS_PER_MS    ; 1mS delay loop
-_DelayMs_1_ms_loop:
+_DelayMs_1msDelayLoop:
     dec     bx
-    bnz     _DelayMs_1_ms_loop
-    
-    bra     _DelayMs_ms_count_loop
+    bnz     _DelayMs_1msDelayLoop    
+    bra     _DelayMs_msCountLoop
 
 _DelayMs_end:
-    pop     bx
+    pop     bx                  ; restore stack and return
+    mov     sp,bp
+    pop     bp
     rts    
 
 #endif // DELAY_ASM       

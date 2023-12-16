@@ -9,17 +9,17 @@
 ;        - BTND for display 4
 
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
-#include <asm16/libasm.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
+#include <system16/libasm.asm>
 
 .dz buttonCode                  ; the code of the last button pressed
 
-Main:
+main:
     jsr     _ReadButton         ; store the next button pressed
     mov     [#buttonCode],ax
     or      ax,@0
-    bz      Main
+    bz      main
     
 DecodeButtons:
     sub     ax,#BUTTON_U        ; decode the buttons to write the switch value
@@ -33,26 +33,26 @@ DecodeButtons:
     mov     ax,[#buttonCode]
     sub     ax,#BUTTON_D
     bz      Display4
-    bra     Main
+    bra     main
 
 Display1:
     mov     ax,SWITCH_REG
     mov     DISPLAY1_REG,ax
-    bra     Main
+    bra     main
 
 Display2:
     mov     ax,SWITCH_REG
     mov     DISPLAY2_REG,ax
-    bra     Main
+    bra     main
 
 Display3:
     mov     ax,SWITCH_REG
     mov     DISPLAY3_REG,ax
-    bra     Main
+    bra     main
 
 Display4:
     mov     ax,SWITCH_REG
     mov     DISPLAY4_REG,ax
-    bra     Main
+    bra     main
 
 

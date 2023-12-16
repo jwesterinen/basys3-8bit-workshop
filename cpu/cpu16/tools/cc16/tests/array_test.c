@@ -1,5 +1,6 @@
 /*
- *  This tests local and global array assignments.
+ *  Tests local and global array assignments.
+ *
  *  The test passes if:
  *    - D1 = "1"
  *    - D2 = "2"

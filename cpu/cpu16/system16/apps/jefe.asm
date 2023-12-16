@@ -3,11 +3,11 @@
 ;   This app shows a bouncing LED going from one end of the LEDs to
 ;   the other at a speed chosen with the switches.
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
-#include <asm16/libasm.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
+#include <system16/libasm.asm>
 
-Main:
+main:
     mov     ax,@0x0efe      ; display "JEFE"
     push    ax
     jsr     _Display

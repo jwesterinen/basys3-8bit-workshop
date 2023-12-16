@@ -23,8 +23,8 @@
 ;     0011-3765
 ;     0011-1465
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
 
 .dz swVal
 

@@ -63,77 +63,76 @@ void GenAlu(const char *mod, const char *comment)
     
 	if (!strcmp(mod, "+") || !strcmp(mod, "-") || !strcmp(mod, "&") || !strcmp(mod, "|") || !strcmp(mod, "&&") || !strcmp(mod, "||") || !strcmp(mod, "^"))
 	{
-		fprintf(yyout, "    pop    bx\n");          // pop y
-		fprintf(yyout, "    pop    ax\n");          // pop x
+		fprintf(yyout, "    pop    bx\n");                      // pop x and y
+		fprintf(yyout, "    pop    ax\n");
 		if (!strcmp(mod, "+"))
 		{
-			fprintf(yyout, "    add    ax,bx\n");   // TOS = x + y
+			fprintf(yyout, "    add    ax,bx\n");               // x + y
 		}
 		else if (!strcmp(mod, "-"))
 		{
-			fprintf(yyout, "    sub    ax,bx\n");   // TOS = x - y
+			fprintf(yyout, "    sub    ax,bx\n");               // x - y
 		}
-		else if (!strcmp(mod, "&") || !strcmp(mod, "&&"))
+		else if (!strcmp(mod, "&"))
 		{
-			fprintf(yyout, "    and    ax,bx\n");   // TOS = x & y
+			fprintf(yyout, "    and    ax,bx\n");               // x & y
 		}
-		else if (!strcmp(mod, "|") || !strcmp(mod, "||"))
+		else if (!strcmp(mod, "&&"))
 		{
-			fprintf(yyout, "    or     ax,bx\n");    // TOS = x | y
+			fprintf(yyout, "    zero   cx\n");                  // assume result is false
+			fprintf(yyout, "    or     ax,#0\n");               // if ax is false exit
+		    fprintf(yyout, "    bz     LT%d\n", ++labelId);
+			fprintf(yyout, "    or     bx,#0\n");               // if bx is false exit
+		    fprintf(yyout, "    bz     LT%d\n", labelId);
+			fprintf(yyout, "    mov    cx,#1\n");               // result is true iff both are true
+		    fprintf(yyout, "LT%d:\n", labelId);
+			fprintf(yyout, "    mov    ax,cx\n");               // load ax with result
+		}
+		else if (!strcmp(mod, "|"))
+		{
+			fprintf(yyout, "    or     ax,bx\n");               // x | y
+		}
+		else if (!strcmp(mod, "||"))
+		{
+			fprintf(yyout, "    zero   cx\n");                  // assume result is false
+			fprintf(yyout, "    or     ax,bx\n");               // result is false iff both are false so exit
+		    fprintf(yyout, "    bz     LT%d\n", ++labelId);
+			fprintf(yyout, "    mov    cx,#1\n");               // otherwise flag true
+		    fprintf(yyout, "LT%d:\n", labelId);
+			fprintf(yyout, "    mov    ax,cx\n");               // load ax with result
 		}
 		else if (!strcmp(mod, "^"))
 		{
-			fprintf(yyout, "    xor    ax,bx\n");    // TOS = x | y
+			fprintf(yyout, "    xor    ax,bx\n");               // x ^ y
 		}
-		fprintf(yyout, "    push    ax\n");         // push x
+		fprintf(yyout, "    push    ax\n");                     // push the result
 	}
 
 	else if (!strcmp(mod, "*") || !strcmp(mod, "/"))
 	{
 	    // these are well-known functions that reside in the stdlib and must be called
 	    // the same way the parser would do so
+	    // NOTE: add any other non-intrinsic operator functions here the same way, e.g. mod (%)
 		if (!strcmp(mod, "*"))
 		{
-		    /*
-		    struct Symtab *symbol = s_find("_Multiply");
-		    if (symbol == NULL)
-		    {
-                fprintf(stderr, "Error: undefined function \"_Multiply\" - exiting...\n");
-                exit(1);
-            }
-            gen_call(symbol, 2);    // TOS = x * y
-            */
-            GenCall("_Multiply");                                   // TOS = x * y
-            GenPop(OP_POP_ARG, "discard argument");                 // adjust the stack
-            GenPop(OP_POP_ARG, "discard argument");
-            GenDirect(OP_LOAD, MOD_FCT, 0, "function retval");      // load the return value
+            GenCall("_Multiply");                               // TOS = x * y
 		}
 		else if (!strcmp(mod, "/"))
 		{
-		    /*
-		    struct Symtab *symbol = s_find("_Divide");
-		    if (symbol == NULL)
-		    {
-                fprintf(stderr, "Error: undefined function \"_Divide\" - exiting...\n");
-                exit(1);
-            }
-            gen_call(symbol, 2);    // TOS = x / y
-            */
-            GenCall("_Divide");                                     // TOS = x * y
-            GenPop(OP_POP_ARG, "discard argument");                 // adjust the stack
-            GenPop(OP_POP_ARG, "discard argument");
-            GenDirect(OP_LOAD, MOD_FCT, 0, "function retval");      // load the return value
+            GenCall("_Divide");                                 // TOS = x / y
 		}
+        GenPop(OP_POP_ARG, "discard argument");                 // adjust the stack
+        GenPop(OP_POP_ARG, "discard argument");
+        GenDirect(OP_LOAD, MOD_FCT, 0, "function retval");      // load the return value
     }
 	else if (!strcmp(mod, "!"))
 	{
 	    // replace TOS with its logical inverse
-        // FIXME: asm16 can't deal with negative numbers
-		fprintf(yyout, "    mov     bx,@0xffff\n");             // check for TOS==0, if so set TOS=-1, else TOS=0
+		fprintf(yyout, "    mov     bx,#1\n");                  // assume result is true
 		fprintf(yyout, "    pop     ax\n");                     // check for 0 (x ^ 0 = 0 iff x is 0)
-		fprintf(yyout, "    xor     ax,@0\n");
+		fprintf(yyout, "    xor     ax,#0\n");
 		fprintf(yyout, "    bz      LT%d\n", ++labelId);        // if x is not 0 make it 0
-		fprintf(yyout, "    zero    bx\n");
+		fprintf(yyout, "    zero    bx\n");             
 		fprintf(yyout, "LT%d:\n", labelId);
         fprintf(yyout, "    mov     ax,bx\n");
         fprintf(yyout, "    push    ax\n");
@@ -141,8 +140,7 @@ void GenAlu(const char *mod, const char *comment)
 	else if (!strcmp(mod, "~"))
 	{
 	    // replace TOS with its bitwise inverse
-        fprintf(yyout, "    pop     ax\n");                     // ~x := x ^ -1
-        // FIXME: asm16 can't deal with negative numbers
+        fprintf(yyout, "    pop     ax\n");                     // ~x := x ^ 0xffff
         fprintf(yyout, "    xor     ax,@0xffff\n");
         fprintf(yyout, "    push    ax\n");
 	}
@@ -158,7 +156,7 @@ void GenAlu(const char *mod, const char *comment)
 	else if (!strcmp(mod, "==") || !strcmp(mod, "!=") || !strcmp(mod, ">") || !strcmp(mod, ">=") || 
 	         !strcmp(mod, "<") || !strcmp(mod, "<="))
 	{
-		fprintf(yyout, "    mov     cx,@0xffff\n");             // assume result is true
+		fprintf(yyout, "    mov     cx,#1\n");                  // assume result is true
 		fprintf(yyout, "    pop     bx\n");                     // pop y
 		fprintf(yyout, "    pop     ax\n");                     // pop x
 		fprintf(yyout, "    sub     ax,bx\n");                  // make the logical comparison (x-y)
@@ -189,7 +187,7 @@ void GenAlu(const char *mod, const char *comment)
 		    fprintf(yyout, "    bmi     LT%d\n", ++labelId);    // x < y || x == y
 		    fprintf(yyout, "    bz      LT%d\n", labelId);
 		}
-		fprintf(yyout, "    mov     cx,@0\n");                  // truth is disproven so make result false
+		fprintf(yyout, "    zero    cx\n");                  // truth is disproven so make result false
 		fprintf(yyout, "LT%d:\n", labelId);
         fprintf(yyout, "    push    cx\n");
 	}
@@ -213,7 +211,7 @@ static void GenAccessVar(const char *vartype, int offset, const char *globalName
     if (!strcmp(vartype, "gbl"))
     {
         // globals reside in lowest memory at offset from zero
-        // TODO: once this works in general change to ZP addressing mode
+        // TODO: once this works in general change to "indexed5" addressing mode
         fprintf(yyout, "    mov     bx,@0x%02x\t; global %s\n", offset, globalName); // simply use offset (from 0x0000 in RAM)
     }
     else if (!strcmp(vartype, "par"))
@@ -395,8 +393,8 @@ void GenPointer(const char *op, const char *vartype, int offset, const char *glo
     {
         fprintf(yyout, "\n; store pointer\n");
 
-        fprintf(yyout, "    pop     ax\n");              // both the value and the pointer were pushed so pop the value then
-        fprintf(yyout, "    pop     bx\n");              // pop the pointer and move the value indirectly thru the pointer
+        fprintf(yyout, "    pop     ax\n");                 // both the value and the pointer were pushed so pop the value then
+        fprintf(yyout, "    pop     bx\n");                 // pop the pointer and move the value indirectly thru the pointer
         fprintf(yyout, "    mov     [bx],ax\n");
     }
 }
@@ -441,6 +439,9 @@ void GenReturn(const char *op, const char *comment)
         
         if (!strcmp(curFctName, "main"))
         {
+            // this is unnecessary but included to easily ensure that the stack is cleaned up by the end of main
+            fprintf(yyout, "    mov     sp,bp\n");      // move BP to SP to remove local vars
+            fprintf(yyout, "    pop     bp\n");         // restore old BP
             fprintf(yyout, "    jmp    __Exit\n");      // for main() jump to the end of the program -- essentially "exit"
         }
         else
@@ -459,7 +460,7 @@ void GenJump(const char *op, const char *label, const char *comment)
         fprintf(yyout, "\n; jumpz\t%s\n", comment);
         
         fprintf(yyout, "    pop     ax\n");             // pop the logical value and jump if it's a false, i.e. zero
-        fprintf(yyout, "    or      ax,@0\n");
+        fprintf(yyout, "    or      ax,#0\n");
         fprintf(yyout, "    bz      %s\n", label);
     }
     else

@@ -1,3 +1,12 @@
+/*
+ *  Pointer test
+ *
+ *  Test passes if:
+ *      - D1 = 7
+ *      - D2 = 3
+ *      - D3 = 8
+ */
+
 #include <system16/system16.h>
 
 int *gptr;          // global pointer
@@ -5,6 +14,7 @@ int a;
 
 void main()
 {
+    // TODO: change to use fputb(); when it is fixed
     int *pDisplay1 = DISPLAY1_REG;
     int *pDisplay2 = DISPLAY2_REG;
     int *pDisplay3 = DISPLAY3_REG;

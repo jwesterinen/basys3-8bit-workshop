@@ -14,8 +14,8 @@
 ;   Call a subroutine that will perform RPN calculations. 
 ;   The test passes if "45" is displayed.
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
 
 
 main:

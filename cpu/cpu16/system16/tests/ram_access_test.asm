@@ -8,7 +8,7 @@
 ;   0xffff to indicate the test passed.
 
 
-#include <asm16/system16.asm>
+#include <system16/system16.asm>
 
 Begin:
     mov     ax,@0

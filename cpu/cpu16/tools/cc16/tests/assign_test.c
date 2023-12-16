@@ -1,5 +1,6 @@
 /*
- *  This tests local storing of const, direct, ref, defef, fct.
+ *  Test for local and global loading and storing of const, direct, ref, deref, fct.
+ *
  *  The test passes if:
  *    - D1 = "1"
  *    - D2 = "2"

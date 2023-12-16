@@ -14,6 +14,7 @@ digit           [0-9]
 letter_or_digit [a-zA-Z_0-9]
 hextet          [a-fA-F0-9]
 hex_prefix      0[xX]
+neg             -
 comment_header  ;
 newline         [\n]
 blank           [ \t]
@@ -80,13 +81,13 @@ other           .
                                 return Identifier;
                             }
 
-{digit}+                    {
-                                yylval.y_num = atoi(yytext);
+{neg}?{digit}+              {
+                                yylval.y_num = atoi(yytext) & 0xffff;
                                 return Immediate;
                             }
 
-{hex_prefix}{hextet}+       {
-                                yylval.y_num = strtol(yytext, NULL, 16);
+{neg}?{hex_prefix}{hextet}+ {
+                                yylval.y_num = strtol(yytext, NULL, 16) & 0xffff;
                                 return Immediate;
                             }
                             

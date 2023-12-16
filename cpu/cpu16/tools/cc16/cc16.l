@@ -39,6 +39,8 @@ other           .
 "*="                        return TE;
 "/="                        return DE;
 "%="                        return RE;
+"&="                        return AE;
+"|="                        return OE;
 "++"                        return PP;
 "--"                        return MM;
 "||"                        return OR;

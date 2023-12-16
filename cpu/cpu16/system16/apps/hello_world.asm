@@ -2,11 +2,11 @@
 ;
 ;   This is the canonical HW hello world HW app.  It blinks the LEDs once a second.
 
-#include <asm16/system16.asm>
-#include <asm16/sys.asm>
-#include <asm16/delayms.asm>
+#include <system16/system16.asm>
+#include <system16/sys.asm>
+#include <system16/delayms.asm>
 
-Main:
+main:
     mov     ax,@0xffff      ; init LED value
 
 Loop:    

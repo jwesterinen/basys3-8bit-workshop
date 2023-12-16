@@ -8,7 +8,7 @@
 ;    - direct load
 ;    - direct jump
 
-#include <asm16/system16.asm>
+#include <system16/system16.asm>
 
 .dw switchVals              ; 16-bit RAM address
 
@@ -17,8 +17,7 @@ Loop:
     mov     ax,SWITCH_REG   ; direct load
     mov     switchVals,ax   ; direct store to RAM
     zero    bx
-    ;mov     bx,switchVals   ; direct load from RAM
-    mov     bx,@0x100
+    mov     bx,switchVals   ; direct load from RAM
     mov     LED_REG,bx 
     jmp     Loop            ; direct jump
 
