@@ -10,6 +10,7 @@
 #include <system16/delayms.asm>
 #include <system16/display.asm>
 #include <system16/divide.asm>
+#include <system16/modulo.asm>
 #include <system16/multiply.asm>
 #include <system16/read_button.asm>
 #include <system16/read_keypad.asm>

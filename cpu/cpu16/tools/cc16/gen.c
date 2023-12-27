@@ -14,6 +14,26 @@ extern int objOnly;
 extern int emitVmCode;
 extern int verbose;
 
+// assignment op modifier strings
+char* AluAssignOpStrs[15] =
+{
+    "=",                        // pure assignment
+    "+=",                       // addition and assignment
+    "-=",                       // subtract and assignment
+    "*=",                       // multiplication and assignment
+    "/=",                       // division and assignment
+    "%=",                       // remainder and assignment
+    "<<=",                      // bitwise left shift and assignment
+    ">>=",                      // bitwise right shift and assignment
+    "&=",                       // bitwise and and assignment
+    "|=",                       // bitwise or and assignment
+    "^=",                        // bitwise xor and assignment
+    "++n",                       // pre increment
+    "n++",                       // post increment
+    "--n",                       // pre decrement
+    "n--"                        // post decrement
+};    
+
 static struct Bc_stack
 {
     int bc_label;               // label from new_label

@@ -18,9 +18,9 @@ int *pDisplay4;
 int glbVar;
 int *glbPtr;
 
-int foo()
+int foo(int n)
 {
-    return 0x3;
+    return n;
 }
 
 int main()
@@ -43,7 +43,7 @@ int main()
     b = *glbPtr;                    // global pointer load, local store
     d = &b;                         // local ref load, local store
     e = *d;                         // local pointer load, local store
-    glbVar = foo();                 // fct load, local store
+    glbVar = foo(3);                 // fct load, local store
     f = glbVar;
 
     // display a in D1, b in D2, e in D3, f in D4, d in display

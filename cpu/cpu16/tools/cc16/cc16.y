@@ -65,18 +65,9 @@ int is_void_expr = 0;
 %token  '^'
 %token  '|'
 %token  '='
-%token  PE
-%token  ME
-%token  TE
-%token  DE
-%token  RE
-%token  AE
-%token  OE
-%token  PP
-%token  MM
 %token  ','
-
-// TODO: add <<, >>, and %
+%token  SL;
+%token  SR;
 
 /*
  *	typed non-terminal symbols
@@ -90,7 +81,7 @@ int is_void_expr = 0;
  *	precedence table
  */
 
-%right	'=' PE ME TE DE RE AE OE
+%right	'=' PE ME TE DE RE AE OE SHL SHR
 %left   LOR
 %left   LAND
 %left   OR
@@ -100,6 +91,7 @@ int is_void_expr = 0;
 %left	'&'
 %left	EQ NE
 %left	'<' '>' GE LE
+%left   SL SR
 %left	'+' '-'
 %left	'*' '/' '%'
 %right  '!' '~'
@@ -290,7 +282,6 @@ direct_declarator
         {
             all_var($1, 0, 0);
 	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	        //gen_pr(OP_POP, "clear stack for assignment");
         }
     | Identifier '[' Constant rb
         {
@@ -306,7 +297,6 @@ pointer_declarator
         {
             all_var($2, 0, $1);
 	        gen_direct(OP_STORE, gen_mod($2), OFFSET($2), NAME($2));
-	        //gen_pr(OP_POP, "clear stack pointer assignment");
         }
 
 pointer
@@ -483,26 +473,6 @@ binary
 	        chk_var($2);
 	        gen_pointer(OP_LOAD, gen_mod($2), OFFSET($2), name, 1);
 	    }
-	| PP Identifier
-	    {
-	        chk_var($2);
-	        gen_direct(OP_INC, gen_mod($2), OFFSET($2), NAME($2));
-	    }
-	| MM Identifier
-	    {
-	        chk_var($2);
-	        gen_direct(OP_DEC, gen_mod($2), OFFSET($2), NAME($2));
-	    }
-	| Identifier PP
-	    {
-	        chk_var($1);
-	        gen_direct(OP_POST_INC, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier MM
-	    {
-	        chk_var($1);
-	        gen_direct(OP_POST_DEC, gen_mod($1), OFFSET($1), NAME($1));
-	    }
 	| '!' binary
 	    {
 	        gen_alu(ALU_NOT, "!");
@@ -551,14 +521,6 @@ binary
 	    {
 	        gen_alu(ALU_LE, "<=");
 	    }
-	| binary EQ binary
-	    {
-	        gen_alu(ALU_EQ, "==");
-	    }
-	| binary NE binary
-	    {
-	        gen_alu(ALU_NE, "!=");
-	    }
 	| binary '&' binary
 	    {
 	        gen_alu(ALU_AND, "&");
@@ -570,6 +532,22 @@ binary
 	| binary '^' binary
 	    {
 	        gen_alu(ALU_XOR, "^");
+	    }
+	| binary SL binary
+	    {
+	        gen_alu(ALU_SL, "<<");
+	    }
+	| binary SR binary
+	    {
+	        gen_alu(ALU_SR, ">>");
+	    }
+	| binary EQ binary
+	    {
+	        gen_alu(ALU_EQ, "==");
+	    }
+	| binary NE binary
+	    {
+	        gen_alu(ALU_NE, "!=");
 	    }
 	| binary AND binary
 	    {
@@ -599,76 +577,6 @@ binary
 	        sprintf(name, "*%s",  NAME($1));
 	        chk_var($1); 
 	        gen_pointer(OP_STORE, gen_mod($1), OFFSET($1), name, 0);
-	    }
-	| Identifier PE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_ADD, "+");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier ME
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_SUB, "-");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier TE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_MUL, "*");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier DE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_DIV, "/");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier RE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_MOD, "%");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier AE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_AND, "&");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	| Identifier OE
-	    { 
-	        chk_var($1); 
-	        gen_direct(OP_LOAD, gen_mod($1), OFFSET($1), NAME($1));
-	    }
-	  binary
-	    { 
-	        gen_alu(ALU_OR, "|");
-	        gen_direct(OP_STORE, gen_mod($1), OFFSET($1), NAME($1));
 	    }
 
 argument_list

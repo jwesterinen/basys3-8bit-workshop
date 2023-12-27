@@ -30,21 +30,14 @@ other           .
 "return"                    return RETURN;
 "while"                     return WHILE;
 
+"||"                        return OR;
+"&&"                        return AND;
 ">="                        return GE;
 "<="                        return LE;
 "=="                        return EQ;
 "!="                        return NE;
-"+="                        return PE;
-"-="                        return ME;
-"*="                        return TE;
-"/="                        return DE;
-"%="                        return RE;
-"&="                        return AE;
-"|="                        return OE;
-"++"                        return PP;
-"--"                        return MM;
-"||"                        return OR;
-"&&"                        return AND;
+"<<"                        return SL;
+">>"                        return SR;
 
 {letter}{letter_or_digit}*  {
                                 s_lookup(Identifier);

@@ -33,7 +33,7 @@ void main()
     gptr = &y;      // assignment to global reference
     *gptr = 8;      // indirect assignment via global pointer
     a = *gptr;      // global var assignment via global indirect
-    *pDisplay3 = a; // display '8' in D3      
+    *pDisplay3 = a; // display '8' in D3 
 }
 
 void foo(int *px)

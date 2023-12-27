@@ -29,30 +29,62 @@
 #define MOD_IMMED   "con"       // constant (load only)
 #define MOD_FCT     "fct"       // constant (load only)
 
-// OP_ALU binary op modifiers
+// OP_ALU arithmetic op modifiers
 #define ALU_ADD     "+"         // addition
 #define ALU_SUB     "-"         // subtract
 #define ALU_MUL     "*"         // multiplication
 #define ALU_DIV     "/"         // division
 #define ALU_MOD     "%"         // remainder
-#define ALU_LT      "<"         // compare as: <
-#define ALU_GT      ">"         //             >
-#define ALU_LE      "<="        //             <=
-#define ALU_GE      ">="        //             >=
-#define ALU_EQ      "=="        //             ==
-#define ALU_NE      "!="        //             !=
-#define ALU_AND     "&"         // bitwise and
-#define ALU_OR      "|"         // bitwise or
-#define ALU_XOR     "^"         // bitwise xor  
+#define ALU_INC     "++"        // increment
+#define ALU_DEC     "--"        // decrement
 
-// OP_ALU unary op modifiers
-#define ALU_INV     "~"         // bitwise inversion
-#define ALU_NEG     "neg"       // negate (-)
-#define ALU_NOT     "!"         // logical inversion (!)
+// OP_ALU relational op modifiers
+#define ALU_EQ      "=="        // equal
+#define ALU_NE      "!="        // not equal
+#define ALU_GT      ">"         // greater than
+#define ALU_LT      "<"         // less than
+#define ALU_GE      ">="        // greater than or equal
+#define ALU_LE      "<="        // less than or equal
 
 // OP_ALU logical op modifiers
 #define ALU_LAND    "&&"        // logical AND
 #define ALU_LOR     "||"        // logical OR
+#define ALU_NOT     "!"         // logical NOT
+
+// OP_ALU bitwise op modifiers
+#define ALU_AND     "&"         // bitwise and
+#define ALU_OR      "|"         // bitwise or
+#define ALU_XOR     "^"         // bitwise xor  
+#define ALU_INV     "~"         // bitwise complement
+#define ALU_SL      "<<"        // bitwise left shift  
+#define ALU_SR      ">>"        // bitwise right shift  
+
+// OP_ALU unary op modifiers
+#define ALU_NEG     "neg"       // negate (-)
+
+// OP_ALU assign op modifiers
+#define ALU_PE      "+="        // addition assign
+
+// assignment ops
+enum AluAssignOp
+{
+	ALU_ASSIGN,                 // =    pure assignment
+	ALU_ASSIGN_ADD,             // +=   addition assignment
+	ALU_ASSIGN_SUB,             // -=   subtract assignment
+	ALU_ASSIGN_MUL,             // *=   multiplication assignment
+	ALU_ASSIGN_DIV,             // /=   division assignment
+	ALU_ASSIGN_MOD,             // %=   remainder assignment
+	ALU_ASSIGN_SL,              // <<=  bitwise left shift assignment
+	ALU_ASSIGN_SR,              // >>=  bitwise right shift assignment
+	ALU_ASSIGN_AND,             // &=   bitwise and assignment
+	ALU_ASSIGN_OR,              // |=   bitwise or assignment
+	ALU_ASSIGN_XOR,             // ^=   bitwise xor assignment
+	ALU_PRE_INC,                // ++n   pre increment
+	ALU_POST_INC,               // n++   post increment
+	ALU_PRE_DEC,                // --n   pre decrement
+	ALU_POST_DEC                // n--   post decrement
+};
+char* AluAssignOpStrs[15];
 
 void gen_begin_prog();
 void gen_end_prog();

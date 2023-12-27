@@ -1,5 +1,16 @@
 /*
- *  gen.c - hack code generator
+ *  gen_cpu16.c
+ *
+ *  Description: This is the CPU-specific code generator for cc16. The functions
+ *  in this module are called from the cc16 abstract code generator.  The functions
+ *  performs code generation for the following C code elements:
+ *      - immediate values
+ *      - direct, i.e. scaler, values
+ *      - arrays
+ *      - pointers
+ *      - references
+ *      - functions
+ *
  */
 
 #include <stdio.h>
@@ -46,71 +57,99 @@ void GenEndProg()
     fprintf(yyout, "    bra    __Exit\n\n");
 }
 
+// create the stack frame: push current BP, move SP to BP, then adjust SP past local variables
 void GenEntry(const char *fctname, const char *symbol)
 {    
     fprintf(yyout, "\n; fct entry\n");
 
     curFctName = (char *)fctname;    
     fprintf(yyout, "%s:\n", fctname);
-    fprintf(yyout, "    push    bp\n");                // push current BP
-    fprintf(yyout, "    mov     bp,sp\n");             // move SP to BP  
-    fprintf(yyout, "    sub     sp,@%s\n", symbol);    // adjust SP past local variables
+    fprintf(yyout, "    push    bp\n");
+    fprintf(yyout, "    mov     bp,sp\n");
+    fprintf(yyout, "    sub     sp,@%s\n", symbol);
 }
 
+// C operator code generation
 void GenAlu(const char *mod, const char *comment)
 {
-    fprintf(yyout, "\n; alu, %s, %s\n", mod, comment);
-    
-	if (!strcmp(mod, "+") || !strcmp(mod, "-") || !strcmp(mod, "&") || !strcmp(mod, "|") || !strcmp(mod, "&&") || !strcmp(mod, "||") || !strcmp(mod, "^"))
+    fprintf(yyout, "\n; operator %s\n", comment);
+
+    // FIXME: break out ALU generation into binary and unary operators
+    // binary operators    
+	if (
+	    !strcmp(mod, "+") || !strcmp(mod, "-") || // !strcmp(mod, "++") || !strcmp(mod, "--")
+	    !strcmp(mod, "&&") || !strcmp(mod, "||") ||
+	    !strcmp(mod, "&") || !strcmp(mod, "|")  || !strcmp(mod, "^") || !strcmp(mod, "<<") || !strcmp(mod, ">>")
+	)
 	{
-		fprintf(yyout, "    pop    bx\n");                      // pop x and y
-		fprintf(yyout, "    pop    ax\n");
-		if (!strcmp(mod, "+"))
+		fprintf(yyout, "    pop     bx\n");                      // pop x and y
+		fprintf(yyout, "    pop     ax\n");
+		
+		// arithmetic operators
+		if (     !strcmp(mod, "+"))
 		{
-			fprintf(yyout, "    add    ax,bx\n");               // x + y
+			fprintf(yyout, "    add     ax,bx\n");               // x + y
 		}
 		else if (!strcmp(mod, "-"))
 		{
-			fprintf(yyout, "    sub    ax,bx\n");               // x - y
+			fprintf(yyout, "    sub     ax,bx\n");               // x - y
 		}
-		else if (!strcmp(mod, "&"))
-		{
-			fprintf(yyout, "    and    ax,bx\n");               // x & y
-		}
+		
+		// logical operators
 		else if (!strcmp(mod, "&&"))
 		{
-			fprintf(yyout, "    zero   cx\n");                  // assume result is false
-			fprintf(yyout, "    or     ax,#0\n");               // if ax is false exit
-		    fprintf(yyout, "    bz     LT%d\n", ++labelId);
-			fprintf(yyout, "    or     bx,#0\n");               // if bx is false exit
-		    fprintf(yyout, "    bz     LT%d\n", labelId);
-			fprintf(yyout, "    mov    cx,#1\n");               // result is true iff both are true
+			fprintf(yyout, "    zero    cx\n");                  // assume result is false
+			fprintf(yyout, "    or      ax,#0\n");               // if ax is false exit
+		    fprintf(yyout, "    bz      LT%d\n", ++labelId);
+			fprintf(yyout, "    or      bx,#0\n");               // if bx is false exit
+		    fprintf(yyout, "    bz      LT%d\n", labelId);
+			fprintf(yyout, "    mov     cx,#1\n");               // result is true iff both are true
 		    fprintf(yyout, "LT%d:\n", labelId);
-			fprintf(yyout, "    mov    ax,cx\n");               // load ax with result
-		}
-		else if (!strcmp(mod, "|"))
-		{
-			fprintf(yyout, "    or     ax,bx\n");               // x | y
+			fprintf(yyout, "    mov     ax,cx\n");               // load ax with result
 		}
 		else if (!strcmp(mod, "||"))
 		{
-			fprintf(yyout, "    zero   cx\n");                  // assume result is false
-			fprintf(yyout, "    or     ax,bx\n");               // result is false iff both are false so exit
-		    fprintf(yyout, "    bz     LT%d\n", ++labelId);
-			fprintf(yyout, "    mov    cx,#1\n");               // otherwise flag true
+			fprintf(yyout, "    zero    cx\n");                  // assume result is false
+			fprintf(yyout, "    or      ax,bx\n");               // result is false iff both are false so exit
+		    fprintf(yyout, "    bz      LT%d\n", ++labelId);
+			fprintf(yyout, "    mov     cx,#1\n");               // otherwise flag true
 		    fprintf(yyout, "LT%d:\n", labelId);
-			fprintf(yyout, "    mov    ax,cx\n");               // load ax with result
+			fprintf(yyout, "    mov     ax,cx\n");               // load ax with result
+		}
+				
+		// bitwise operators
+		else if (!strcmp(mod, "&"))
+		{
+			fprintf(yyout, "    and     ax,bx\n");               // x & y
+		}
+		
+		else if (!strcmp(mod, "|"))
+		{
+			fprintf(yyout, "    or      ax,bx\n");               // x | y
 		}
 		else if (!strcmp(mod, "^"))
 		{
-			fprintf(yyout, "    xor    ax,bx\n");               // x ^ y
+			fprintf(yyout, "    xor     ax,bx\n");               // x ^ y
 		}
-		fprintf(yyout, "    push    ax\n");                     // push the result
+		else if (!strcmp(mod, "<<"))
+		{
+		    fprintf(yyout, "LT%d:\n", ++labelId);               // x << y
+			fprintf(yyout, "    asl     ax\n");
+			fprintf(yyout, "    dec     bx\n");
+		    fprintf(yyout, "    bnz     LT%d\n", labelId);
+		}
+		else if (!strcmp(mod, ">>"))
+		{
+		    fprintf(yyout, "LT%d:\n", ++labelId);               // x >> y
+			fprintf(yyout, "    lsr     ax\n");
+			fprintf(yyout, "    dec     bx\n");
+		    fprintf(yyout, "    bnz     LT%d\n", labelId);
+		}
+		fprintf(yyout, "    push     ax\n");                     // push the result
 	}
-
-	else if (!strcmp(mod, "*") || !strcmp(mod, "/"))
+	else if (!strcmp(mod, "*") || !strcmp(mod, "/") || !strcmp(mod, "%"))
 	{
-	    // these are well-known functions that reside in the stdlib and must be called
+	    // these are well-known functions that reside in libasm and must be called
 	    // the same way the parser would do so
 	    // NOTE: add any other non-intrinsic operator functions here the same way, e.g. mod (%)
 		if (!strcmp(mod, "*"))
@@ -121,10 +160,16 @@ void GenAlu(const char *mod, const char *comment)
 		{
             GenCall("_Divide");                                 // TOS = x / y
 		}
+		else if (!strcmp(mod, "%"))
+		{
+            GenCall("_Modulo");                                 // TOS = x % y
+		}
         GenPop(OP_POP_ARG, "discard argument");                 // adjust the stack
         GenPop(OP_POP_ARG, "discard argument");
         GenDirect(OP_LOAD, MOD_FCT, 0, "function retval");      // load the return value
     }
+    
+    // logical operator
 	else if (!strcmp(mod, "!"))
 	{
 	    // replace TOS with its logical inverse
@@ -137,9 +182,11 @@ void GenAlu(const char *mod, const char *comment)
         fprintf(yyout, "    mov     ax,bx\n");
         fprintf(yyout, "    push    ax\n");
 	}
+	
+	// bitwise operator
 	else if (!strcmp(mod, "~"))
 	{
-	    // replace TOS with its bitwise inverse
+	    // replace TOS with its bitwise complement
         fprintf(yyout, "    pop     ax\n");                     // ~x := x ^ 0xffff
         fprintf(yyout, "    xor     ax,@0xffff\n");
         fprintf(yyout, "    push    ax\n");
@@ -153,6 +200,8 @@ void GenAlu(const char *mod, const char *comment)
         fprintf(yyout, "    push    ax\n");
 		
 	}
+	
+	// relational operators
 	else if (!strcmp(mod, "==") || !strcmp(mod, "!=") || !strcmp(mod, ">") || !strcmp(mod, ">=") || 
 	         !strcmp(mod, "<") || !strcmp(mod, "<="))
 	{
@@ -187,236 +236,190 @@ void GenAlu(const char *mod, const char *comment)
 		    fprintf(yyout, "    bmi     LT%d\n", ++labelId);    // x < y || x == y
 		    fprintf(yyout, "    bz      LT%d\n", labelId);
 		}
-		fprintf(yyout, "    zero    cx\n");                  // truth is disproven so make result false
+		fprintf(yyout, "    zero    cx\n");                     // truth is disproven so make result false
 		fprintf(yyout, "LT%d:\n", labelId);
         fprintf(yyout, "    push    cx\n");
 	}
 	else
 	{
-		fprintf(yyout, "illegal mod\n");
+		fprintf(yyout, "illegal operator\n");
 	}
+}
+
+// load the address of a variable into BX based on its type
+static void GenAccessVar(const char *vartype, int offset, const char *globalName)
+{
+    if (!strcmp(vartype, "gbl"))
+    {
+        // globals reside in lowest memory at offset from zero so use direct address mode
+        fprintf(yyout, "    mov     bx,@0x%02x\t; global %s\n", offset, globalName);
+    }
+    else if (!strcmp(vartype, "par"))
+    {
+        // parameter n is at BP+n+3
+        fprintf(yyout, "    mov     bx,bp\t; param %s\n", globalName);
+        fprintf(yyout, "    add     bx,@%d\n", offset + 3);
+    }
+    else if (!strcmp(vartype, "lcl"))
+    {
+        // local variable n is at BP-n (n is offset)
+        fprintf(yyout, "    mov     bx,bp\t; local %s\n", globalName);
+        fprintf(yyout, "    sub     bx,@%d\n", offset);
+    }
+}
+
+// load a variable into AX based on its type
+static void GenLoadVar(const char *vartype, int offset, const char *globalName)
+{
+    if (!strcmp(vartype, "gbl"))
+    {
+        // use ZP addressing with offset (0x00-0xff) for globals
+        fprintf(yyout, "    mov     ax,[#0x%02x]\t; global %s\n", offset, globalName);
+    }
+    else if (!strcmp(vartype, "par"))
+    {
+        // parameter n is at BP+n+3 and can be accessed with a single 5-bit offset instruction
+        fprintf(yyout, "    mov     ax,[bp+0x%x]\t; param %s\n", (offset+3) & 0x1f, globalName);
+    }
+    else if (!strcmp(vartype, "lcl"))
+    {
+        // local variable n is at BP-n (n is offset)
+        fprintf(yyout, "    mov     ax,[bp+0x%x]\t; local %s\n", (-offset) & 0x1f, globalName);
+    }
+}
+
+// store a value from AX based on its type
+static void GenStoreVar(const char *vartype, int offset, const char *globalName)
+{
+    if (!strcmp(vartype, "gbl"))
+    {
+        // use ZP addressing with offset (0x00-0xff) for globals
+        fprintf(yyout, "    mov     [#0x%02x],ax\t; global %s\n", offset, globalName);
+    }
+    else if (!strcmp(vartype, "par"))
+    {
+        // parameter n is at BP+n+3 and can be accessed with a single 5-bit offset instruction
+        fprintf(yyout, "    mov     [bp+0x%x],ax\t; param %s\n", (offset+3) & 0x1f, globalName); // access the var offset from the BP
+    }
+    else if (!strcmp(vartype, "lcl"))
+    {
+        // local variable n is at BP-n (n is offset)
+        fprintf(yyout, "    mov     [bp+0x%x],ax\t; local %s\n", (-offset) & 0x1f, globalName); // access the var offset from the BP
+    }
 }
 
 void GenLoadImmed(const char *constant)
 {
     fprintf(yyout, "\n; load immed\n");
 
-    fprintf(yyout, "    mov     ax,@%s\t; constant\n", constant);     // push constant
+    fprintf(yyout, "    mov     ax,@%s\n", constant);     // push constant
     fprintf(yyout, "    push    ax\n");
 }
 
-// set the effective address (M) based on the variable type
-static void GenAccessVar(const char *vartype, int offset, const char *globalName)
-{
-    if (!strcmp(vartype, "gbl"))
-    {
-        // globals reside in lowest memory at offset from zero
-        // TODO: once this works in general change to "indexed5" addressing mode
-        fprintf(yyout, "    mov     bx,@0x%02x\t; global %s\n", offset, globalName); // simply use offset (from 0x0000 in RAM)
-    }
-    else if (!strcmp(vartype, "par"))
-    {
-        // parameter n is at BP+n+3
-        fprintf(yyout, "    mov     bx,bp\t; param %s\n", globalName); // adjust the var offset from the BP
-        fprintf(yyout, "    add     bx,@%d\n", offset + 3);
-    }
-    else if (!strcmp(vartype, "lcl"))
-    {
-        // local variable n is at BP-n (n is offset)
-        fprintf(yyout, "    mov     bx,bp\t; local %s\n", globalName); // address of var is BP-offset
-        fprintf(yyout, "    sub     bx,@%d\n", offset);
-    }
-    /*
-    else if (!strcmp(vartype, "fct"))
-    {
-        fprintf(yyout, "    push    ax\t; %s\n", globalName); // function retval is in ax
-    }
-    */
-    else
-    {
-        fprintf(stderr, "Error: illegal variable type - exiting...\n");
-        exit(1);
-    }
-}
-
+// direct variable code generation
 void GenDirect(const char *op, const char *vartype, int offset, const char *globalName)
 {
     if (!strcmp(op, OP_LOAD))
     {
         fprintf(yyout, "\n; load direct\n");
         
-        if (!strcmp(vartype, "gbl"))
-        {
-            // use ZP addressing with offset (0x00-0xff) for globals
-            fprintf(yyout, "    mov     ax,[#0x%02x]\t; global %s\n", offset, globalName);
-            fprintf(yyout, "    push    ax\n");
-        }
-        else if (!strcmp(vartype, "fct"))
-        {
-            // function retval is in ax
-            fprintf(yyout, "    push    ax\t; %s\n", globalName);
-        }
-        else
-        {
-            // this is for all other var types
-            GenAccessVar(vartype, offset, globalName);  // point to the effective address of the var
-            fprintf(yyout, "    mov     ax,[bx]\n");    // push the var
-            fprintf(yyout, "    push    ax\n");
-        }
+        // load a variable by type and push it (function retvals don't need to be loaded)
+        GenLoadVar(vartype, offset, globalName);
+        fprintf(yyout, "    push    ax\n");
     }
     else if (!strcmp(op, OP_STORE))
     {
         fprintf(yyout, "\n; store direct\n");
 
-        if (!strcmp(vartype, "gbl"))
-        {
-            // use ZP addressing with offset (0x00-0xff) for globals
-            fprintf(yyout, "    pop     ax\n");
-            fprintf(yyout, "    mov     [#0x%02x],ax\t; global %s\n", offset, globalName);
-        }
-        else
-        {
-            // this is for all other var types
-            GenAccessVar(vartype, offset, globalName);      // get the var _address_
-            fprintf(yyout, "    pop     ax\n");             // store the value to the variable
-            fprintf(yyout, "    mov     [bx],ax\n");
-        }
-    }
-    // FIXME: the grammar needs to be modified to where incs/decs cannot be part of an expression
-    else if (!strcmp(op, OP_INC))
-    {
-        fprintf(yyout, "\n; pre-inc\n");
-        
-        GenAccessVar(vartype, offset, globalName);
-        fprintf(yyout, "    mov     ax,[bx]\n");        // increment then push the var
-        fprintf(yyout, "    inc     ax\n");
-        fprintf(yyout, "    mov     [bx],ax\n");
-        //fprintf(yyout, "    push    ax\n");
-    }
-    else if (!strcmp(op, OP_DEC))
-    {
-        fprintf(yyout, "\n; pre-dec\n");
-       
-        GenAccessVar(vartype, offset, globalName);
-        fprintf(yyout, "    mov     ax,[bx]\n");        // decrement then push the var
-        fprintf(yyout, "    dec     ax\n");
-        fprintf(yyout, "    mov     [bx],ax\n");
-        //fprintf(yyout, "    push    ax\n");
-    }
-    else if (!strcmp(op, OP_POST_INC))
-    {
-        fprintf(yyout, "\n; post-inc\n");
-        
-        GenAccessVar(vartype, offset, globalName);
-        fprintf(yyout, "    mov     ax,[bx]\n");        // push then increment the var
-        fprintf(yyout, "    push    ax\n");             
-        fprintf(yyout, "    inc     ax\n");
-        fprintf(yyout, "    mov     [bx],ax\n");
-    }
-    else if (!strcmp(op, OP_POST_DEC))
-    {
-        fprintf(yyout, "\n; post-dec\n");
-       
-        GenAccessVar(vartype, offset, globalName);
-        fprintf(yyout, "    mov     ax,[bx]\n");        // push then decrement the var
-        fprintf(yyout, "    push    ax\n");             
-        fprintf(yyout, "    dec     ax\n");
-        fprintf(yyout, "    mov     [bx],ax\n");
+        // pop a variable and store it based on its type
+        fprintf(yyout, "    pop     ax\n");
+        GenStoreVar(vartype, offset, globalName);
     }
 }
 
+// array code generation
 void GenIndirect(const char *op, const char *vartype, int offset, const char *globalName, int is_rhs)
 {
     if (!strcmp(op, OP_LOAD))
     {
         fprintf(yyout, "\n; load indirect\n");
 
-        // replace the index at TOS with the base address - index (stack grows downward)   
-        GenAccessVar(vartype, offset, globalName);      // get the base address
+        // replace the array index at TOS with the base address - index (stack grows downward)   
+        GenAccessVar(vartype, offset, globalName);
         if (!strcmp(vartype, "par"))
         {
-            fprintf(yyout, "    mov     bx,[bx]\n");    // deref the base address pointer for array params
+            // deref the address for param variables
+            fprintf(yyout, "    mov     bx,[bx]\n");
         }
-        fprintf(yyout, "    pop     ax\n");             // subtract the index from the base address to get the EA
+
+        // subtract the index from the base address to get the EA
+        fprintf(yyout, "    pop     ax\n");             
         fprintf(yyout, "    sub     bx,ax\n");
-        if (!is_rhs)
+        if (is_rhs)
         {
-            fprintf(yyout, "    push    bx\n");         // for LHS simply push the EA
+            // for RHS dereference the EA to get the actual value
+            fprintf(yyout, "    mov     bx,[bx]\n");
         }
-        else
-        {
-            fprintf(yyout, "    mov     ax,[bx]\n");    // for RHS dereference the EA to get the actual value
-            fprintf(yyout, "    push    ax\n");         // then push the value
-        }
+        fprintf(yyout, "    push    bx\n");
     }
     else if (!strcmp(op, OP_STORE))
     {
         fprintf(yyout, "\n; store indirect\n");
 
-        // store the value at TOS to the address at TOS-1
-        fprintf(yyout, "    pop     ax\n");             // pop the value
-        fprintf(yyout, "    pop     bx\n");             // pop the address
-        fprintf(yyout, "    mov     [bx],ax\n");        // store the value at the address
+        // simply pop the value first and then the address and store the value indirectly to the address
+        fprintf(yyout, "    pop     ax\n");
+        fprintf(yyout, "    pop     bx\n");
+        fprintf(yyout, "    mov     [bx],ax\n");
     }
 }
 
+// pointer code generation
 void GenPointer(const char *op, const char *vartype, int offset, const char *globalName, int is_rhs)
 {
     if (!strcmp(op, OP_LOAD))
     {
         fprintf(yyout, "\n; load pointer\n");
 
-        // push the contents of the pointer
-        if (!strcmp(vartype, "gbl"))
+        // load the variable by type then push it
+        GenLoadVar(vartype, offset, globalName);
+        if (is_rhs)
         {
-            // use ZP addressing with offset (0x00-0xff) for globals
-            fprintf(yyout, "    mov     ax,[#0x%02x]\t; global %s\n", offset, globalName);
-            if (is_rhs)
-            {
-                fprintf(yyout, "    mov     ax,[ax]\n");    // dereference the EA to get the actual value
-            }
-            fprintf(yyout, "    push    ax\n");
+            // dereference to get the actual value for RHS
+            fprintf(yyout, "    mov     ax,[ax]\n");
         }
-        else
-        {
-            // this is for all other var types
-            GenAccessVar(vartype, offset, globalName);
-            if (is_rhs)
-            {
-                fprintf(yyout, "    mov     bx,[bx]\n");    // dereference the EA to get the actual value
-            }
-            fprintf(yyout, "    mov     ax,[bx]\n");        // push the var
-            fprintf(yyout, "    push    ax\n");
-        }
+        fprintf(yyout, "    push    ax\n");
     }
     else if (!strcmp(op, OP_STORE))
     {
         fprintf(yyout, "\n; store pointer\n");
-
-        fprintf(yyout, "    pop     ax\n");                 // both the value and the pointer were pushed so pop the value then
-        fprintf(yyout, "    pop     bx\n");                 // pop the pointer and move the value indirectly thru the pointer
+        
+        // both the value and the pointer are on the stack so pop them and store the value indirectly thru the pointer
+        fprintf(yyout, "    pop     ax\n");
+        fprintf(yyout, "    pop     bx\n");
         fprintf(yyout, "    mov     [bx],ax\n");
     }
 }
 
+// reference (i.e. pointer dereference) code generation
 void GenReference(const char *op, const char *vartype, int offset, const char *globalName)
 {
     if (!strcmp(op, OP_LOAD))
     {
         fprintf(yyout, "\n; load reference\n");
-                     
-        GenAccessVar(vartype, offset, globalName);      // get the base address
-        fprintf(yyout, "    push    bx\n");             // simply push it, no need to dereference
+
+        // get the address of the variable by type then push it, no need to dereference
+        GenAccessVar(vartype, offset, globalName);
+        fprintf(yyout, "    push    bx\n");
     }
 }
 
+// function code generation
 void GenCall(const char *fctname)
 {
     fprintf(yyout, "\n; call\n");
 
     fprintf(yyout, "    jsr     %s\n", fctname);        // call function
 }
-
 void GenPop(const char *op, const char *comment)
 {
     fprintf(yyout, "\n; pop\n");
@@ -430,7 +433,6 @@ void GenPop(const char *op, const char *comment)
 	    fprintf(yyout, "    pop     bx ; %s\n", comment);
     }
 }    
-
 void GenReturn(const char *op, const char *comment)
 {
     if (!strcmp(op, OP_RETURN))
@@ -452,7 +454,6 @@ void GenReturn(const char *op, const char *comment)
         }
     }
 }
-
 void GenJump(const char *op, const char *label, const char *comment)
 {
     if (!strcmp(op, OP_JUMPZ))
@@ -470,12 +471,12 @@ void GenJump(const char *op, const char *label, const char *comment)
         fprintf(yyout, "    bra     %s\n", label);      // explicit jump
     }
 }
-
 void GenLabel(const char *label)
 {
     fprintf(yyout, "%s:\n", label);
 }
 
+// value definition code generation
 void GenEqu(const char *symbol, int value)
 {
     fprintf(yyout, ".define %s %d\n", symbol, value);
