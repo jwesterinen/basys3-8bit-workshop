@@ -26,7 +26,7 @@ int main()
 	    x = x | 0x0010;
 	    
     // bitwise operators	    
-	if ((2 & 1) == 0)   // NOTE: this is an example of the wrong precedence in C, == has higher precedence thab & but shouldn't
+	if ((2 & 1) == 0)   // NOTE: this is an example of the wrong precedence in C, == has higher precedence than & but shouldn't
 	    x = x | 0x0020;	
 	if (2 | 1 == 3)
 	    x = x | 0x0040;	    
