@@ -1,0 +1,11 @@
+system16_tb.v
+../system16.v
+../../cpu16.v
+../../../prescaler.v
+../../../rom_sync.v
+../../../ram_sync.v
+../../../basic_io_16.v
+../../../sound_io_16.v
+../../../../vga25Mhz/sound_generator/SN76477.v
+../../../../vga25Mhz/sound_generator/lfsr.v
+
