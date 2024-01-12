@@ -1,7 +1,7 @@
 // Force error when implicit net has no type.
 `default_nettype none
 
-module avr_tb;
+module avr_core_tb;
 
     reg  clk = 1;
     reg  rst = 0;
@@ -29,7 +29,7 @@ module avr_tb;
     wire [1:0] in_ieack;
     
     // Instantiate DUT (device under test)
-    avr_core #(.interrupt(0)) avr_test(clk, rst, pmem_ce, pmem_a, pmem_d, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do, io_re, io_we, io_a, io_di, io_do, in_iflag, in_ivect, mode, in_ieack);
+    avr_core #(.interrupt(0)) avr_core_test(clk, rst, pmem_ce, pmem_a, pmem_d, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do, io_re, io_we, io_a, io_di, io_do, in_iflag, in_ivect, mode, in_ieack);
 
     initial
         forever #1 clk = ~clk;
@@ -38,19 +38,15 @@ module avr_tb;
     initial begin
         $monitor($time, ": clk = %b, pmem_ce = %b, pmem_a = %x, pmem_d = %x", clk, pmem_ce, pmem_a, pmem_d);
         $dumpfile("avr.vcd");
-        $dumpvars(0, avr_tb);
+        $dumpvars(0, avr_core_tb);
 
-        // reset
-        rst <= 1;
-        
         // canonical test with NOP on the data input bus and free spinning clock
         
-        // rjmp .+0x0f
-        #2 rst <= 0; pmem_d <= 16'hc00f;
-        
-        // nop
-        #2 pmem_d <= 16'h0000;
-        
+        // reset
+        rst <= 1; pmem_d <= 16'h0000;
+        #2 rst <= 0;
+
+        // free run the clock        
         #300
 
         $finish;

@@ -1,0 +1,513 @@
+$date
+	Wed Jan 10 13:58:10 2024
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1s
+$end
+$scope module system_avr_tb $end
+$var wire 8 ! leds [7:0] $end
+$var reg 5 " buttons [4:0] $end
+$var reg 1 # clk $end
+$scope module system_avr_test $end
+$var wire 5 $ btn [4:0] $end
+$var wire 1 # clk $end
+$var wire 1 % iflag $end
+$var wire 2 & ivect [1:0] $end
+$var wire 1 ' mem_clk $end
+$var wire 1 ( pmem_ce $end
+$var wire 8 ) port0_out [7:0] $end
+$var wire 1 * port0_io_we $end
+$var wire 1 + port0_io_select $end
+$var wire 1 , port0_io_re $end
+$var wire 16 - pmem_d [15:0] $end
+$var wire 12 . pmem_a [11:0] $end
+$var wire 16 / led [15:0] $end
+$var wire 1 0 io_we $end
+$var wire 1 1 io_re $end
+$var wire 8 2 io_do [7:0] $end
+$var wire 8 3 io_di [7:0] $end
+$var wire 6 4 io_a [5:0] $end
+$var wire 2 5 ieack [1:0] $end
+$var wire 1 6 dmem_we $end
+$var wire 1 7 dmem_re $end
+$var wire 8 8 dmem_do [7:0] $end
+$var wire 8 9 dmem_di [7:0] $end
+$var wire 10 : dmem_a [9:0] $end
+$var wire 2 ; core0_mode [1:0] $end
+$var reg 8 < led_msb [7:0] $end
+$var reg 1 = system_clk $end
+$scope module core0 $end
+$var wire 8 > GPR_Rd [7:0] $end
+$var wire 8 ? GPR_Rr [7:0] $end
+$var wire 1 @ M_two_word_instr $end
+$var wire 8 A R0 [7:0] $end
+$var wire 8 B R1 [7:0] $end
+$var wire 8 C R10 [7:0] $end
+$var wire 8 D R11 [7:0] $end
+$var wire 8 E R12 [7:0] $end
+$var wire 8 F R13 [7:0] $end
+$var wire 8 G R14 [7:0] $end
+$var wire 8 H R15 [7:0] $end
+$var wire 8 I R16 [7:0] $end
+$var wire 8 J R17 [7:0] $end
+$var wire 8 K R18 [7:0] $end
+$var wire 8 L R19 [7:0] $end
+$var wire 8 M R2 [7:0] $end
+$var wire 8 N R20 [7:0] $end
+$var wire 8 O R21 [7:0] $end
+$var wire 8 P R22 [7:0] $end
+$var wire 8 Q R23 [7:0] $end
+$var wire 8 R R24 [7:0] $end
+$var wire 8 S R25 [7:0] $end
+$var wire 8 T R26 [7:0] $end
+$var wire 8 U R27 [7:0] $end
+$var wire 8 V R28 [7:0] $end
+$var wire 8 W R29 [7:0] $end
+$var wire 8 X R3 [7:0] $end
+$var wire 8 Y R30 [7:0] $end
+$var wire 8 Z R31 [7:0] $end
+$var wire 8 [ R4 [7:0] $end
+$var wire 8 \ R5 [7:0] $end
+$var wire 8 ] R6 [7:0] $end
+$var wire 8 ^ R7 [7:0] $end
+$var wire 8 _ R8 [7:0] $end
+$var wire 8 ` R9 [7:0] $end
+$var wire 1 = clk $end
+$var wire 8 a dmem_do [7:0] $end
+$var wire 1 7 dmem_re $end
+$var wire 1 6 dmem_we $end
+$var wire 1 b immediate $end
+$var wire 2 c in_ieack [1:0] $end
+$var wire 1 % in_iflag $end
+$var wire 2 d in_ivect [1:0] $end
+$var wire 1 e io_act $end
+$var wire 1 1 io_re $end
+$var wire 1 0 io_we $end
+$var wire 1 ( pmem_ce $end
+$var wire 1 f rst $end
+$var wire 1 g two_word_lds_sts $end
+$var wire 1 h state_normal $end
+$var wire 6 i q [5:0] $end
+$var wire 16 j pmem_d [15:0] $end
+$var wire 12 k pmem_a [11:0] $end
+$var wire 16 l pc_full_dec [15:0] $end
+$var wire 16 m pc_full [15:0] $end
+$var wire 8 n nSREG [7:0] $end
+$var wire 2 o mode [1:0] $end
+$var wire 1 p is_tail_reti $end
+$var wire 1 q is_interrupt $end
+$var wire 8 r io_do [7:0] $end
+$var wire 8 s io_di [7:0] $end
+$var wire 6 t io_a [5:0] $end
+$var wire 8 u dmem_di [7:0] $end
+$var wire 10 v dmem_a [9:0] $end
+$var wire 3 w b [2:0] $end
+$var wire 8 x SREG [7:0] $end
+$var wire 5 y Rr [4:0] $end
+$var wire 8 z Rin [7:0] $end
+$var wire 5 { Rd_prev [4:0] $end
+$var wire 2 | Rd16_prev [1:0] $end
+$var wire 2 } Rd16 [1:0] $end
+$var wire 16 ~ RZ_inc_dec [15:0] $end
+$var wire 16 !" RZ_inc [15:0] $end
+$var wire 16 "" RZ [15:0] $end
+$var wire 16 #" RY_inc_dec [15:0] $end
+$var wire 16 $" RY [15:0] $end
+$var wire 16 %" RX_inc_dec [15:0] $end
+$var wire 16 &" RX [15:0] $end
+$var wire 4 '" RR16 [3:0] $end
+$var wire 4 (" RD16 [3:0] $end
+$var wire 13 )" PC_double [12:0] $end
+$var wire 6 *" M_a [5:0] $end
+$var wire 16 +" M_INSTR [15:0] $end
+$var wire 6 ," K16 [5:0] $end
+$var wire 8 -" K [7:0] $end
+$var reg 1 ." C $end
+$var reg 1 /" H $end
+$var reg 1 0" I $end
+$var reg 16 1" INSTR [15:0] $end
+$var reg 1 2" N $end
+$var reg 12 3" PC [11:0] $end
+$var reg 16 4" PREVI [15:0] $end
+$var reg 8 5" R [7:0] $end
+$var reg 8 6" R_high [7:0] $end
+$var reg 5 7" Rd [4:0] $end
+$var reg 5 8" Rd_ld_save [4:0] $end
+$var reg 8 9" Rio [7:0] $end
+$var reg 1 :" S $end
+$var reg 16 ;" SP [15:0] $end
+$var reg 1 <" T $end
+$var reg 1 =" V $end
+$var reg 1 >" WDR $end
+$var reg 1 ?" Z $end
+$var reg 6 @" a [5:0] $end
+$var reg 1 A" a_61 $end
+$var reg 1 B" a_62 $end
+$var reg 1 C" a_63 $end
+$var reg 1 D" change_z $end
+$var reg 16 E" d_addr [15:0] $end
+$var reg 5 F" d_equiv_dest [4:0] $end
+$var reg 16 G" d_equiv_instr [15:0] $end
+$var reg 1 H" d_inext_equiv $end
+$var reg 8 I" d_out [7:0] $end
+$var reg 1 J" d_read $end
+$var reg 1 K" d_write $end
+$var reg 1 L" i_wdr $end
+$var reg 2 M" ieack [1:0] $end
+$var reg 1 N" iflag $end
+$var reg 8 O" init_count [7:0] $end
+$var reg 1 P" io_instr_bf $end
+$var reg 1 Q" io_instr_rw $end
+$var reg 1 R" is_int_enter $end
+$var reg 2 S" ivect [1:0] $end
+$var reg 1 T" lpm_z_low $end
+$var reg 1 U" nC $end
+$var reg 1 V" nH $end
+$var reg 1 W" nI $end
+$var reg 1 X" nN $end
+$var reg 1 Y" nS $end
+$var reg 1 Z" nT $end
+$var reg 1 [" nV $end
+$var reg 1 \" nZ $end
+$var reg 4 ]" next_state [3:0] $end
+$var reg 16 ^" pc_call [15:0] $end
+$var reg 16 _" pc_call_next [15:0] $end
+$var reg 12 `" pc_next [11:0] $end
+$var reg 16 a" sp_next [15:0] $end
+$var reg 1 b" sp_update $end
+$var reg 4 c" state [3:0] $end
+$var reg 1 d" two_word_instr $end
+$var reg 1 e" update_nsz $end
+$var reg 3 f" writeback [2:0] $end
+$scope begin genblk1 $end
+$upscope $end
+$upscope $end
+$scope module core0_flash $end
+$var wire 1 ' clk $end
+$var wire 12 g" mem_a [11:0] $end
+$var wire 1 ( mem_ce $end
+$var wire 16 h" mem_d [15:0] $end
+$var reg 16 i" data_read [15:0] $end
+$upscope $end
+$scope module core0_ram $end
+$var wire 10 j" addr [9:0] $end
+$var wire 1 ' clk $end
+$var wire 8 k" data_read [7:0] $end
+$var wire 8 l" data_write [7:0] $end
+$var wire 1 7 re $end
+$var wire 1 6 we $end
+$var reg 8 m" data_out [7:0] $end
+$upscope $end
+$scope module port0 $end
+$var wire 1 # clk $end
+$var wire 8 n" io_di [7:0] $end
+$var wire 1 , io_re $end
+$var wire 1 * io_we $end
+$var wire 8 o" port [7:0] $end
+$var wire 1 p" rst $end
+$var wire 8 q" io_do [7:0] $end
+$var reg 8 r" PORT [7:0] $end
+$upscope $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+b0 r"
+b0 q"
+1p"
+b0 o"
+bx n"
+bx m"
+b0 l"
+bx k"
+b0 j"
+b0 i"
+b0 h"
+b0 g"
+b0 f"
+0e"
+xd"
+b0 c"
+0b"
+bx a"
+b0 `"
+b0 _"
+b0 ^"
+b0 ]"
+x\"
+x["
+xZ"
+xY"
+xX"
+xW"
+xV"
+xU"
+xT"
+bz S"
+0R"
+xQ"
+xP"
+b1 O"
+xN"
+b0 M"
+0L"
+0K"
+0J"
+b0 I"
+0H"
+bx G"
+bx F"
+b0 E"
+1D"
+xC"
+xB"
+xA"
+bx @"
+x?"
+0>"
+x="
+x<"
+bx ;"
+x:"
+bx 9"
+bx 8"
+bx 7"
+b0 6"
+b0 5"
+bx 4"
+b0 3"
+x2"
+bx 1"
+x0"
+x/"
+x."
+bx -"
+bx ,"
+b0 +"
+b0 *"
+b0 )"
+bx ("
+bx '"
+bx &"
+bx %"
+bx $"
+bx #"
+bx ""
+bx !"
+bx ~
+bx }
+bx |
+bx {
+bx z
+bx y
+bx x
+bx w
+b0 v
+bx u
+bx t
+b0 s
+bx r
+0q
+xp
+b0 o
+bx n
+b0 m
+b111111111111 l
+b0 k
+b0 j
+bx i
+0h
+0g
+1f
+0e
+bz d
+b0 c
+0b
+b0 a
+bx `
+bx _
+bx ^
+bx ]
+bx \
+bx [
+bx Z
+bx Y
+bx X
+bx W
+bx V
+bx U
+bx T
+bx S
+bx R
+bx Q
+bx P
+bx O
+bx N
+bx M
+bx L
+bx K
+bx J
+bx I
+bx H
+bx G
+bx F
+bx E
+bx D
+bx C
+bx B
+bx A
+0@
+bx ?
+bx >
+1=
+b0 <
+b0 ;
+b0 :
+bx 9
+b0 8
+07
+06
+b0 5
+bx 4
+b0 3
+bx 2
+01
+00
+b0 /
+b0 .
+b0 -
+0,
+x+
+0*
+b0 )
+1(
+1'
+bz &
+z%
+b1 $
+1#
+b1 "
+b0 !
+$end
+#1
+0'
+0#
+#2
+0p"
+0f
+b0 "
+b0 $
+0=
+1'
+1#
+#3
+0'
+0#
+#4
+b0 z
+0p
+0+
+b0 4
+b0 t
+b0 ]"
+b0 y
+b0 }
+b0 w
+b0 ("
+b0 '"
+b0 -"
+b0 i
+b0 ,"
+b10 O"
+0C"
+0B"
+0A"
+0P"
+0Q"
+b0 @"
+0d"
+b0 7"
+b0 1"
+1=
+1'
+1#
+#5
+0'
+0#
+#6
+0=
+1'
+1#
+#7
+0'
+0#
+#8
+b0 F"
+b0 {
+b0 |
+b0 ]"
+b0 4"
+b11 O"
+b0 9"
+1=
+1'
+1#
+#9
+0'
+0#
+#10
+0=
+1'
+1#
+#11
+0'
+0#
+#12
+b0 ]"
+b100 O"
+1=
+1'
+1#
+#13
+0'
+0#
+#14
+0=
+1'
+1#
+#15
+0'
+0#
+#16
+b0 ]"
+b101 O"
+1=
+1'
+1#
+#17
+0'
+0#
+#18
+0=
+1'
+1#
+#19
+0'
+0#
+#20
+b0 ]"
+b110 O"
+1=
+1'
+1#
+#21
+0'
+0#
+#22
+0=
+1'
+1#

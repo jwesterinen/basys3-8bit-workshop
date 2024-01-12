@@ -8,7 +8,7 @@
 
 
 #----- Useful variables
-NAME_TOP	:= avr
+NAME_TOP	:= system_avr
 
 #----- Targets, iverilog
 # Use this to compile without running simulation

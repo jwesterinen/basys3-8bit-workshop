@@ -1,0 +1,7 @@
+system_avr_tb.v
+../system_avr.v
+../avr_core.v
+../flash.v
+../ram.v
+../avr_io_out.v
+

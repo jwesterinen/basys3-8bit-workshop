@@ -1,0 +1,5 @@
+avr-as -mmcu=avr35 $1.asm 
+avr-objcopy -j .text -j .data -O binary a.out a.bin 
+od a.bin -A n -t x2 > $1.bin
+cp $1.bin ../rom.bin
+

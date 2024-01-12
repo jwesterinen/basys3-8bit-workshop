@@ -1,0 +1,46 @@
+SHELL=/bin/bash
+
+SYNTH=yosys
+PNR=nextpnr-ice40
+PACK=icepack
+PROG=iceprog
+BRAM=icebram
+
+DEVICE=hx8k
+#PACKAGE=bg121
+PACKAGE=ct256
+
+#DEVICE=up5k
+#PACKAGE=sg48
+
+.PHONY: all clean clean-dummy upload reset 
+
+TOP=top
+
+all: $(TOP).bin
+
+$(TOP).json: $(TOP).v
+	cat dummy.mem > dummy_save.mem
+	cat dummy.v   > dummy_save.v
+	$(SYNTH) -q -p 'synth_ice40 -top $(TOP) -json $(TOP).json' $(TOP).v
+
+$(TOP)_dummy.asc: $(TOP).json $(TOP).pcf
+	$(PNR) --$(DEVICE) --package $(PACKAGE) --json $(TOP).json --pcf $(TOP).pcf --seed 1 --randomize-seed --asc $(TOP)_dummy.asc
+
+$(TOP).asc: $(TOP)_dummy.asc main.mem
+	$(BRAM) dummy_save.mem main.mem < $(TOP)_dummy.asc > $(TOP).asc
+
+$(TOP).bin: $(TOP).asc
+	$(PACK) $(TOP).asc $(TOP).bin
+
+upload: $(TOP).bin
+	$(PROG) top.bin
+
+reset:
+	$(PROG) -t
+
+clean:
+	rm -f $(TOP).bin $(TOP).asc $(TOP).json
+
+clean-dummy:
+	rm -f $(TOP)_dummy.asc
