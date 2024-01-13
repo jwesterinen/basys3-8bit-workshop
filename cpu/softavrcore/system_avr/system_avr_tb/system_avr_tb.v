@@ -31,12 +31,12 @@ module system_avr_tb;
         $dumpfile("system_avr.vcd");
         $dumpvars(0, system_avr_tb);
 
-        // reset
+        // reset (reset must last at least 2 clocks)
         buttons <= 5'b0001;
-        #2 buttons <= 5'b0000;
+        #4 buttons <= 5'b0000;
 
         // run the clock to allow the core to fetch the program from the ROM
-        #20
+        #200
 
         $finish;
     end
