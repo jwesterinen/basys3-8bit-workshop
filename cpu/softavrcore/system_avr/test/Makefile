@@ -2,6 +2,7 @@ app ?=
 
 TARGET = $(app).bin
 SYNTH_DIR = ..
+TB_DIR = ../system_avr_tb
 
 CC=avr-gcc
 OBJCOPY=avr-objcopy
@@ -26,6 +27,7 @@ clean:
 
 install: $(TARGET)
 	cp $< $(SYNTH_DIR)/rom.bin
+	cp $< $(TB_DIR)/rom.bin
 
 .PHONY: clean install
 	

@@ -1,6 +1,6 @@
 set project system_avr ;
 
-set xdc_file ${project}.xdc
+set xdc_file ${project}.xdc ;
 
 read_verilog ${project}.v ;
 read_xdc $xdc_file ;

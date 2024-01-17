@@ -1,13 +1,25 @@
-    rjmp    start
+main:
+    rjmp    begin
+    nop
+    nop
     
-    ldi     r16,0xff    ; load 0xff into register 16
-    out     0x04,r16    ; write register 16 to I/O address 4 (LED lsb)
+begin:    
+    in      r16,0x00    ; write switches to LEDs
+    out     0x04,r16
+    in      r16,0x01
+    out     0x05,r16
+
+    in      r16,0x03    ; write (keycode & 0x000f) to display 0
+    ldi     r17,0x0f
+    and     r16,r17
+    out     0x0c,r16
     
-start:
-    ldi     r16,0x12    ; load 0x01 into register 16
-    out     0x04,r16    ; write register 16 to I/O address 4 (LED lsb)
+    in      r16,0x02    ; write buttons to displays 1-3
+    out     0x0d,r16
+    out     0x0e,r16
+    out     0x0f,r16
     
 end:
-    rjmp    end
+    rjmp    begin
         
 
