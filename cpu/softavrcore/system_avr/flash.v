@@ -1,5 +1,5 @@
 module flash
- #(	parameter	flash_file = "main.mem",
+ #(	parameter	flash_file = "rom.bin",
 	parameter	flash_width = 10
  )
  (	input				clk,

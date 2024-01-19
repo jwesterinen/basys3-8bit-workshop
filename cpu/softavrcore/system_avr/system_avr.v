@@ -19,8 +19,8 @@
     output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
  	inout [7:0] JB      // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
 );
-    parameter	pmem_width = 12;
-    parameter	dmem_width = 10;
+    parameter	pmem_width = 12;    // 8K ROM (0x2000 bytes) 0x0000 - 0x1fff
+    parameter	dmem_width = 10;    // 2K RAM (0x800 bytes) 0x0000 - 0x07ff
 
     wire			pmem_ce;
     wire [pmem_width-1:0]	pmem_a;
@@ -56,7 +56,6 @@
 
     // program memory, aka ROM (use flash module)
     flash core0_flash ( mem_clk, pmem_ce,pmem_a, pmem_d );
-    defparam core0_flash.flash_file = "rom.bin";
     defparam core0_flash.flash_width = pmem_width;
 
     // basic I/O

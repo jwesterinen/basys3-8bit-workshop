@@ -1,10 +1,10 @@
 #define		F_CPU		12000000UL
 
-#include <avr/cpufunc.h>
-#include <avr/interrupt.h>
+//#include <avr/cpufunc.h>
+//#include <avr/interrupt.h>
 #include <inttypes.h>
-#include <util/delay.h>
-#include <stdio.h>
+//#include <util/delay.h>
+//#include <stdio.h>
 
 /*****************************************************************************/
 
@@ -59,7 +59,8 @@
 
 #define		PORTOUT0	__IOR(IO_BASE_PORTOUT0+0x00)
 
-/*****************************************************************************/
+/*
+/ ***************************************************************************** /
 
 static int uart_putchar(char c, FILE *stream)
 {
@@ -70,9 +71,9 @@ static int uart_putchar(char c, FILE *stream)
 
 static FILE mystdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 
-/*****************************************************************************/
+/ ***************************************************************************** /
 
-/* RXC */
+// * RXC * /
 ISR(_VECTOR(3))
 {
  uint8_t	c;
@@ -169,10 +170,11 @@ void test_interrupt(void)
 	msleep(500);
   }
 }
-
+*/
 
 int main(void)
 {
+/*
  uint8_t	c;
 
  UBRR0 = 13-1;
@@ -190,6 +192,9 @@ int main(void)
 	c=(c+1)%4;
   }
  test_uppercase();
- return(0);
+*/
+    PORTOUT0=0xc3;
+    
+    return(0);
 }
 

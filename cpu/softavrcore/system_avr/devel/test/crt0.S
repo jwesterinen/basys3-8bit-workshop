@@ -57,6 +57,23 @@
 __vectors:
 
 	XJMP	__init
+;	XJMP    main
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+/*
 	vector  __vector_1
 	vector  __vector_2
 	vector  __vector_3
@@ -72,8 +89,10 @@ __vectors:
 	vector  __vector_13
 	vector  __vector_14
 	vector  __vector_15
+*/
 	.endfunc
 
+/*
 	.global __bad_interrupt
 	.func   __bad_interrupt
 __bad_interrupt:
@@ -81,6 +100,7 @@ __bad_interrupt:
 	.set    __vector_default, __bad_interrupt
 	rjmp	__vector_default
 	.endfunc
+*/	
 
 .section .init0,"ax",@progbits
 
@@ -99,3 +119,4 @@ __init:
 
         XCALL   main
         XJMP    exit
+
