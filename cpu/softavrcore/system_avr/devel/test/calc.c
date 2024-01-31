@@ -40,7 +40,7 @@
 */
 
 #include <stdbool.h>
-#include "../include/system_avr_ports.h"
+#include "../include/system_avr_b3.h"
 
 // eval stack and its index, i.e. eval stack pointer
 int es[10], esp;

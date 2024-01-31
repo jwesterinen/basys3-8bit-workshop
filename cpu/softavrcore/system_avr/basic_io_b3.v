@@ -1,7 +1,6 @@
 `ifdef SYNTHESIS
  `include "PmodKYPD.v"
- `include "basys3_display.v"
- `include "prescaler.v"
+ `include "display_io_b3.v"
 `endif
 
 /*
@@ -38,9 +37,13 @@ module basic_io_b3(
     output [15:0] led,          // LEDs
     output [6:0] seg,           // display segments
     output dp,                  // display decimal point
+`ifdef SYNTHESIS
     output [3:0] an,            // display select
     input [3:0] row,            // rows on KYPD
     output [3:0] col            // columns on KYPD
+`else
+    output [3:0] an             // display select
+`endif    
 );
 	parameter BASE_ADDR = 6'h00;    // base address for registers
 
@@ -56,10 +59,10 @@ module basic_io_b3(
     
     initial begin
         // init the display to all blank
-        display_buf[0] <= 5'h10;
-        display_buf[1] <= 5'h10;
-        display_buf[2] <= 5'h10;
-        display_buf[3] <= 5'h10;
+        display_buf[0] <= 8'h10;
+        display_buf[1] <= 8'h10;
+        display_buf[2] <= 8'h10;
+        display_buf[3] <= 8'h10;
     end
     
     wire switch_clk;
@@ -72,8 +75,10 @@ module basic_io_b3(
 `endif    
     
     // IO peripherals
+`ifdef SYNTHESIS
 	keypad kp(clk, row, col, kpd_buf);    
-    basys3_display display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], seg,  dp,  an);
+`endif	
+    display_io_b3 display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], seg,  dp,  an);
     assign led = led_buf;
 
 

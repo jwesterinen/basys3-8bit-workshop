@@ -1,9 +1,13 @@
 system_avr_tb.v
+../prescaler.v
 ../system_avr.v
 ../avr_core.v
 ../flash.v
 ../ram.v
 ../basic_io_b3.v
+../display_io_b3.v
 ../PmodKYPD.v
-../basys3_display.v
-../prescaler.v
+../sound_io_b3.v
+../SN76477.v
+../lfsr.v
+

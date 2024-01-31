@@ -37,16 +37,16 @@
 *
 */
  
-module basys3_display(
+module display_io_b3(
     input clk,                  // system clock
     input display_ctrl,         // display control reg
     input [7:0] display_buf0,   // display buffer 0
     input [7:0] display_buf1,   // display buffer 1
     input [7:0] display_buf2,   // display buffer 2
     input [7:0] display_buf3,   // display buffer 3
-    output [6:0] seg,       // display segments
-    output dp,              // display decimal point
-    output [3:0] an         // display select
+    output [6:0] seg,           // display segments
+    output dp,                  // display decimal point
+    output [3:0] an             // display select
 );
     wire [7:0] display_buf [0:3];
     assign display_buf[0] = display_buf0;
