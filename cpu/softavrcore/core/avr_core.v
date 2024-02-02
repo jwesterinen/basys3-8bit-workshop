@@ -9,12 +9,12 @@
 
 /* select architecture below: */
 //`define AVR_200
-`define AVR_250
+//`define AVR_250
 //`define AVR_310
 //`define AVR_350
 //`define AVR_400
 //`define AVR_500
-//`define AVR_510
+`define AVR_510
 
 /* on some systems, memory access needs to be in an "inital" stage if PLLs are also used: */
 `define AVR_INITIAL

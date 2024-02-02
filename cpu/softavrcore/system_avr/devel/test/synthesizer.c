@@ -28,9 +28,7 @@
 */
 
 #include "../include/system_avr_b3.h"
-
-uint8_t ReadKeypad(void);
-uint8_t ReadButtons(void);
+#include "../include/system_avr_b3_lib.c"
 
 int main(void)
 {
@@ -55,14 +53,14 @@ int main(void)
         MOD_SEL = (SW_LSB & 0x07);
         
         // choose the current osc
-        value = ReadButtons();
+        value = ReadButtons(true);
         if (value)
         {
             butVal = value;
         }
         
         // choose the freq to be played
-        value = ReadKeypad();
+        value = ReadKeypad(true);
         if (value)
         {
             keyVal = value & 0x000f;
@@ -106,31 +104,4 @@ int main(void)
         
     return(0);
 }
-
-uint8_t ReadKeypad(void)
-{
-    uint8_t keyCode = KEYPAD;
-    
-    if (keyCode)
-    {
-        while (KEYPAD)
-        ;
-    }
-    
-    return keyCode;
-}
-
-uint8_t ReadButtons(void)
-{
-    uint8_t ButtonCode = BUTTONS;
-    
-    if (ButtonCode)
-    {
-        while (BUTTONS)
-        ;
-    }
-    
-    return ButtonCode;
-}
-
 

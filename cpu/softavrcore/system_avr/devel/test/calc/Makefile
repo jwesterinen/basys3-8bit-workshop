@@ -1,14 +1,16 @@
 SHELL=/bin/sh
 
-test ?= 
+PROJNAME=calltest
 
-TARGET=$(test).mem
-PLATFORM = system_avr_b3
-ARCH = avr51
+# for linked compilation system_avr_b3_lib.o must be included in the OBJS
+#OBJS=calc.o system_avr_b3_lib.o
+OBJS=calc.o
 
-SYNTH_DIR = ../..
-TB_DIR = ../../system_avr_tb
-LIB_DIR = ../lib
+SYNTH_DIR = ../../..
+TB_DIR = ../../../system_avr_tb
+LIB_DIR = ../../lib
+
+TARGET=$(PROJNAME).mem
 
 CC=avr-gcc
 AS=avr-as
@@ -19,7 +21,10 @@ CHMOD=chmod
 STAT=stat
 DD=dd
 
-PLATFORM_LIB = $(PLATFORM)_lib.o
+PLATFORM = system_avr_b3
+PLATFORM_LIB = $(PLATFORM).o
+
+ARCH = avr51
 ARCH_LIB = crt0.o
 
 AFLAGS=-mmcu=$(ARCH)
@@ -37,15 +42,14 @@ all: $(TARGET)
 $(ARCH_LIB): $(LIB_DIR)/crt0.S
 	$(AS) $(AFLAGS) -o $@ $<
 
-#$(test).elf: $(test).o $(PLATFORM_LIB) $(ARCH_LIB)
-$(test).elf: $(test).o $(ARCH_LIB)
+$(PROJNAME).elf: $(OBJS) $(ARCH_LIB)
 	$(CC) $(LDFLAGS) -o $@ $^
-	$(OBJDUMP) -s -m $(ARCH) -d $@ > $(test).disasm
+	$(OBJDUMP) -s -m $(ARCH) -d $@ > $(PROJNAME).disasm
 
-$(test).bin: $(test).elf
+$(PROJNAME).bin: $(PROJNAME).elf
 	$(OBJCOPY) -j .text -j .data -O binary $< $@
 
-$(TARGET): $(test).bin
+$(TARGET): $(PROJNAME).bin
 	cat $< /dev/zero | head -c $(PMEM_SIZE) | hexdump -v -e '/2 "%.4x\n"' > $(TARGET)
 
 install: $(TARGET)
@@ -54,7 +58,4 @@ install: $(TARGET)
 
 clean:
 	rm -f $(TARGET) *.o *.elf *.bin *.disasm
-
-clean_all:
-	rm -f *.mem *.o *.elf *.bin *.disasm
 

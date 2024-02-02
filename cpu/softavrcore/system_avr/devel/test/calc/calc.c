@@ -39,8 +39,20 @@
 *       +           0014
 */
 
-#include <stdbool.h>
-#include "../include/system_avr_b3.h"
+#include "../../include/system_avr_b3.h"
+
+// For linked compilation comment out the following AND add system_avr_b3.o to OBJS in the Makefile
+#define MONOLITHIC
+
+#ifdef MONOLITHIC
+
+#include "../../include/system_avr_b3_lib.c"
+
+#else
+
+#include "../../include/system_avr_b3_lib.h"
+
+#endif
 
 // eval stack and its index, i.e. eval stack pointer
 int es[10], esp;
@@ -71,57 +83,6 @@ int Put(int a)
     return a;
 }
 
-void Display(int value)
-{
-    DISPLAY0 = (value & 0xf000) >> 12;
-    DISPLAY1 = (value & 0x0f00) >> 8;
-    DISPLAY2 = (value & 0x00f0) >> 4;
-    DISPLAY3 = (value & 0x000f);
-}
-
-uint8_t ReadKeypad(void)
-{
-    uint8_t keyCode = KEYPAD;
-    
-    if (keyCode)
-    {
-        while (KEYPAD)
-        ;
-    }
-    
-    return keyCode;
-}
-
-uint8_t ReadButtons(void)
-{
-    uint8_t ButtonCode = BUTTONS;
-    
-    if (ButtonCode)
-    {
-        while (BUTTONS)
-        ;
-    }
-    
-    return ButtonCode;
-}
-
-int AppendKeyValue(int value, bool *pIsNewEntry)
-{
-    uint8_t keycode = ReadKeypad();
-    
-    if (keycode)
-    {
-        if (*pIsNewEntry)
-        {
-            value = 0;
-            *pIsNewEntry = false;
-        }
-        value = (value << 4) | (keycode & 0x000f);
-    }
-    
-    return value;
-}
-
 int main(void)
 {
     int value = 0, b;
@@ -129,11 +90,11 @@ int main(void)
    
     while (1)
     {
-        Display(value);
+        Display(value, 4);
         
-        value = AppendKeyValue(value, &isNewEntry);
+        value = AppendKeyValue(value, &isNewEntry, true);
             
-        switch (ReadButtons())
+        switch (ReadButtons(true))
         {
             // "Enter"
             case BUTTON_U:

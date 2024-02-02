@@ -91,11 +91,13 @@
 #define MIXER_SEL       __IOR(IO_BASE_SOUND_IO+0x0a)    // mixer select: which oscillators are enabled {LFO, Noise, VCO2, VCO1}
 
 // modulation selection values
+#define MOD_SEL_NONE        0x0000
 #define MOD_SEL_VCO1        0x0001
 #define MOD_SEL_VCO2        0x0002
 #define MOD_SEL_NOISE       0x0004
 
 // mixer selection values
+#define MIXER_SEL_NONE      0x0000
 #define MIXER_SEL_VCO1      0x0001
 #define MIXER_SEL_VCO2      0x0002
 #define MIXER_SEL_NOISE     0x0004
