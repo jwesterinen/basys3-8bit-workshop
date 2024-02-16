@@ -1,293 +1,212 @@
-`include "avr_core.v"
-`include "avr_io_out.v"
-`include "avr_io_uart.v"
-//`include "avr_io_timer.v"
-//`include "avr_io_crc.v"
-//`include "avr_systick.v"
-
-`include "flash.v"
-`include "ram.v"
-
-//`include "avr_io_spi.v"
-
-`include "prescaler.v"
+`ifdef SYNTHESIS
+ `include "avr_core.v"
+ `include "basic_io_b3.v"
+ `include "keypad_io_b3.v"
+ `include "sound_io_b3.v"
+ `include "avr_io_uart.v"
+ `include "avr_io_timer.v"
+ `include "flash.v"
+ `include "ram.v"
+ `include "prescaler.v"
+`endif
 
 /*****************************************************************************/
 
 module priority_encoder ( input [3:0] irq_lines , output iflag, output reg [1:0] ivect );
 
-//reg [1:0] ivect;
+    always @(*) begin
+	    if (irq_lines[0])       ivect = 0;
+	    else if (irq_lines[1])  ivect = 1;
+	    else if (irq_lines[2])  ivect = 2;
+	    else if (irq_lines[3])  ivect = 3;
+	    else                    ivect = 0;
+    end
 
-always @(*) begin
-	if (irq_lines[0])       ivect = 0;
-	else if (irq_lines[1])  ivect = 1;
-	else if (irq_lines[2])  ivect = 2;
-	else if (irq_lines[3])  ivect = 3;
-	else                    ivect = 0;
-end
-
-assign	iflag = |irq_lines;
+    assign	iflag = |irq_lines;
 
 endmodule
 
-/*****************************************************************************/
+module top(	
+    input  clk,         // 100MHz clock
+    input [15:0] sw,    // switches
+    input [4:0] btn,    // buttons - C (00001), U (00010), L (00100), R (01000), D (10000)
+    output [15:0] led,  // LEDs
+    output [6:0] seg,   // display segments
+    output dp,          // decimal point
+    output [3:0] an,    // display anode
+`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
+    inout [7:0] JB,     // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
+`endif 	
+    output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
+    input RsRx,
+    output RsTx
+);
 
-module top
- (	input	clk,
-	output  [7:0] led,
-	input	RsRx,
-	output	RsTx
- );
+    parameter pmem_width = 12;    // 8K (0x2000)
+    parameter dmem_width = 12;    // 8K (0x2000)
 
-//assign sseg4 = 13'b1_1111_1111_1111;
+    wire			pmem_ce;
+    wire [pmem_width-1:0]	pmem_a;
+    wire [15:0]		pmem_d;
 
-wire		clk;
+    wire			dmem_re;
+    wire			dmem_we;
+    wire [dmem_width-1:0] 	dmem_a;
+    wire [7:0]		dmem_do;
 
-parameter	pmem_width = 12;
-parameter	dmem_width = 10;
+    wire			io_re;
+    wire			io_we;
+    wire [5:0]		io_a;
+    wire [7:0]		io_do;
+    wor [7:0]       io_di;
 
-wire			pmem_ce;
-wire [pmem_width-1:0]	pmem_a;
-wire [15:0]		pmem_d;
-
-wire			dmem_re;
-wire			dmem_we;
-wire [dmem_width-1:0] 	dmem_a;
-wire [7:0]		dmem_di;
-wire [7:0]		dmem_do;
-
-wire			io_re;
-wire			io_we;
-wire [5:0]		io_a;
-wire [7:0]		io_do;
-
-/*
-SB_PLL40_CORE
- #(	.FEEDBACK_PATH("SIMPLE"),
-	.PLLOUT_SELECT("GENCLK"),
-	.ENABLE_ICEGATE("0"),
-	.DIVR(4'b0000),
-	.DIVF(7'b0111111),
-	.DIVQ(3'b100),
-	.FILTER_RANGE(3'b001)
-  )
-pll
- (      .RESETB(1'b1),
-        .BYPASS(1'b1),
-	.EXTFEEDBACK(1'b0),
-	.LATCHINPUTVALUE(1'b0),
-	.DYNAMICDELAY(8'b00000000),
-        .REFERENCECLK(hwclk),
-	.SDI(1'b0),
-	.SCLK(1'b0),
-        .PLLOUTGLOBAL(clk)
- );
-*/
-
-//reg [1:0] clkcnt;
-//always @(posedge hwclk) clkcnt <= clkcnt + 1;
-//assign clk = clkcnt[1];
-//BUFG clkcrt ( .I(clkcnt[1]), .O(clk) );
-
+// TODO: this should really be done with a PLL
     wire system_clk;
 `ifdef SYNTHESIS    
     // scale the input clock to ~12.5MHz
-    prescaler #(.N(3)) ps(clk, system_clk);
+    prescaler #(.N(3)) ps12(clk, system_clk);
 `else
     // no scaling for simulator
     assign system_clk = clk;
 `endif    
     
-/*****************************************************************************/
+    wire clk_50MHz;
+`ifdef SYNTHESIS    
+    // scale the input clock to 50MHz
+    prescaler #(.N(1)) ps50(clk, clk_50MHz);
+`else
+    // no scaling for simulator
+    assign clk_50MHz = clk;
+`endif    
+    
+    flash core0_flash( system_clk, pmem_ce,pmem_a, pmem_d );
+    defparam core0_flash.flash_width = pmem_width;
 
-ram	 core0_ram ( system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do );
-defparam core0_ram.ram_width = dmem_width;
+`define IO_MAPPED_IO
+//`define EXT_IO_MAPPED_IO
 
-flash	 core0_flash ( system_clk, pmem_ce,pmem_a, pmem_d );
-//defparam core0_flash.flash_width = pmem_width;
+`ifdef IO_MAPPED_IO
 
-/*****************************************************************************/
+    wire [7:0] dmem_di;
 
-wor [7:0] io_di;
+    ram core0_ram( system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do );    // dmem addrs 0x000-0x7ff
+    defparam core0_ram.ram_width = dmem_width-1;
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    // basic I/O (switches, buttons, LEDs, and 7-segment displays
+    wire basic_io_select = (io_a[5:4] == 4'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
+    wire basic_io_re = basic_io_select & io_re;
+    wire basic_io_we = basic_io_select & io_we;
+    basic_io_b3 basic_io(
+        clk, 
+        io_a[3:0], io_di, io_do, basic_io_re, basic_io_we, 
+        sw, btn, led, seg, dp, an
+    );
 
-// `define TIMER0
+    // Pmod keypad
+    wire keypad_io_select = (io_a[5:4] == 4'b00);           // I/O addr range 00xxxx, reg 0x03
+    wire keypad_io_re = keypad_io_select & io_re;
+    wire keypad_io_we = keypad_io_select & io_we;
+	keypad_io_b3 keypad(clk, io_a[3:0], io_di, keypad_io_re, JB[7:4], JB[3:0]);
+    
+    // sound generator w/Pmod amp/speaker
+    wire sound_io_select = (io_a[5:4] == 4'b01);            // I/O addr range 01xxxx, regs 0x10-0x1f
+    wire sound_io_re = sound_io_select & io_re;
+    wire sound_io_we = sound_io_select & io_we;
+    sound_io_b3 sound_io(clk_50MHz, btn[0], io_a[3:0], io_di, io_do, sound_io_re, sound_io_we, JA7);
+        
+`else
+
+    wor [7:0] dmem_di;
+
+    wire ram_select = (dmem_a >= 12'h100);                           // dmem addrs 0x100-0x7ff
+    wire ram_re = ram_select & dmem_re;
+    wire ram_we = ram_select & dmem_we;
+    ram	core0_ram ( system_clk, ram_re, ram_we, dmem_a[dmem_width-2:0], dmem_di, dmem_do );
+    defparam core0_ram.ram_width = dmem_width-1;
+
+`ifdef EXT_IO_MAPPED_IO
+
+    wire basic_io_select = (dmem_a >= 12'h060 && dmem_a < 12'h100);             // dmem addrs 0x060-0x0ff
+    wire basic_io_re = basic_io_select & dmem_re;
+    wire basic_io_we = basic_io_select & dmem_we;
+    basic_io_b3 basic_io(
+        clk, 
+        dmem_a[3:0], dmem_di, dmem_do, basic_io_re, basic_io_we, 
+        sw, btn, led, seg, dp, an, JB[7:4], JB[3:0]
+    );
+    
+`else // memory mapped I/O
+
+    wire basic_io_select = (dmem_a[dmem_width-1:4] == 8'b10000000);             // dmem addrs 0x800-0x8ff
+    wire basic_io_re = basic_io_select & dmem_re;
+    wire basic_io_we = basic_io_select & dmem_we;
+    basic_io_b3 basic_io(
+        clk, 
+        dmem_a[3:0], dmem_di, dmem_do, basic_io_re, basic_io_we, 
+        sw, btn, led, seg, dp, an, JB[7:4], JB[3:0]
+    );
+    
+`endif   
+`endif 
+
+//`define TIMER0
 
 `ifdef TIMER0
-wire timer0_io_select = (io_a[5:2] == 4'b0010);			/* 0010xx: 8-11 */
-wire timer0_io_re = timer0_io_select & io_re;
-wire timer0_io_we = timer0_io_select & io_we;
-wire timer0_irq;
+    wire timer0_io_select = (io_a[5:2] == 4'b0010);         // I/O addr range 0010xx: regs 0x08-0x0b
+    wire timer0_io_re = timer0_io_select & io_re;
+    wire timer0_io_we = timer0_io_select & io_we;
+    wire timer0_irq;
 
-avr_io_timer timer0
- (      system_clk, 1'b0, 
-        timer0_io_re, timer0_io_we, io_a[1:0], io_di, io_do,
-	timer0_irq
- );
+    avr_io_timer timer0
+     (      system_clk, 1'b0, 
+            timer0_io_re, timer0_io_we, io_a[1:0], io_di, io_do,
+	    timer0_irq
+     );
 `else
-wire timer0_irq = 0;
+    wire timer0_irq = 0;
 `endif
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    wire uart0_io_select = (io_a[5:2] == 4'b1000);			// I/O addr range 1000xx: regs 0x20-0x23
+    wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
+    wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
+    wire uart0_txd;
+    wire uart0_rxd;
+    wire [2:0] uart0_irq;
 
-//`define SYSTICK0
+    assign RsTx = uart0_txd;
+    assign uart0_rxd = RsRx; 
 
-`ifdef SYSTICK0
-wire systick0_io_select = (io_a[5:2] == 4'b0010);               /* 0010xx: 8-11 */
-wire systick0_io_re = systick0_io_select & io_re;
-wire systick0_io_we = systick0_io_select & io_we;
-wire systick0_irq;
-wire systick0_ack;
- 
-avr_systick systick0
- (      system_clk, 1'b0,
-        systick0_io_re, systick0_io_we, io_a[1:0], io_di, io_do,
-        systick0_irq, systick0_ack
- );
-`else
-wire systick0_irq = 0;
-`endif
+    avr_io_uart uart0 
+     (	system_clk, 1'b0, 
+	    uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
+	    uart0_txd, uart0_rxd,
+	    uart0_irq
+     );
 
+    wire iflag;
+    wire [1:0] ivect;
+    wire [1:0] ieack;
+    wire [1:0] core0_mode;
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+    //assign systick0_ack = (ieack==2'b01);     // example of interrupt ack
 
-`define PORT0
+    priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, systick0_irq, 1'b0 }, iflag, ivect );
 
-`ifdef PORT0
-wire port0_io_select = (io_a[5:0] == 6'b000100);		/* 000100: 4 */
-wire port0_io_re = (port0_io_select ? io_re : 1'b0);
-wire port0_io_we = (port0_io_select ? io_we : 1'b0);
-wire [7:0] port0_out;
+    avr_core core0 
+     (	system_clk, btn[0],
+	    pmem_ce, pmem_a, pmem_d, 
+	    dmem_re, dmem_we, dmem_a, dmem_di, dmem_do,
+	    io_re, io_we, io_a, io_di, io_do,
+	    iflag, ivect,
+	    core0_mode,
+	    ieack
+     );
 
-avr_io_out port0
- (      system_clk, 1'b0, 
-        port0_io_re, port0_io_we, io_di, io_do,
-	port0_out
- );
-
-assign led = port0_out;
-`else
-assign led = 8'b00000000;
-`endif
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-//`define CRC0
-
-`ifdef CRC0
-wire crc0_io_select = (io_a[5:2] == 4'b0011);           /* 0011xx: 12-15 */
-wire crc0_io_re = (crc0_io_select ? io_re : 1'b0);
-wire crc0_io_we = (crc0_io_select ? io_we : 1'b0);
-
-avr_io_crc crc0
- (      system_clk, 1'b0,
-        crc0_io_re, crc0_io_we, io_a[1:0], io_di, io_do
- );
-`endif
- 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-`define UART0
-
-`ifdef UART0					
-wire uart0_io_select = (io_a[5:2] == 4'b0000);			/* 0000xx: 0-3 */
-wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
-wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
-wire uart0_txd;
-wire uart0_rxd;
-wire [2:0] uart0_irq;
-
-assign RsTx = uart0_txd;
-assign uart0_rxd = RsRx; 
-
-avr_io_uart uart0 
- (	system_clk, 1'b0, 
-	uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
-	uart0_txd, uart0_rxd,
-	uart0_irq
- );
-`else
-assign RsTx = RsRx;
-wire [2:0] uart0_irq;
-assign uart0_irq = 3'b000;
-`endif
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-// `define SPI0
-
-`ifdef SPI0
-wire spi0_io_select = (io_a[5:2] == 4'b0100);			/* 0100xx: 16-19 */
-wire spi0_io_re = (spi0_io_select ? io_re : 1'b0);
-wire spi0_io_we = (spi0_io_select ? io_we : 1'b0);
-wire spi0_enable;
-wire spi0_master;
-wire spi0_master_out;
-wire spi0_master_in;
-wire spi0_master_clk;
-wire spi0_master_select;
-wire spi0_slave_out;
-
-`define ASYNC_SPI_SAMPLING
-
-`ifdef ASYNC_SPI_SAMPLING
-assign mosi = spi0_master_out;
-assign spi0_master_in = miso;
-assign sck = spi0_master_clk;
-assign nss = ~spi0_master_select;
-`else
-reg	mosi, spi0_master_in, sck, nss;
-always @(posedge system_clk) begin
-	mosi <= spi0_master_out;
-	spi0_master_in <= miso;
-	sck <= spi0_master_clk;
-	nss <= ~spi0_master_select;
-end
-`endif
-
-avr_io_spi spi0
- (	system_clk, 1'b0, 
-	spi0_io_re, spi0_io_we, io_a[1:0], io_di, io_do,
-	spi0_enable, spi0_master,
-	spi0_master_clk, spi0_master_out, spi0_master_in, spi0_master_select,
-	1'b0, 1'b0, spi0_slave_out, 1'b0 
- );
-`else
-
-//assign sck = 1'b0;
-//assign mosi = 1'b0;
-//assign nss = 1'b1;
-
-`endif
-
-
-/*****************************************************************************/
-
-wire iflag;
-wire [1:0] ivect;
-wire [1:0] ieack;
-wire [1:0] core0_mode;
-
-assign systick0_ack = (ieack==2'b01);
-
-priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, systick0_irq, 1'b0 }, iflag, ivect );
-
-avr_core core0 
- (	system_clk, 1'b0,
-	pmem_ce, pmem_a, pmem_d, 
-	dmem_re, dmem_we, dmem_a, dmem_di, dmem_do,
-	io_re, io_we, io_a, io_di, io_do,
-	iflag, ivect,
-	core0_mode,
-	ieack
- );
-
-defparam core0.pmem_width = pmem_width;
-defparam core0.dmem_width = dmem_width;
-defparam core0.interrupt  = 1;
-defparam core0.intr_width = 2;
-defparam core0.lsb_call = 0;
+    defparam core0.pmem_width = pmem_width;
+    defparam core0.dmem_width = dmem_width;
+    defparam core0.interrupt  = 1;
+    defparam core0.intr_width = 2;
+    defparam core0.lsb_call = 0;
 
 endmodule
 
