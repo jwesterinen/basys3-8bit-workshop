@@ -1,5 +1,8 @@
+#include <inttypes.h>
 #include "../../include/avr_b3.h"
+/*
 #include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_stdio.h"
 
 // UART receive ISR
 ISR(_VECTOR(3))
@@ -51,13 +54,15 @@ void test_interrupt(void)
         msleep(500);
     }
 }
+*/
 
-void test_io(void)
+__attribute__((noinline)) void test_io(void)
 {
     while ( 1 )
     {	
         // write switches to LEDs
         LED = SW;
+        //LED = 0x2345;
         
         // write keypad to display 0
         DISPLAY0 = KEYPAD & 0x0f;
@@ -71,13 +76,15 @@ void test_io(void)
 
 int main(void)
 {
+    /*
     // set UART baud rate to 115200
     UBRR0 = 13-1;
+    */
 
     //test_printf();
     //test_interrupt();
     test_io();
-
+    
     return(0);
 }
 

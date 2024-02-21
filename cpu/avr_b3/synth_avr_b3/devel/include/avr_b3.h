@@ -5,8 +5,6 @@
 
 #define __IOR(x)    (*(volatile uint8_t *)(0x20+(x)))
 #define __IOW(x)    (*(volatile uint16_t *)(0x20+(x)))
-#define __EIOR(x)    (*(volatile uint8_t *)(0x60+(x)))
-#define __EIOW(x)    (*(volatile uint16_t *)(0x60+(x)))
 #define __MEMR(x)   (*(volatile uint8_t *)(0x800+(x)))
 #define __MEMW(x)	(*(volatile uint16_t *)(0x800+(x)))
 
@@ -15,8 +13,6 @@
 #define IO_BASE_SOUND_IO	0x10
 #define IO_BASE_UART0       0x20
 #define IO_BASE_TIMER0      0x08
-
-#define EIO_BASE_BASIC_IO	0x00
 
 #define MEM_BASE_BASIC_IO	0x00
 
@@ -60,6 +56,8 @@
 
 
 // basic I/O
+#define IO_MAPPED_IO
+#ifdef IO_MAPPED_IO
 
 #define SW_LSB      __IOR(IO_BASE_BASIC_IO+0x00)    // switch LSB
 #define SW_MSB      __IOR(IO_BASE_BASIC_IO+0x01)    // switch MSB
@@ -73,6 +71,27 @@
 #define DISPLAY1    __IOR(IO_BASE_BASIC_IO+0x0d)
 #define DISPLAY2    __IOR(IO_BASE_BASIC_IO+0x0e)
 #define DISPLAY3    __IOR(IO_BASE_BASIC_IO+0x0f)
+
+#define KEYPAD      __IOR(IO_BASE_KEYPAD+0x03)  // keypad
+
+#else
+
+#define SW_LSB      __MEMR(IO_BASE_BASIC_IO+0x00)    // switch LSB
+#define SW_MSB      __MEMR(IO_BASE_BASIC_IO+0x01)    // switch MSB
+#define SW          __MEMW(IO_BASE_BASIC_IO+0x00)    // all switches
+#define BUTTONS     __MEMR(IO_BASE_BASIC_IO+0x02)    // buttons
+#define LED_LSB     __MEMR(IO_BASE_BASIC_IO+0x04)    // LED LSB
+#define LED_MSB     __MEMR(IO_BASE_BASIC_IO+0x05)    // LED MSB
+#define LED         __MEMW(IO_BASE_BASIC_IO+0x04)    // all LEDs
+#define DISPCTRL    __MEMR(IO_BASE_BASIC_IO+0x08)    // display control, pattern mode = 0, raw mode = !0
+#define DISPLAY0    __MEMR(IO_BASE_BASIC_IO+0x0c)    // 7-segment displays
+#define DISPLAY1    __MEMR(IO_BASE_BASIC_IO+0x0d)
+#define DISPLAY2    __MEMR(IO_BASE_BASIC_IO+0x0e)
+#define DISPLAY3    __MEMR(IO_BASE_BASIC_IO+0x0f)
+
+#define KEYPAD      __MEMR(IO_BASE_KEYPAD+0x03)  // keypad
+
+#endif
 
 
 
@@ -116,8 +135,6 @@
 #define DISPLAY_CHAR_G6     0x1C        // 3 horiz segs
 
 // keypad
-
-#define KEYPAD      __IOR(IO_BASE_KEYPAD+0x03)  // keypad
 
 // key codes
 #define KEY_NONE            0x00
@@ -165,14 +182,4 @@
 #define MIXER_SEL_NOISE     0x0004
 #define MIXER_SEL_LFO       0x0008
 
-
-// setup for printf
-static int uart_putchar(char c, FILE *stream)
-{
-    loop_until_bit_is_set(UCSRA0, UDRE);
-    UDR0 = c;
-    
-    return(0);
-}
-static FILE mystdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
 

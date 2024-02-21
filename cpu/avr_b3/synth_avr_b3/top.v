@@ -36,14 +36,14 @@ module top(
     output [3:0] an,    // display anode
 `ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     inout [7:0] JB,     // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
-`endif 	
     output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
+`endif 	
     input RsRx,
     output RsTx
 );
 
     parameter pmem_width = 12;    // 8K (0x2000)
-    parameter dmem_width = 12;    // 8K (0x2000)
+    parameter dmem_width = 12;
 
     wire			pmem_ce;
     wire [pmem_width-1:0]	pmem_a;
@@ -83,14 +83,12 @@ module top(
     defparam core0_flash.flash_width = pmem_width;
 
 `define IO_MAPPED_IO
-//`define EXT_IO_MAPPED_IO
-
 `ifdef IO_MAPPED_IO
 
     wire [7:0] dmem_di;
 
     ram core0_ram( system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do );    // dmem addrs 0x000-0x7ff
-    defparam core0_ram.ram_width = dmem_width-1;
+    defparam core0_ram.ram_width = dmem_width;
 
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
     wire basic_io_select = (io_a[5:4] == 4'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
@@ -102,6 +100,7 @@ module top(
         sw, btn, led, seg, dp, an
     );
 
+`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     // Pmod keypad
     wire keypad_io_select = (io_a[5:4] == 4'b00);           // I/O addr range 00xxxx, reg 0x03
     wire keypad_io_re = keypad_io_select & io_re;
@@ -113,41 +112,38 @@ module top(
     wire sound_io_re = sound_io_select & io_re;
     wire sound_io_we = sound_io_select & io_we;
     sound_io_b3 sound_io(clk_50MHz, btn[0], io_a[3:0], io_di, io_do, sound_io_re, sound_io_we, JA7);
+`endif    
         
 `else
 
-    wor [7:0] dmem_di;
+    //wor [7:0] dmem_di;
+    wire [7:0] dmem_di;
 
-    wire ram_select = (dmem_a >= 12'h100);                           // dmem addrs 0x100-0x7ff
+    wire [7:0] ram_dout;
+    wire [7:0] basic_io_dout;
+
+    wire ram_select = (dmem_a[dmem_width-1] == 1'b0);                   // dmem addrs (0xxxxxxxxxxx) 0x100-0x7ff
+    //wire ram_select = (dmem_a < 12'h800);                                       // dmem addrs 0x100-0x7ff
     wire ram_re = ram_select & dmem_re;
     wire ram_we = ram_select & dmem_we;
-    ram	core0_ram ( system_clk, ram_re, ram_we, dmem_a[dmem_width-2:0], dmem_di, dmem_do );
-    defparam core0_ram.ram_width = dmem_width-1;
+    ram	core0_ram ( system_clk, ram_re, ram_we, dmem_a[10:0], ram_dout, dmem_do );
+    defparam core0_ram.ram_width = 11;
 
-`ifdef EXT_IO_MAPPED_IO
-
-    wire basic_io_select = (dmem_a >= 12'h060 && dmem_a < 12'h100);             // dmem addrs 0x060-0x0ff
+    wire basic_io_select = (dmem_a[dmem_width-1:4] == 8'b10000000);     // dmem addrs (10000000xxxx) 0x800-0x80f
+    //wire basic_io_select = (12'h800 <= dmem_a && dmem_a <= 12'h80f);            // dmem addrs 0x800-0x80f
     wire basic_io_re = basic_io_select & dmem_re;
     wire basic_io_we = basic_io_select & dmem_we;
     basic_io_b3 basic_io(
         clk, 
-        dmem_a[3:0], dmem_di, dmem_do, basic_io_re, basic_io_we, 
-        sw, btn, led, seg, dp, an, JB[7:4], JB[3:0]
+        dmem_a[3:0], basic_io_dout, dmem_do, basic_io_re, basic_io_we, 
+        sw, btn, led, seg, dp, an
     );
     
-`else // memory mapped I/O
-
-    wire basic_io_select = (dmem_a[dmem_width-1:4] == 8'b10000000);             // dmem addrs 0x800-0x8ff
-    wire basic_io_re = basic_io_select & dmem_re;
-    wire basic_io_we = basic_io_select & dmem_we;
-    basic_io_b3 basic_io(
-        clk, 
-        dmem_a[3:0], dmem_di, dmem_do, basic_io_re, basic_io_we, 
-        sw, btn, led, seg, dp, an, JB[7:4], JB[3:0]
-    );
-    
+    // memory data source selection
+    assign dmem_di = (ram_select)       ? ram_dout        :   // 0x0???
+                     (basic_io_select)  ? basic_io_dout   :   // 0x20??
+                     0;
 `endif   
-`endif 
 
 //`define TIMER0
 
@@ -190,7 +186,7 @@ module top(
 
     //assign systick0_ack = (ieack==2'b01);     // example of interrupt ack
 
-    priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, systick0_irq, 1'b0 }, iflag, ivect );
+    priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, 1'b0, 1'b0 }, iflag, ivect );
 
     avr_core core0 
      (	system_clk, btn[0],

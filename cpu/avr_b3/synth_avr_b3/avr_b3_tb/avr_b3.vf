@@ -1,0 +1,15 @@
+avr_b3_tb.v
+../prescaler.v
+../top.v
+../avr_core.v
+../flash.v
+../ram.v
+../basic_io_b3.v
+../display_io_b3.v
+../keypad_io_b3.v
+../PmodKYPD.v
+../sound_io_b3.v
+../SN76477.v
+../lfsr.v
+../avr_io_uart.v
+

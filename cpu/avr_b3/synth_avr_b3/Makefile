@@ -35,5 +35,6 @@ clean-all:
 	rm -f *.html *.xml *.jou *.log build/*
 	rm -fr .Xil
 	$(MAKE) -C devel clean-all
+	$(MAKE) -C avr_b3_tb clean
 	
 

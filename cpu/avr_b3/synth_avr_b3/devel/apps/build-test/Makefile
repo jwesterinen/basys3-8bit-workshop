@@ -7,7 +7,8 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
+#OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
+OBJECTS=$(APP).o
 
 CC=avr-gcc
 AS=avr-as
@@ -60,5 +61,5 @@ clean:
 	rm -f $(TARGET) *.o *.elf *.mem *.disasm *.hex *.bin $(LIB_DIR)/*.o
 	
 clean-all:
-	rm -f $(TARGET) $(SYNTH_DIR)/$(TARGET) *.o *.elf *.mem *.disasm *.hex *.bin $(LIB_DIR)/*.o
+	rm -f $(TARGET) $(SYNTH_DIR)/$(TARGET) $(TB_DIR)/$(TARGET) *.o *.elf *.mem *.disasm *.hex *.bin $(LIB_DIR)/*.o
 	
