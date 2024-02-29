@@ -12,4 +12,6 @@ avr_b3_tb.v
 ../SN76477.v
 ../lfsr.v
 ../avr_io_uart.v
+../clocks.v
+../out4.v
 

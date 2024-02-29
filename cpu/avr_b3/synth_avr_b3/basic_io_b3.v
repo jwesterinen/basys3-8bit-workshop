@@ -10,13 +10,19 @@
  *  includes 16 switches and 5 buttons for input and 16 LEDs and four 7-segment displays plus
  *  decimal point for output.
  *
- *  The local memory map for this module is as follows:
+ *  Registers:
  *      0x0: switches LSB
  *      0x1: switches MSB
  *      0x2: buttons: 00001 = btnC, 00010 = btnU, 00100 = btnL, 01000 = btnR, 10000 = btnD, 0 = no button pressed
+ *      0x3: N/C
  *      0x4: LEDs LSB
  *      0x5: LEDs MSB
- *      0x8: display control - 0 = pattern display, !0 = raw  display
+ *      0x6: DPs
+ *      0x7: N/C
+ *      0x8: N/C
+ *      0x9: N/C
+ *      0xa: N/C
+ *      0xb: display control - 0 = pattern display, !0 = raw  display
  *      0xc: display 0
  *      0xd: display 1
  *      0xe: display 2
@@ -46,13 +52,15 @@ module basic_io_b3(
     reg [15:0] led_buf;
     reg display_ctrl_reg;
     reg [7:0] display_buf [0:3];
+    reg [3:0] dp_buf;
     
     initial begin
-        // init the display to all blank
+        // init the display and DPs to all blank
         display_buf[0] <= 8'h10;
         display_buf[1] <= 8'h10;
         display_buf[2] <= 8'h10;
         display_buf[3] <= 8'h10;
+        dp_buf <= 4'b0000;
     end
     
     wire debounce_clk;
@@ -71,7 +79,7 @@ module basic_io_b3(
     end
     
     // IO peripherals
-    display_io_b3 display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], seg,  dp,  an);
+    display_io_b3 display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], dp_buf, seg,  dp,  an);
     assign led = led_buf;
 
     // local address decoding for writing to IO device regs
@@ -80,7 +88,8 @@ module basic_io_b3(
             casez (addr)
                 4'b0100: led_buf[7:0]           <= data_in; // write to LEDs LSB
                 4'b0101: led_buf[15:8]          <= data_in; // write to LEDs MSB
-                4'b1000: display_ctrl_reg       <= data_in; // write to display control reg
+                4'b0110: dp_buf                 <= data_in; // write to DP buf
+                4'b1011: display_ctrl_reg       <= data_in; // write to display control reg
                 4'b11??: display_buf[addr[1:0]] <= data_in; // write to displays
             endcase
     end
@@ -92,7 +101,8 @@ module basic_io_b3(
         ((addr == 4'b0010) && re) ? btn_buf             :   // button code
         ((addr == 4'b0100) && re) ? led_buf[7:0]        :   // LED buffer LSB to read back what was written
         ((addr == 4'b0101) && re) ? led_buf[15:8]       :   // LED buffer MSB to read back what was written
-        ((addr == 4'b1000) && re) ? display_ctrl_reg    :   // display control reg to read back what was written
+        ((addr == 4'b0110) && re) ? dp_buf              :   // DP buffer to read back what was written
+        ((addr == 4'b1011) && re) ? display_ctrl_reg    :   // display control reg to read back what was written
         ((addr == 4'b1100) && re) ? display_buf[0]      :   // LED buffer MSB to read back what was written
         ((addr == 4'b1101) && re) ? display_buf[1]      :   // LED buffer MSB to read back what was written
         ((addr == 4'b1110) && re) ? display_buf[2]      :   // LED buffer MSB to read back what was written

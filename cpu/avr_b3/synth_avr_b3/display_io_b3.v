@@ -44,6 +44,7 @@ module display_io_b3(
     input [7:0] display_buf1,   // display buffer 1
     input [7:0] display_buf2,   // display buffer 2
     input [7:0] display_buf3,   // display buffer 3
+    input [3:0] dp_buf,         // decimal point buffer
     output [6:0] seg,           // display segments
     output dp,                  // display decimal point
     output [3:0] an             // display select
@@ -106,6 +107,8 @@ module display_io_b3(
     // display segment value
     assign seg = (display_ctrl == 0) ? display_pats[display_buf[display_index]]:  // pattern display
                                        ~(display_buf[display_index]);             // raw display
+                                       
+    assign dp = ~(dp_buf[display_index]);                                       
                               
     // display selection                          
     assign an = 

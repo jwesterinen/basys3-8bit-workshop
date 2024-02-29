@@ -40,6 +40,7 @@ int main(void)
     DISPLAY1 = 0;
     DISPLAY2 = 0;
     DISPLAY3 = 0;
+    DP = DP_NONE;
             
     while (1)
     {
@@ -57,6 +58,33 @@ int main(void)
         if (value)
         {
             butVal = value;
+            
+            // indicate the current oscillator by turning on the DP for that display
+            switch (butVal)
+            {
+                // VCO1
+                case BUTTON_U:
+                    DP = (1<<DP0);
+                    break;
+                    
+                // VCO2
+                case BUTTON_L:
+                    DP = (1<<DP1);
+                    break;
+                    
+                // noise
+                case BUTTON_D:
+                    DP = (1<<DP2);
+                    break;
+                    
+                // LFO
+                case BUTTON_R:
+                    DP = (1<<DP3);
+                    break;
+                                
+                default:
+                    break;
+            }
         }
         
         // choose the freq to be played

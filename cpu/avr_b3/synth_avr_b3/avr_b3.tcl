@@ -7,7 +7,7 @@ set_param synth.elaboration.rodinMoreOptions "rt::set_parameter compatibilityMod
 read_verilog top.v ;
 read_xdc $xdc_file ;
 
-synth_design -top top -part xc7a35tcpg236-1 ;
+synth_design -top $project -part xc7a35tcpg236-1 ;
 write_checkpoint -force build/${project}_post_synth.dcp ;
 
 opt_design ;

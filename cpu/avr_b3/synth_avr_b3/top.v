@@ -8,6 +8,9 @@
  `include "flash.v"
  `include "ram.v"
  `include "prescaler.v"
+ `include "sysdefs.h"
+ `include "clocks.v"
+ `include "out4.v"
 `endif
 
 /*****************************************************************************/
@@ -26,7 +29,7 @@ module priority_encoder ( input [3:0] irq_lines , output iflag, output reg [1:0]
 
 endmodule
 
-module top(	
+module avr_b3(	
     input  clk,         // 100MHz clock
     input [15:0] sw,    // switches
     input [4:0] btn,    // buttons - C (00001), U (00010), L (00100), R (01000), D (10000)
@@ -36,13 +39,17 @@ module top(
     output [3:0] an,    // display anode
 `ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     inout [7:0] JB,     // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
-    output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
 `endif 	
+    output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
+    output JC0,
+    output JC1,
+    output JC2,
+    output JC3,
     input RsRx,
     output RsTx
 );
 
-    parameter pmem_width = 12;    // 8K (0x2000)
+    parameter pmem_width = 12;    // 4K (0x1000)
     parameter dmem_width = 12;
 
     wire			pmem_ce;
@@ -60,6 +67,15 @@ module top(
     wire [7:0]		io_do;
     wor [7:0]       io_di;
 
+    wire system_rst;
+    assign system_rst = btn[0];
+    
+    wire [7:0] uart0_io_dout;
+    wire [7:0] basic_io_dout;
+    wire [7:0] keypad_io_dout;
+    wire [7:0] sound_io_dout;
+    wire [7:0] out4_io_dout;
+    
 // TODO: this should really be done with a PLL
     wire system_clk;
 `ifdef SYNTHESIS    
@@ -79,105 +95,13 @@ module top(
     assign clk_50MHz = clk;
 `endif    
     
-    flash core0_flash( system_clk, pmem_ce,pmem_a, pmem_d );
+    flash core0_flash(system_clk, pmem_ce,pmem_a, pmem_d);                  // pmem addrs 0x000-0xfff
     defparam core0_flash.flash_width = pmem_width;
 
-`define IO_MAPPED_IO
-`ifdef IO_MAPPED_IO
-
     wire [7:0] dmem_di;
 
-    ram core0_ram( system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do );    // dmem addrs 0x000-0x7ff
+    ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x000-0xfff
     defparam core0_ram.ram_width = dmem_width;
-
-    // basic I/O (switches, buttons, LEDs, and 7-segment displays
-    wire basic_io_select = (io_a[5:4] == 4'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
-    wire basic_io_re = basic_io_select & io_re;
-    wire basic_io_we = basic_io_select & io_we;
-    basic_io_b3 basic_io(
-        clk, 
-        io_a[3:0], io_di, io_do, basic_io_re, basic_io_we, 
-        sw, btn, led, seg, dp, an
-    );
-
-`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
-    // Pmod keypad
-    wire keypad_io_select = (io_a[5:4] == 4'b00);           // I/O addr range 00xxxx, reg 0x03
-    wire keypad_io_re = keypad_io_select & io_re;
-    wire keypad_io_we = keypad_io_select & io_we;
-	keypad_io_b3 keypad(clk, io_a[3:0], io_di, keypad_io_re, JB[7:4], JB[3:0]);
-    
-    // sound generator w/Pmod amp/speaker
-    wire sound_io_select = (io_a[5:4] == 4'b01);            // I/O addr range 01xxxx, regs 0x10-0x1f
-    wire sound_io_re = sound_io_select & io_re;
-    wire sound_io_we = sound_io_select & io_we;
-    sound_io_b3 sound_io(clk_50MHz, btn[0], io_a[3:0], io_di, io_do, sound_io_re, sound_io_we, JA7);
-`endif    
-        
-`else
-
-    //wor [7:0] dmem_di;
-    wire [7:0] dmem_di;
-
-    wire [7:0] ram_dout;
-    wire [7:0] basic_io_dout;
-
-    wire ram_select = (dmem_a[dmem_width-1] == 1'b0);                   // dmem addrs (0xxxxxxxxxxx) 0x100-0x7ff
-    //wire ram_select = (dmem_a < 12'h800);                                       // dmem addrs 0x100-0x7ff
-    wire ram_re = ram_select & dmem_re;
-    wire ram_we = ram_select & dmem_we;
-    ram	core0_ram ( system_clk, ram_re, ram_we, dmem_a[10:0], ram_dout, dmem_do );
-    defparam core0_ram.ram_width = 11;
-
-    wire basic_io_select = (dmem_a[dmem_width-1:4] == 8'b10000000);     // dmem addrs (10000000xxxx) 0x800-0x80f
-    //wire basic_io_select = (12'h800 <= dmem_a && dmem_a <= 12'h80f);            // dmem addrs 0x800-0x80f
-    wire basic_io_re = basic_io_select & dmem_re;
-    wire basic_io_we = basic_io_select & dmem_we;
-    basic_io_b3 basic_io(
-        clk, 
-        dmem_a[3:0], basic_io_dout, dmem_do, basic_io_re, basic_io_we, 
-        sw, btn, led, seg, dp, an
-    );
-    
-    // memory data source selection
-    assign dmem_di = (ram_select)       ? ram_dout        :   // 0x0???
-                     (basic_io_select)  ? basic_io_dout   :   // 0x20??
-                     0;
-`endif   
-
-//`define TIMER0
-
-`ifdef TIMER0
-    wire timer0_io_select = (io_a[5:2] == 4'b0010);         // I/O addr range 0010xx: regs 0x08-0x0b
-    wire timer0_io_re = timer0_io_select & io_re;
-    wire timer0_io_we = timer0_io_select & io_we;
-    wire timer0_irq;
-
-    avr_io_timer timer0
-     (      system_clk, 1'b0, 
-            timer0_io_re, timer0_io_we, io_a[1:0], io_di, io_do,
-	    timer0_irq
-     );
-`else
-    wire timer0_irq = 0;
-`endif
-
-    wire uart0_io_select = (io_a[5:2] == 4'b1000);			// I/O addr range 1000xx: regs 0x20-0x23
-    wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
-    wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
-    wire uart0_txd;
-    wire uart0_rxd;
-    wire [2:0] uart0_irq;
-
-    assign RsTx = uart0_txd;
-    assign uart0_rxd = RsRx; 
-
-    avr_io_uart uart0 
-     (	system_clk, 1'b0, 
-	    uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
-	    uart0_txd, uart0_rxd,
-	    uart0_irq
-     );
 
     wire iflag;
     wire [1:0] ivect;
@@ -189,20 +113,115 @@ module top(
     priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, 1'b0, 1'b0 }, iflag, ivect );
 
     avr_core core0 
-     (	system_clk, btn[0],
+    (	
+        system_clk, system_rst,
 	    pmem_ce, pmem_a, pmem_d, 
 	    dmem_re, dmem_we, dmem_a, dmem_di, dmem_do,
 	    io_re, io_we, io_a, io_di, io_do,
 	    iflag, ivect,
 	    core0_mode,
 	    ieack
-     );
-
+    );
     defparam core0.pmem_width = pmem_width;
     defparam core0.dmem_width = dmem_width;
     defparam core0.interrupt  = 1;
     defparam core0.intr_width = 2;
     defparam core0.lsb_call = 0;
+    
+//`define TIMER0
+
+`ifdef TIMER0
+    wire timer0_io_select = (io_a[5:2] == 4'b0010);         // I/O addr range 0010xx: regs 0x08-0x0b
+    wire timer0_io_re = timer0_io_select & io_re;
+    wire timer0_io_we = timer0_io_select & io_we;
+    wire timer0_irq;
+
+    avr_io_timer timer0
+    (      
+        system_clk, 1'b0, 
+        timer0_io_re, timer0_io_we, io_a[1:0], io_di, io_do,
+	    timer0_irq
+    );
+`else
+    wire timer0_irq = 0;
+`endif
+
+    wire uart0_io_select = (io_a[5:2] == 4'b1000);			// I/O addr range 1000xx, regs 0x20-0x23
+    wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
+    wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
+    wire uart0_txd;
+    wire uart0_rxd;
+    wire [2:0] uart0_irq;
+
+    assign RsTx = uart0_txd;
+    assign uart0_rxd = RsRx; 
+
+    avr_io_uart uart0 
+    (	system_clk, system_rst, 
+	    uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
+	    uart0_txd, uart0_rxd,
+	    uart0_irq
+    );
+
+    // basic I/O (switches, buttons, LEDs, and 7-segment displays
+    wire basic_io_select = (io_a[5:4] == 4'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
+    wire basic_io_re = basic_io_select & io_re;
+    wire basic_io_we = basic_io_select & io_we;
+    basic_io_b3 basic_io
+    (
+        clk, 
+        io_a[3:0], basic_io_dout, io_do, basic_io_re, basic_io_we, 
+        sw, btn, led, seg, dp, an
+    );
+
+`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
+    // Pmod keypad
+    wire keypad_io_select = (io_a[5:0] == 5'b000011);       // I/O addr range 000011, reg 0x03
+    wire keypad_io_re = keypad_io_select & io_re;
+	keypad_io_b3 keypad
+	(
+	    clk, 
+	    keypad_io_dout, keypad_io_re, 
+	    JB[7:4], JB[3:0]
+	);
+`endif    
+    
+    // sound generator w/Pmod amp/speaker
+    wire sound_io_select = (io_a[5:4] == 4'b01);            // I/O addr range 01xxxx, regs 0x10-0x1f
+    wire sound_io_re = sound_io_select & io_re;
+    wire sound_io_we = sound_io_select & io_we;
+    sound_io_b3 sound_io
+    (
+        clk_50MHz, 
+        system_rst, io_a[3:0], sound_io_dout, io_do, sound_io_re, sound_io_we, 
+        JA7
+    );
+        
+    // DP peripherals
+
+    // DP clocks peripheral
+    wire CLK_O;
+    wire [`MXCLK:0] peri_clks;
+    clocks clks(clk, CLK_O, peri_clks);
+
+    // DP out4
+    wire out4_io_select = (io_a[5:0] == 5'b000111);           // I/O addr range 000111, reg 0x07
+    wire out4_stall;
+    wire out4_ack;
+    out4 o4
+    (
+        clk, 
+        io_we, 1'b1, out4_io_select, 8'h00, out4_stall, out4_ack, io_do, out4_io_dout, peri_clks, 
+        {JC3,JC2,JC1,JC0}
+    );
+
+    // I/O data source selection
+    assign io_di =  (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
+                    (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
+                    (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
+                    (sound_io_select)   ? sound_io_dout     :   // 01xxxx, regs 0x10-0x1f
+                    (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x20-0x23
+                    0;
 
 endmodule
 

@@ -6,6 +6,7 @@
 	.set	VECTOR_SIZE,	2
 #endif
 
+.set	VECTOR_SIZE,	4
 .set	VECTOR_WIDTH,	2
 
 .set	VECTOR_NUM,	1<<VECTOR_WIDTH

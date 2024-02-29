@@ -73,14 +73,18 @@ int Put(int a)
 
 int main(void)
 {
-    int value = 0, b;
+    int value = 0, oldValue, b;
     bool isNewEntry = true;
+    DP = DP_NONE;
    
     while (1)
     {
         Display(value, 4);
         
+        oldValue = value;
         value = AppendKeyValue(value, &isNewEntry, true, 0x80, 100);
+        if (value != oldValue)
+            DP = DP_NONE;
             
         switch (ReadButtons(true, 0x80, 100))
         {
@@ -88,6 +92,7 @@ int main(void)
             case BUTTON_U:
                 // push the current value on the expr stack
                 Push(value);
+                DP = (1<<DP3);
                 isNewEntry = true;
                 break;
                 
@@ -96,6 +101,7 @@ int main(void)
                 // put the sum of the top 2 expr stack entries onto the top of the stack and set the new value
                 value = Put(Pop() + Top());
                 isNewEntry = true;
+                DP = DP_NONE;
                 break;
                 
             // "-"
@@ -104,6 +110,7 @@ int main(void)
                 b = Pop();
                 value = Put(Top() - b);
                 isNewEntry = true;
+                DP = DP_NONE;
                 break;
                 
             // "Clear Entry"                
@@ -111,6 +118,7 @@ int main(void)
                 // clear the current value
                 value = 0;
                 isNewEntry = true;
+                DP = DP_NONE;
                 break;
         }
     }

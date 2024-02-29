@@ -1,6 +1,7 @@
 #include <inttypes.h>
+#include <time.h>
+#include <stdlib.h>
 #include "../../include/avr_b3.h"
-/*
 #include "../../include/avr_b3_lib.h"
 #include "../../include/avr_b3_stdio.h"
 
@@ -54,16 +55,27 @@ void test_interrupt(void)
         msleep(500);
     }
 }
-*/
 
 __attribute__((noinline)) void test_io(void)
 {
     while ( 1 )
     {	
-        // write switches to LEDs
-        LED = SW;
-        //LED = 0x2345;
+        // write switch MSBs to LED MSBs
+        LED_MSB = SW_MSB;
         
+        // select DP with switch LSN
+        DP = ((SW_LSB & 0x0f) == 0x01) ? (1<<DP3) : 
+             ((SW_LSB & 0x0f) == 0x02) ? (1<<DP2) : 
+             ((SW_LSB & 0x0f) == 0x04) ? (1<<DP1) :
+             ((SW_LSB & 0x0f) == 0x08) ? (1<<DP0) :
+                                         (0     ) ;
+        
+        // write switch LSB_MSN to out4 pins
+        OUT4 = SW_LSB >> 4;
+        
+        // set display control with SW15
+        DISPCTRL = (SW >> 15) & 0x0001;
+    
         // write keypad to display 0
         DISPLAY0 = KEYPAD & 0x0f;
         
@@ -74,16 +86,30 @@ __attribute__((noinline)) void test_io(void)
     }
 }
 
+__attribute__((noinline)) void test_out4(void)
+{
+    stdout = &mystdout;
+    srand(time(NULL));
+    int r;
+    
+    while (1)
+    {
+        r = rand() % 0xf;
+        OUT4 = r;
+        printf("random value = %x\r\n", r);
+        msleep(100);
+    }
+}
+
 int main(void)
 {
-    /*
     // set UART baud rate to 115200
     UBRR0 = 13-1;
-    */
 
     //test_printf();
     //test_interrupt();
-    test_io();
+    //test_io();
+    test_out4();
     
     return(0);
 }
