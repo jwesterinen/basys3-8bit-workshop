@@ -3,7 +3,8 @@
 
 #include "../../include/avr_b3.h"
 
-#define RAM_SIZE 0x0fff
+//#define RAM_SIZE 0x0fff
+#define RAM_SIZE 0x0060
 
 int main(void)
 {
@@ -16,7 +17,15 @@ int main(void)
     {
         *addr++ = n % 0x100;
     }
+
+    addr = (uint8_t *)0x060;
+    //addr = (uint8_t *)0x100;
+    for (n = 0; n < RAM_SIZE; n++)
+    {
+        LED_LSB = *addr++;
+    }
     
+    /*    
     addr = (uint8_t *)0x060;
     //addr = (uint8_t *)0x100;
     for (n = 0; n < RAM_SIZE; n++)
@@ -27,5 +36,6 @@ int main(void)
     
     // show the last successful address
     LED = (uint16_t)addr - 2;
+    */
 }    
 

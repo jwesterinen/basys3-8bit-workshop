@@ -216,8 +216,13 @@ module avr_b3(
     );
 
     // I/O data source selection
+ 
+`ifdef SYNTHESIS
     assign io_di =  (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
                     (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
+`else
+    assign io_di =  (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
+`endif                    
                     (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
                     (sound_io_select)   ? sound_io_dout     :   // 01xxxx, regs 0x10-0x1f
                     (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x20-0x23

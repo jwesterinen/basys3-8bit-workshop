@@ -40,7 +40,7 @@ module avr_b3_tb;
         #4 buttons <= 5'b0000; switches <= 16'hdbaa;
 
         // run the clock to allow the core to fetch the program from the ROM
-        #200
+        #5000
 
         $finish;
     end
