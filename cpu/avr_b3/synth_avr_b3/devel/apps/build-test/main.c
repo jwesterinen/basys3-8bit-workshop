@@ -12,7 +12,7 @@ ISR(_VECTOR(3))
     c = UDR0;
     if ('a' <= c && c <= 'z')
         c -= ('a'-'A');
-    UDR0 = c;
+    UDR0 = c + 1;
 }
 
 // timer0 ISR
@@ -101,6 +101,42 @@ __attribute__((noinline)) void test_out4(void)
     }
 }
 
+void test_uart_isr(void)
+{
+    stdout = &mystdout;
+    
+    printf("enter characters...\r\n");
+    while (1);
+}
+
+void test_sound(void)
+{
+    /*
+    stdout = &mystdout;
+    VCO1 = 0;
+
+    VCO1 = 0x86;
+    msleep(1000);
+    VCO1 = 0x00;
+    VCO2 = 0x83;
+    msleep(1000);
+    VCO2 = 0x00;
+    NOISE = 0x8e;
+    msleep(1000);
+    NOISE = 0x00;
+    */
+    int r1, r2;
+    while (1)
+    {
+        r1 = rand() % 0x9;
+        VCO1 = MIXER_EN | (r1 & FREQ_MASK);
+        r2 = rand() % 0x9;
+        VCO2 = MIXER_EN | (r2 & FREQ_MASK);
+        OUT4 = r1 | r2;
+        msleep(100);
+    }
+}
+
 int main(void)
 {
     // set UART baud rate to 115200
@@ -109,7 +145,9 @@ int main(void)
     //test_printf();
     //test_interrupt();
     //test_io();
-    test_out4();
+    //test_out4();
+    //test_uart_isr();
+    test_sound();
     
     return(0);
 }

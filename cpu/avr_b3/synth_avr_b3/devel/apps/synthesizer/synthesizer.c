@@ -29,12 +29,19 @@
 
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_stdio.h"
 
 int main(void)
 {
-    unsigned curFreq = 0;
-    unsigned value, keyVal = 0, butVal = BUTTON_NONE;
+    uint8_t value, keyVal = KEY_NONE, butVal = BUTTON_NONE;
+    uint8_t vco1 = 0, vco2 = 0, noise = 0, lfo = 0;
+    uint16_t switches;
     
+    stdout = &mystdout;
+
+    // set UART baud rate to 115200
+    UBRR0 = 13-1;
+
     // init displays
     DISPLAY0 = 0;
     DISPLAY1 = 0;
@@ -44,14 +51,28 @@ int main(void)
             
     while (1)
     {
+        // cache the switches
+        switches = SW;
+
+        // init all fields controlled by the switches but retain the frequencies
+        vco1 &= FREQ_MASK;
+        vco2 &= FREQ_MASK;
+        noise &= FREQ_MASK;
+        lfo &= FREQ_MASK;
+        
         // select oscillators to be mixed (SW15..SW12)
-        MIXER_SEL = (SW & 0xf000) >> 12;
+        lfo   |= ((switches & 0x8000) >> 15) << MIXER_SEL;
+        noise |= ((switches & 0x4000) >> 14) << MIXER_SEL;
+        vco2  |= ((switches & 0x2000) >> 13) << MIXER_SEL;
+        vco1  |= ((switches & 0x1000) >> 12) << MIXER_SEL;
         
         // modulation depth (SW7..SW5)
-        LFO_MOD_DEPTH = (SW & 0x00e0) >> 5;
+        lfo |= (((switches & 0x00e0) >> 5) << LFO_SHIFT);
         
         // select oscillators to be modulated (SW3..SW0)
-        MOD_SEL = (SW & 0x0007);
+        noise |= ((switches & 0x0004) >> 2) << MOD_SEL;
+        vco2  |= ((switches & 0x0002) >> 1) << MOD_SEL;
+        vco1  |= ((switches & 0x0001) >> 0) << MOD_SEL;
         
         // choose the current osc
         value = ReadButtons(false, 0, 0);
@@ -87,47 +108,58 @@ int main(void)
             }
         }
         
-        // choose the freq to be played
+        // choose the oscillator frequency
         value = ReadKeypad(false, 0, 0);
         if (value)
         {
             keyVal = value & 0x000f;
-            curFreq = keyVal << 6;
             switch (butVal)
             {
                 // VCO1
                 case BUTTON_U:
                     DISPLAY0 = keyVal;
-                    VCO1_FREQ_LO = curFreq & 0x00ff;
-                    VCO1_FREQ_HI = (curFreq & 0xff00) >> 8;
+                    vco1 &= ~FREQ_MASK;
+                    vco1 |= keyVal & FREQ_MASK;
                     break;
                     
                 // VCO2
                 case BUTTON_L:
                     DISPLAY1 = keyVal;
-                    VCO2_FREQ_LO = curFreq & 0x00ff;
-                    VCO2_FREQ_HI = (curFreq & 0xff00) >> 8;
+                    vco2 &= ~FREQ_MASK;
+                    vco2 |= keyVal & FREQ_MASK;
                     break;
                     
                 // noise
                 case BUTTON_D:
                     DISPLAY2 = keyVal;
-                    NOISE_FREQ_LO = curFreq & 0x00ff;
-                    NOISE_FREQ_HI = (curFreq & 0xff00) >> 8;
+                    noise &= ~FREQ_MASK;
+                    noise |= keyVal & FREQ_MASK;
                     break;
                     
                 // LFO
                 case BUTTON_R:
                     DISPLAY3 = keyVal;
-                    curFreq = keyVal << 6;
-                    LFO_FREQ_LO = curFreq & 0x00ff;
-                    LFO_FREQ_LO = (curFreq & 0xff00) >> 8;
+                    lfo &= ~FREQ_MASK;
+                    lfo |= keyVal & FREQ_MASK;
                     break;
                                 
                 default:
                     break;
             }
         }
+
+        // write the regs
+        VCO1 = vco1;
+        VCO2 = vco2;
+        NOISE = noise;
+        LFO = lfo;
+
+//#define VERBOSE
+#ifdef VERBOSE        
+        // display reg values on the console
+        printf("vco1 = %x, vco2 = %x, noise = %x, lfo = %x\r\n", vco1, vco2, noise, lfo);
+        msleep(500);
+#endif        
     }
         
     return(0);

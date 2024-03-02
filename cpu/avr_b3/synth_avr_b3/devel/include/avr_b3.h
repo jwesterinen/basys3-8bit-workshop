@@ -135,29 +135,17 @@
 
 // sound generator
 
-#define VCO1_FREQ_LO    __IOR(IO_BASE_SOUND_IO+0x00)    // VCO1 freq (12 bits)
-#define VCO1_FREQ_HI    __IOR(IO_BASE_SOUND_IO+0x01)
-#define VCO2_FREQ_LO    __IOR(IO_BASE_SOUND_IO+0x02)    // VCO2 freq (12 bits)
-#define VCO2_FREQ_HI    __IOR(IO_BASE_SOUND_IO+0x03)
-#define NOISE_FREQ_LO   __IOR(IO_BASE_SOUND_IO+0x04)    // noise freq (12 bits)
-#define NOISE_FREQ_HI   __IOR(IO_BASE_SOUND_IO+0x05)
-#define LFO_FREQ_LO     __IOR(IO_BASE_SOUND_IO+0x06)    // LFO freq (10 bits)
-#define LFO_FREQ_HI     __IOR(IO_BASE_SOUND_IO+0x07)
-#define LFO_MOD_DEPTH   __IOR(IO_BASE_SOUND_IO+0x08)    // LFO modulation depth/shift (3 bits)
-#define MOD_SEL         __IOR(IO_BASE_SOUND_IO+0x09)    // modulation select: which oscillators are modulated {Noise, VCO2, VCO1}    
-#define MIXER_SEL       __IOR(IO_BASE_SOUND_IO+0x0a)    // mixer select: which oscillators are enabled {LFO, Noise, VCO2, VCO1}
+#define VCO1        __IOR(IO_BASE_SOUND_IO+0x00)    // VCO1 related info
+#define VCO2        __IOR(IO_BASE_SOUND_IO+0x01)    // VCO2 related info
+#define NOISE       __IOR(IO_BASE_SOUND_IO+0x02)    // noise related info
+#define LFO         __IOR(IO_BASE_SOUND_IO+0x03)    // LFO related info
 
-// modulation selection values
-#define MOD_SEL_NONE        0x0000
-#define MOD_SEL_VCO1        0x0001
-#define MOD_SEL_VCO2        0x0002
-#define MOD_SEL_NOISE       0x0004
-
-// mixer selection values
-#define MIXER_SEL_NONE      0x0000
-#define MIXER_SEL_VCO1      0x0001
-#define MIXER_SEL_VCO2      0x0002
-#define MIXER_SEL_NOISE     0x0004
-#define MIXER_SEL_LFO       0x0008
-
+// register offsets and masks
+#define MOD_SEL             6
+#define MOD_EN              0x40
+#define LFO_SHIFT           4
+#define MIXER_SEL           7
+#define MIXER_EN            0x80
+#define FREQ_MASK           0x0f
+#define LFO_SHIFT_MASK      0x70
 

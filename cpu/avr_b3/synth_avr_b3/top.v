@@ -60,12 +60,13 @@ module avr_b3(
     wire			dmem_we;
     wire [dmem_width-1:0] 	dmem_a;
     wire [7:0]		dmem_do;
+    wire [7:0]      dmem_di;
 
     wire			io_re;
     wire			io_we;
     wire [5:0]		io_a;
     wire [7:0]		io_do;
-    wor [7:0]       io_di;
+    wire [7:0]      io_di;
 
     wire system_rst;
     assign system_rst = btn[0];
@@ -97,8 +98,6 @@ module avr_b3(
     
     flash core0_flash(system_clk, pmem_ce,pmem_a, pmem_d);                  // pmem addrs 0x000-0xfff
     defparam core0_flash.flash_width = pmem_width;
-
-    wire [7:0] dmem_di;
 
     ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x000-0xfff
     defparam core0_ram.ram_width = dmem_width;
@@ -158,7 +157,7 @@ module avr_b3(
 
     avr_io_uart uart0 
     (	system_clk, system_rst, 
-	    uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
+	    uart0_io_re, uart0_io_we, io_a[1:0], uart0_io_dout, io_do,
 	    uart0_txd, uart0_rxd,
 	    uart0_irq
     );
@@ -187,13 +186,13 @@ module avr_b3(
 `endif    
     
     // sound generator w/Pmod amp/speaker
-    wire sound_io_select = (io_a[5:4] == 4'b01);            // I/O addr range 01xxxx, regs 0x10-0x1f
+    wire sound_io_select = (io_a[5:2] == 4'b0100);          // I/O addr range 0100xx, regs 0x10-0x13
     wire sound_io_re = sound_io_select & io_re;
     wire sound_io_we = sound_io_select & io_we;
     sound_io_b3 sound_io
     (
         clk_50MHz, 
-        system_rst, io_a[3:0], sound_io_dout, io_do, sound_io_re, sound_io_we, 
+        system_rst, io_a[1:0], sound_io_dout, io_do, sound_io_re, sound_io_we, 
         JA7
     );
         
@@ -224,7 +223,7 @@ module avr_b3(
     assign io_di =  (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
 `endif                    
                     (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
-                    (sound_io_select)   ? sound_io_dout     :   // 01xxxx, regs 0x10-0x1f
+                    (sound_io_select)   ? sound_io_dout     :   // 0100xx, regs 0x10-0x13
                     (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x20-0x23
                     0;
 

@@ -32,11 +32,9 @@ void Display(uint16_t value, uint8_t displayQty)
 
 void KeyBeep(uint8_t tone, uint16_t durationMs)
 {
-    VCO1_FREQ_HI = 0;
-    MIXER_SEL = MIXER_SEL_VCO1;
-    VCO1_FREQ_LO = tone;
+    VCO1 = MIXER_EN | (tone & FREQ_MASK);
     msleep(durationMs);
-    VCO1_FREQ_LO = 0;
+    VCO1 = MIXER_EN;
 }
 
 uint8_t ReadKeypad(bool beep, uint8_t tone, uint16_t durationMs)
@@ -46,7 +44,6 @@ uint8_t ReadKeypad(bool beep, uint8_t tone, uint16_t durationMs)
     if (keyCode)
     {
         if (beep)
-            //KeyBeep(0x80, 100);
             KeyBeep(tone, durationMs);
         while (KEYPAD)
         ;
@@ -62,7 +59,6 @@ uint8_t ReadButtons(bool beep, uint8_t tone, uint16_t durationMs)
     if (ButtonCode)
     {
         if (beep)
-            //KeyBeep(0x80, 100);
             KeyBeep(tone, durationMs);
         while (BUTTONS)
         ;

@@ -82,11 +82,11 @@ int main(void)
         Display(value, 4);
         
         oldValue = value;
-        value = AppendKeyValue(value, &isNewEntry, true, 0x80, 100);
+        value = AppendKeyValue(value, &isNewEntry, true, 0x02, 100);
         if (value != oldValue)
             DP = DP_NONE;
             
-        switch (ReadButtons(true, 0x80, 100))
+        switch (ReadButtons(true, 0x02, 100))
         {
             // "Enter"
             case BUTTON_U:
