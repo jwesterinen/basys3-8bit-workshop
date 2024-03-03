@@ -5,7 +5,7 @@
 
 //#define RAM_SIZE 0x0fff
 //#define RAM_SIZE 0x0060
-#define RAM_SIZE 10
+#define RAM_SIZE 0x100
 
 
 int main(void)

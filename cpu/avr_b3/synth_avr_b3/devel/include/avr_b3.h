@@ -7,8 +7,8 @@
 #define __IOW(x)    (*(volatile uint16_t *)(0x20+(x)))
 
 #define IO_BASE_BASIC_IO	0x00
-#define IO_BASE_SOUND_IO	0x10
-#define IO_BASE_UART0       0x20
+#define IO_BASE_UART0       0x10
+#define IO_BASE_SOUND_IO	0x14
 #define IO_BASE_TIMER0      0x08
 
 // uart.h

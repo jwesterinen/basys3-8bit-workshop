@@ -21,7 +21,7 @@
 module sound_io_b3(
     input clk,              // 100MHz system clock
     input reset,            // active-high reset
-    input [3:0] addr,       // reg addresses
+    input [1:0] addr,       // reg addresses
     output [7:0] data_out,  // data output from IO device
     input [7:0] data_in,    // data input to IO device
     input re,               // read enable

@@ -41,12 +41,12 @@ module avr_b3(
     inout [7:0] JB,     // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
 `endif 	
     output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
-    output JC0,
+    output JC0,         // Port JC0-3 used for out4 peripheral
     output JC1,
     output JC2,
     output JC3,
-    input RsRx,
-    output RsTx
+    input RsRx,         // UART receive signal
+    output RsTx         // UART transmit signal
 );
 
     parameter pmem_width = 12;    // 4K (0x1000)
@@ -96,10 +96,12 @@ module avr_b3(
     assign clk_50MHz = clk;
 `endif    
     
-    flash core0_flash(system_clk, pmem_ce,pmem_a, pmem_d);                  // pmem addrs 0x000-0xfff
+    // ROM
+    flash core0_flash(system_clk, pmem_ce, pmem_a, pmem_d);                 // pmem addrs 0x000-0xfff
     defparam core0_flash.flash_width = pmem_width;
 
-    ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x000-0xfff
+    // RAM
+    ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x060-0xfff
     defparam core0_ram.ram_width = dmem_width;
 
     wire iflag;
@@ -145,7 +147,7 @@ module avr_b3(
     wire timer0_irq = 0;
 `endif
 
-    wire uart0_io_select = (io_a[5:2] == 4'b1000);			// I/O addr range 1000xx, regs 0x20-0x23
+    wire uart0_io_select = (io_a[5:2] == 4'b0100);			// I/O addr range 1000xx, regs 0x10-0x13
     wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
     wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
     wire uart0_txd;
@@ -186,7 +188,7 @@ module avr_b3(
 `endif    
     
     // sound generator w/Pmod amp/speaker
-    wire sound_io_select = (io_a[5:2] == 4'b0100);          // I/O addr range 0100xx, regs 0x10-0x13
+    wire sound_io_select = (io_a[5:2] == 4'b0101);          // I/O addr range 0100xx, regs 0x14-0x17
     wire sound_io_re = sound_io_select & io_re;
     wire sound_io_we = sound_io_select & io_we;
     sound_io_b3 sound_io
@@ -216,15 +218,13 @@ module avr_b3(
 
     // I/O data source selection
  
-`ifdef SYNTHESIS
-    assign io_di =  (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
-                    (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
-`else
     assign io_di =  (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
+`ifdef SYNTHESIS
+                    (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
 `endif                    
                     (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
-                    (sound_io_select)   ? sound_io_dout     :   // 0100xx, regs 0x10-0x13
-                    (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x20-0x23
+                    (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x10-0x13
+                    (sound_io_select)   ? sound_io_dout     :   // 0100xx, regs 0x14-0x17
                     0;
 
 endmodule
