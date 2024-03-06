@@ -111,21 +111,8 @@ void test_uart_isr(void)
 
 void test_sound(void)
 {
-    /*
-    stdout = &mystdout;
-    VCO1 = 0;
-
-    VCO1 = 0x86;
-    msleep(1000);
-    VCO1 = 0x00;
-    VCO2 = 0x83;
-    msleep(1000);
-    VCO2 = 0x00;
-    NOISE = 0x8e;
-    msleep(1000);
-    NOISE = 0x00;
-    */
     int r1, r2;
+    
     while (1)
     {
         r1 = rand() % 0x9;
@@ -135,6 +122,32 @@ void test_sound(void)
         OUT4 = r1 | r2;
         msleep(100);
     }
+}
+
+void test_keyboard(void)
+{
+    while (1)
+    {
+        LED_MSB = KEYBOARD;
+    }
+}
+
+void test_vgaterm(void)
+{
+    VGA_CUR_STYLE = 0x03;
+    VGA_CHAR = 'H';
+    VGA_CHAR = 'e';
+    VGA_CHAR = 'l';
+    VGA_CHAR = 'l';
+    VGA_CHAR = 'o';
+    VGA_CHAR = ',';
+    VGA_CHAR = ' ';
+    VGA_CHAR = 'W';
+    VGA_CHAR = 'o';
+    VGA_CHAR = 'r';
+    VGA_CHAR = 'l';
+    VGA_CHAR = 'd';
+    VGA_CHAR = '!';
 }
 
 int main(void)
@@ -147,7 +160,9 @@ int main(void)
     //test_io();
     //test_out4();
     //test_uart_isr();
-    test_sound();
+    //test_sound();
+    //test_keyboard();
+    test_vgaterm();
     
     return(0);
 }

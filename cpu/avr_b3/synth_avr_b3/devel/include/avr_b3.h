@@ -9,6 +9,7 @@
 #define IO_BASE_BASIC_IO	0x00
 #define IO_BASE_UART0       0x10
 #define IO_BASE_SOUND_IO	0x14
+#define IO_BASE_VGATERM     0x18
 #define IO_BASE_TIMER0      0x08
 
 // uart.h
@@ -62,6 +63,7 @@
 #define LED_MSB     __IOR(IO_BASE_BASIC_IO+0x05)    // LED MSB
 #define DP          __IOW(IO_BASE_BASIC_IO+0x06)    // decimal points
 #define OUT4        __IOR(IO_BASE_BASIC_IO+0x07)    // 4-bit output port data on JC[3:0]
+#define KEYBOARD    __IOR(IO_BASE_BASIC_IO+0x08)    // PS2 keyboard
 #define DISPCTRL    __IOR(IO_BASE_BASIC_IO+0x0b)    // display control, pattern mode = 0, raw mode = !0
 #define DISPLAY0    __IOR(IO_BASE_BASIC_IO+0x0c)    // 7-segment display0
 #define DISPLAY1    __IOR(IO_BASE_BASIC_IO+0x0d)    // 7-segment display1
@@ -148,4 +150,14 @@
 #define MIXER_EN            0x80
 #define FREQ_MASK           0x0f
 #define LFO_SHIFT_MASK      0x70
+
+// VGA terminal
+#define VGA_CHAR        __IOR(IO_BASE_VGATERM+0x00) // Character FIFO on write, char under cursor on read
+#define VGA_CUR_COL     __IOR(IO_BASE_VGATERM+0x01) // Set cursor col location on write, get location on read
+#define VGA_CUR_ROW     __IOR(IO_BASE_VGATERM+0x02) // Set cursor row location on write, get location on read
+#define VGA_ROW_OFFSET  __IOR(IO_BASE_VGATERM+0x03) // Display row offset.  Display this row after vsync
+#define VGA_CUR_STYLE   __IOR(IO_BASE_VGATERM+0x04) // Cursor style. Bit0=block/underline, Bit1=invisible/visible
+#define VGA_FG_COLOR    __IOR(IO_BASE_VGATERM+0x05) // Foreground color applied to all subsequent characters rgb 222
+#define VGA_BG_COLOR    __IOR(IO_BASE_VGATERM+0x06) // Background color applied to all subsequent characters rgb 222
+#define VGA_ATTR        __IOR(IO_BASE_VGATERM+0x07) // Attributes. Bit0=underline, Bit1=blink
 

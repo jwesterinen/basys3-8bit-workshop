@@ -11,6 +11,8 @@
  `include "sysdefs.h"
  `include "clocks.v"
  `include "out4.v"
+ `include "vgaterm.v"
+ `include "keyboard.v"
 `endif
 
 /*****************************************************************************/
@@ -46,7 +48,14 @@ module avr_b3(
     output JC2,
     output JC3,
     input RsRx,         // UART receive signal
-    output RsTx         // UART transmit signal
+    output RsTx,        // UART transmit signal
+    input PS2Clk,       // PS2 keyboard clock
+    input PS2Data,      // PS2 keyboard data
+    output [3:0] vgaBlue,  // VGA signals
+    output [3:0] vgaGreen,
+    output [3:0] vgaRed,
+    output Vsync,
+    output Hsync
 );
 
     parameter pmem_width = 12;    // 4K (0x1000)
@@ -75,7 +84,9 @@ module avr_b3(
     wire [7:0] basic_io_dout;
     wire [7:0] keypad_io_dout;
     wire [7:0] sound_io_dout;
-    wire [7:0] out4_io_dout;
+    wire [7:0] out4_dout;
+    wire [7:0] keyboard_dout;
+    wire [7:0] vgaterm_dout;
     
 // TODO: this should really be done with a PLL
     wire system_clk;
@@ -165,7 +176,7 @@ module avr_b3(
     );
 
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
-    wire basic_io_select = (io_a[5:4] == 4'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
+    wire basic_io_select = (io_a[5:4] == 2'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
     wire basic_io_re = basic_io_select & io_re;
     wire basic_io_we = basic_io_select & io_we;
     basic_io_b3 basic_io
@@ -177,7 +188,7 @@ module avr_b3(
 
 `ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     // Pmod keypad
-    wire keypad_io_select = (io_a[5:0] == 5'b000011);       // I/O addr range 000011, reg 0x03
+    wire keypad_io_select = (io_a[5:0] == 6'b000011);       // I/O addr range 000011, reg 0x03
     wire keypad_io_re = keypad_io_select & io_re;
 	keypad_io_b3 keypad
 	(
@@ -198,6 +209,10 @@ module avr_b3(
         JA7
     );
         
+    // PS2 keyboard
+    wire keyboard_select = (io_a[5:0] == 6'b001000);        // I/O addr range 001000, reg 0x08
+    keyboard keyboard(PS2Clk, PS2Data, keyboard_dout);
+    
     // DP peripherals
 
     // DP clocks peripheral
@@ -206,25 +221,40 @@ module avr_b3(
     clocks clks(clk, CLK_O, peri_clks);
 
     // DP out4
-    wire out4_io_select = (io_a[5:0] == 5'b000111);           // I/O addr range 000111, reg 0x07
+    wire out4_select = (io_a[5:0] == 6'b000111);            // I/O addr range 000111, reg 0x07
     wire out4_stall;
     wire out4_ack;
     out4 o4
     (
         clk, 
-        io_we, 1'b1, out4_io_select, 8'h00, out4_stall, out4_ack, io_do, out4_io_dout, peri_clks, 
+        io_we, 1'b1, out4_select, 8'h00, out4_stall, out4_ack, io_do, out4_dout, peri_clks, 
         {JC3,JC2,JC1,JC0}
+    );
+    
+    // DP vgaterm
+    wire vgaterm_select = (io_a[5:3] == 3'b011);            // I/O addr range 011xxx, regs 0x18-0x1f
+    wire vgaterm_re = vgaterm_select & io_re;
+    wire vgaterm_we = vgaterm_select & io_we;
+    wire vgaterm_stall;
+    wire vgaterm_ack;
+    vgaterm vga
+    (
+        clk, 
+        io_we, 1'b1, vgaterm_select, {5'b00000,io_a[2:0]}, vgaterm_stall, vgaterm_ack, io_do, vgaterm_dout, peri_clks, 
+        {vgaBlue[0], vgaGreen[0], vgaRed[0], vgaBlue[1], vgaGreen[1], vgaRed[1], Vsync, Hsync}
     );
 
     // I/O data source selection
  
-    assign io_di =  (out4_io_select)    ? out4_io_dout      :   // 000111, reg  0x07
+    assign io_di =  (out4_select)    ? out4_dout      :   // 000111, reg  0x07
 `ifdef SYNTHESIS
                     (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
 `endif                    
-                    (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
+                    (keyboard_select)   ? keyboard_dout     :   // 001000, reg  0x08
                     (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x10-0x13
                     (sound_io_select)   ? sound_io_dout     :   // 0100xx, regs 0x14-0x17
+                    (vgaterm_select)    ? vgaterm_dout      :   // 011xxx, regs 0x18-0x1f
+                    (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
                     0;
 
 endmodule
