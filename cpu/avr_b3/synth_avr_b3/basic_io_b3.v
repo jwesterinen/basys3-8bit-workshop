@@ -11,27 +11,27 @@
  *  decimal point for output.
  *
  *  Registers:
- *      0x0: switches LSB
- *      0x1: switches MSB
- *      0x2: buttons: 00001 = btnC, 00010 = btnU, 00100 = btnL, 01000 = btnR, 10000 = btnD, 0 = no button pressed
- *      0x3: N/C
- *      0x4: LEDs LSB
- *      0x5: LEDs MSB
- *      0x6: DPs
- *      0x7: N/C
- *      0x8: N/C
- *      0x9: N/C
- *      0xa: N/C
- *      0xb: display control - 0 = pattern display, !0 = raw  display
- *      0xc: display 0
- *      0xd: display 1
- *      0xe: display 2
- *      0xf: display 3
+ *      0x00: switches LSB
+ *      0x01: switches MSB
+ *      0x02: buttons: 00001 = btnC, 00010 = btnU, 00100 = btnL, 01000 = btnR, 10000 = btnD, 0 = no button pressed
+ *      0x03: N/C
+ *      0x04: LEDs LSB
+ *      0x05: LEDs MSB
+ *      0x06: DPs
+ *      0x07: N/C
+ *      0x08: N/C
+ *      0x09: N/C
+ *      0x0a: N/C
+ *      0x0b: display control - 0 = pattern display, !0 = raw  display
+ *      0x0c: display 0
+ *      0x0d: display 1
+ *      0x0e: display 2
+ *      0x0f: display 3
  */
  
 module basic_io_b3(
     input  clk,                 // 100MHz system clock
-    input [3:0] addr,           // register addresses
+    input [7:0] addr,           // register addresses
     output [7:0] data_out,      // data output from IO device
     input [7:0] data_in,        // data input to IO device
     input re,                   // read enable
@@ -86,27 +86,27 @@ module basic_io_b3(
     always @(posedge clk) begin
         if (we)
             casez (addr)
-                4'b0100: led_buf[7:0]           <= data_in; // write to LEDs LSB
-                4'b0101: led_buf[15:8]          <= data_in; // write to LEDs MSB
-                4'b0110: dp_buf                 <= data_in; // write to DP buf
-                4'b1011: display_ctrl_reg       <= data_in; // write to display control reg
-                4'b11??: display_buf[addr[1:0]] <= data_in; // write to displays
+                8'h04: led_buf[7:0]                 <= data_in; // write to LEDs LSB
+                8'h05: led_buf[15:8]                <= data_in; // write to LEDs MSB
+                8'h06: dp_buf                       <= data_in; // write to DP buf
+                8'h0b: display_ctrl_reg             <= data_in; // write to display control reg
+                8'b000011??: display_buf[addr[1:0]] <= data_in; // write to displays
             endcase
     end
 
     // local address decoding for reading from IO device regs
     assign data_out = 
-        ((addr == 4'b0000) && re) ? sw_buf[7:0]         :   // switche buffer LSB
-        ((addr == 4'b0001) && re) ? sw_buf[15:8]        :   // switche buffer MSB
-        ((addr == 4'b0010) && re) ? btn_buf             :   // button code
-        ((addr == 4'b0100) && re) ? led_buf[7:0]        :   // LED buffer LSB to read back what was written
-        ((addr == 4'b0101) && re) ? led_buf[15:8]       :   // LED buffer MSB to read back what was written
-        ((addr == 4'b0110) && re) ? dp_buf              :   // DP buffer to read back what was written
-        ((addr == 4'b1011) && re) ? display_ctrl_reg    :   // display control reg to read back what was written
-        ((addr == 4'b1100) && re) ? display_buf[0]      :   // LED buffer MSB to read back what was written
-        ((addr == 4'b1101) && re) ? display_buf[1]      :   // LED buffer MSB to read back what was written
-        ((addr == 4'b1110) && re) ? display_buf[2]      :   // LED buffer MSB to read back what was written
-        ((addr == 4'b1111) && re) ? display_buf[3]      :   // LED buffer MSB to read back what was written
+        ((addr == 8'h00) && re) ? sw_buf[7:0]         :   // switche buffer LSB
+        ((addr == 8'h01) && re) ? sw_buf[15:8]        :   // switche buffer MSB
+        ((addr == 8'h02) && re) ? btn_buf             :   // button code
+        ((addr == 8'h04) && re) ? led_buf[7:0]        :   // LED buffer LSB to read back what was written
+        ((addr == 8'h05) && re) ? led_buf[15:8]       :   // LED buffer MSB to read back what was written
+        ((addr == 8'h06) && re) ? dp_buf              :   // DP buffer to read back what was written
+        ((addr == 8'h0b) && re) ? display_ctrl_reg    :   // display control reg to read back what was written
+        ((addr == 8'h0c) && re) ? display_buf[0]      :   // LED buffer MSB to read back what was written
+        ((addr == 8'h0d) && re) ? display_buf[1]      :   // LED buffer MSB to read back what was written
+        ((addr == 8'h0e) && re) ? display_buf[2]      :   // LED buffer MSB to read back what was written
+        ((addr == 8'h0f) && re) ? display_buf[3]      :   // LED buffer MSB to read back what was written
         0;
 
 endmodule

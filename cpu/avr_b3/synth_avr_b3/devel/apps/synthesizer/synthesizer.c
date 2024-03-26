@@ -27,14 +27,48 @@
 *
 */
 
+#include <inttypes.h>
+#include <time.h>
+#include <stdlib.h>
 #include "../../include/avr_b3.h"
-#include "../../include/avr_b3_lib.h"
+
+#define LINK_BY_INCL
+#ifdef LINK_BY_INCL
+
+#define F_CPU 12500000UL
+#include <util/delay.h>
+
+static int uart_putchar(char c, FILE *stream)
+{
+    loop_until_bit_is_set(UCSRA0, UDRE);
+    UDR0 = c;
+    
+    return(0);
+}
+
+static FILE mystdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
+
+static inline void msleep(uint16_t msec)
+{
+    while (msec)
+    {	
+        _delay_loop_2((uint32_t)F_CPU/4000UL);
+        msec--;
+    }
+}
+
+#include "../../lib/avr_b3_lib.c"
+
+#else // link by linker
+
 #include "../../include/avr_b3_stdio.h"
+#include "../../include/avr_b3_lib.h"
+
+#endif // LINK_BY_INCL
 
 int main(void)
 {
     uint8_t value, keyVal = KEY_NONE, butVal = BUTTON_NONE;
-    uint8_t vco1 = 0, vco2 = 0, noise = 0, lfo = 0;
     uint16_t switches;
     
     stdout = &mystdout;
@@ -54,25 +88,14 @@ int main(void)
         // cache the switches
         switches = SW;
 
-        // init all fields controlled by the switches but retain the frequencies
-        vco1 &= FREQ_MASK;
-        vco2 &= FREQ_MASK;
-        noise &= FREQ_MASK;
-        lfo &= FREQ_MASK;
-        
         // select oscillators to be mixed (SW15..SW12)
-        lfo   |= ((switches & 0x8000) >> 15) << MIXER_SEL;
-        noise |= ((switches & 0x4000) >> 14) << MIXER_SEL;
-        vco2  |= ((switches & 0x2000) >> 13) << MIXER_SEL;
-        vco1  |= ((switches & 0x1000) >> 12) << MIXER_SEL;
+        MIXER = (switches & 0xf000) >> 12;
         
         // modulation depth (SW7..SW5)
-        lfo |= (((switches & 0x00e0) >> 5) << LFO_SHIFT);
+        MOD_DEPTH = (switches & 0x00e0) >> 5;
         
-        // select oscillators to be modulated (SW3..SW0)
-        noise |= ((switches & 0x0004) >> 2) << MOD_SEL;
-        vco2  |= ((switches & 0x0002) >> 1) << MOD_SEL;
-        vco1  |= ((switches & 0x0001) >> 0) << MOD_SEL;
+        // select oscillators to be modulated (SW2..SW0)
+        MOD_SEL = switches & 0x0007;
         
         // choose the current osc
         value = ReadButtons(false, 0, 0);
@@ -118,29 +141,25 @@ int main(void)
                 // VCO1
                 case BUTTON_U:
                     DISPLAY0 = keyVal;
-                    vco1 &= ~FREQ_MASK;
-                    vco1 |= keyVal & FREQ_MASK;
+                    VCO1_FREQ = keyVal << 5;
                     break;
                     
                 // VCO2
                 case BUTTON_L:
                     DISPLAY1 = keyVal;
-                    vco2 &= ~FREQ_MASK;
-                    vco2 |= keyVal & FREQ_MASK;
+                    VCO2_FREQ = keyVal << 5;
                     break;
                     
                 // noise
                 case BUTTON_D:
                     DISPLAY2 = keyVal;
-                    noise &= ~FREQ_MASK;
-                    noise |= keyVal & FREQ_MASK;
+                    NOISE_FREQ = keyVal << 3;
                     break;
                     
                 // LFO
                 case BUTTON_R:
                     DISPLAY3 = keyVal;
-                    lfo &= ~FREQ_MASK;
-                    lfo |= keyVal & FREQ_MASK;
+                    LFO_FREQ = keyVal << 5;
                     break;
                                 
                 default:
@@ -148,16 +167,10 @@ int main(void)
             }
         }
 
-        // write the regs
-        VCO1 = vco1;
-        VCO2 = vco2;
-        NOISE = noise;
-        LFO = lfo;
-
-//#define VERBOSE
+#define VERBOSE
 #ifdef VERBOSE        
         // display reg values on the console
-        printf("vco1 = %x, vco2 = %x, noise = %x, lfo = %x\r\n", vco1, vco2, noise, lfo);
+        printf("vco1 freq = %x, vco2 freq = %x, noise freq = %x, lfo freq = %x\r\n", VCO1_FREQ, VCO2_FREQ, NOISE_FREQ, LFO_FREQ);
         msleep(500);
 #endif        
     }

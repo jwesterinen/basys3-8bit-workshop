@@ -19,5 +19,6 @@ clean-all:
 	$(MAKE) -C calc clean-all
 	$(MAKE) -C synthesizer clean-all
 	$(MAKE) -C ram_test clean-all
+	$(MAKE) -C mmio_test clean-all
 	
 

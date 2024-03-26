@@ -1,18 +1,12 @@
+//`define MMIO
+
 `ifdef SYNTHESIS
- `include "avr_core.v"
- `include "basic_io_b3.v"
- `include "keypad_io_b3.v"
- `include "sound_io_b3.v"
- `include "avr_io_uart.v"
- `include "avr_io_timer.v"
+ `include "prescaler.v"
  `include "flash.v"
  `include "ram.v"
- `include "prescaler.v"
- `include "sysdefs.h"
- `include "clocks.v"
- `include "out4.v"
- `include "vgaterm.v"
- `include "keyboard.v"
+ `include "mmio.v"
+ `include "avr_io_uart.v"
+ `include "avr_core.v"
 `endif
 
 /*****************************************************************************/
@@ -58,19 +52,6 @@ module avr_b3(
     output Hsync
 );
 
-    parameter pmem_width = 12;    // 4K (0x1000)
-    parameter dmem_width = 12;
-
-    wire			pmem_ce;
-    wire [pmem_width-1:0]	pmem_a;
-    wire [15:0]		pmem_d;
-
-    wire			dmem_re;
-    wire			dmem_we;
-    wire [dmem_width-1:0] 	dmem_a;
-    wire [7:0]		dmem_do;
-    wire [7:0]      dmem_di;
-
     wire			io_re;
     wire			io_we;
     wire [5:0]		io_a;
@@ -84,9 +65,6 @@ module avr_b3(
     wire [7:0] basic_io_dout;
     wire [7:0] keypad_io_dout;
     wire [7:0] sound_io_dout;
-    wire [7:0] out4_dout;
-    wire [7:0] keyboard_dout;
-    wire [7:0] vgaterm_dout;
     
 // TODO: this should really be done with a PLL
     wire system_clk;
@@ -108,13 +86,90 @@ module avr_b3(
 `endif    
     
     // ROM
+    parameter pmem_width = 12;    // 4K (0x1000)
+    wire			pmem_ce;
+    wire [pmem_width-1:0]	pmem_a;
+    wire [15:0]		pmem_d;
     flash core0_flash(system_clk, pmem_ce, pmem_a, pmem_d);                 // pmem addrs 0x000-0xfff
     defparam core0_flash.flash_width = pmem_width;
 
-    // RAM
-    ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x060-0xfff
-    defparam core0_ram.ram_width = dmem_width;
+    // CPU data bus for RAM and MMIO
+    parameter dmem_width = 16;
+    wire   [dmem_width-1:0] dmem_a;  // Data bus address from the CPU
+    wire   dmem_re;
+    wire   dmem_we;
+    wire   [7:0] dmem_do;
+    wire   [7:0] dmem_di;
 
+`ifdef MMIO
+
+    // RAM
+    wire   [dmem_width-2:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
+    wire   ram_re;
+    wire   ram_we;
+    wire   [7:0] ram_di;
+    assign rio_a = dmem_a[dmem_width-2:0];   // ram/mmio address
+    assign ram_re = dmem_re & ~dmem_a[dmem_width-1];
+    assign ram_we = dmem_we & ~dmem_a[dmem_width-1];
+    ram core0_ram(system_clk, ram_re, ram_we, rio_a, ram_di, dmem_do);
+    defparam core0_ram.ram_width = dmem_width -1;
+
+
+    // MMIO memory mapped input/output
+    wire   mmio_re;
+    wire   mmio_we;
+    wire   [7:0] mmio_di;
+    assign mmio_re = dmem_re & dmem_a[dmem_width -1];
+    assign mmio_we = dmem_we & dmem_a[dmem_width -1];
+    mmio core0_mmio
+    (
+        clk, mmio_re, mmio_we, rio_a, mmio_di, dmem_do, 
+`ifdef SYNTHESIS
+        sw, btn, led, seg, dp, an, JB, JA7
+`else
+        sw, btn, led, seg, dp, an, JA7
+`endif        
+    );
+
+    // Select between RAM and MMIO and latch value on read of either
+    reg    lastread;   // ==0 if from RAM, ==1 if from mmio
+    always @(posedge clk)
+    begin
+        lastread <= (ram_re)  ? 0 :
+                    (mmio_re) ? 1 :
+                    lastread;
+    end
+    assign dmem_di = (ram_re || (lastread == 0))  ? ram_di  :
+                     (mmio_re || (lastread == 1)) ? mmio_di :
+                     0;  
+                     
+`else // no MMIO
+
+    // this is a test to see if a reduced dmem bus can be used for ram and still allow the uart to work
+    
+    // RAM
+    wire   [dmem_width-2:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
+    wire   ram_re;
+    wire   ram_we;
+    wire   [7:0] ram_di;
+    assign rio_a = dmem_a[dmem_width-2:0];   // ram/mmio address
+    assign ram_re = dmem_re & ~dmem_a[dmem_width-1];
+    assign ram_we = dmem_we & ~dmem_a[dmem_width-1];
+    
+    // this is what we need but when ram_re and ram_we are used the uart doesn't work correctly
+    //ram core0_ram(system_clk, ram_re, ram_we, rio_a, ram_di, dmem_do);
+
+    // this allows the uart to work correctly, e.g. by using dmem_re and dmem_we instead of ram_re and ram we
+    ram core0_ram(system_clk, dmem_re, dmem_we, rio_a, ram_di, dmem_do);
+    
+    // this is the original ram definition for no MMIO
+    //ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x060-0xfff
+    defparam core0_ram.ram_width = dmem_width-1;
+    
+    assign dmem_di = ram_di;  
+    
+`endif // MMIO
+                    
     wire iflag;
     wire [1:0] ivect;
     wire [1:0] ieack;
@@ -140,24 +195,7 @@ module avr_b3(
     defparam core0.intr_width = 2;
     defparam core0.lsb_call = 0;
     
-//`define TIMER0
-
-`ifdef TIMER0
-    wire timer0_io_select = (io_a[5:2] == 4'b0010);         // I/O addr range 0010xx: regs 0x08-0x0b
-    wire timer0_io_re = timer0_io_select & io_re;
-    wire timer0_io_we = timer0_io_select & io_we;
-    wire timer0_irq;
-
-    avr_io_timer timer0
-    (      
-        system_clk, 1'b0, 
-        timer0_io_re, timer0_io_we, io_a[1:0], io_di, io_do,
-	    timer0_irq
-    );
-`else
-    wire timer0_irq = 0;
-`endif
-
+    // uart
     wire uart0_io_select = (io_a[5:2] == 4'b0100);			// I/O addr range 1000xx, regs 0x10-0x13
     wire uart0_io_re = (uart0_io_select ? io_re : 1'b0);
     wire uart0_io_we = (uart0_io_select ? io_we : 1'b0);
@@ -170,92 +208,9 @@ module avr_b3(
 
     avr_io_uart uart0 
     (	system_clk, system_rst, 
-	    uart0_io_re, uart0_io_we, io_a[1:0], uart0_io_dout, io_do,
+	    uart0_io_re, uart0_io_we, io_a[1:0], io_di, io_do,
 	    uart0_txd, uart0_rxd,
 	    uart0_irq
     );
-
-    // basic I/O (switches, buttons, LEDs, and 7-segment displays
-    wire basic_io_select = (io_a[5:4] == 2'b00);            // I/O addr range 00xxxx, regs 0x00-0x0f
-    wire basic_io_re = basic_io_select & io_re;
-    wire basic_io_we = basic_io_select & io_we;
-    basic_io_b3 basic_io
-    (
-        clk, 
-        io_a[3:0], basic_io_dout, io_do, basic_io_re, basic_io_we, 
-        sw, btn, led, seg, dp, an
-    );
-
-`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
-    // Pmod keypad
-    wire keypad_io_select = (io_a[5:0] == 6'b000011);       // I/O addr range 000011, reg 0x03
-    wire keypad_io_re = keypad_io_select & io_re;
-	keypad_io_b3 keypad
-	(
-	    clk, 
-	    keypad_io_dout, keypad_io_re, 
-	    JB[7:4], JB[3:0]
-	);
-`endif    
-    
-    // sound generator w/Pmod amp/speaker
-    wire sound_io_select = (io_a[5:2] == 4'b0101);          // I/O addr range 0100xx, regs 0x14-0x17
-    wire sound_io_re = sound_io_select & io_re;
-    wire sound_io_we = sound_io_select & io_we;
-    sound_io_b3 sound_io
-    (
-        clk_50MHz, 
-        system_rst, io_a[1:0], sound_io_dout, io_do, sound_io_re, sound_io_we, 
-        JA7
-    );
-        
-    // PS2 keyboard
-    wire keyboard_select = (io_a[5:0] == 6'b001000);        // I/O addr range 001000, reg 0x08
-    keyboard keyboard(PS2Clk, PS2Data, keyboard_dout);
-    
-    // DP peripherals
-
-    // DP clocks peripheral
-    wire CLK_O;
-    wire [`MXCLK:0] peri_clks;
-    clocks clks(clk, CLK_O, peri_clks);
-
-    // DP out4
-    wire out4_select = (io_a[5:0] == 6'b000111);            // I/O addr range 000111, reg 0x07
-    wire out4_stall;
-    wire out4_ack;
-    out4 o4
-    (
-        clk, 
-        io_we, 1'b1, out4_select, 8'h00, out4_stall, out4_ack, io_do, out4_dout, peri_clks, 
-        {JC3,JC2,JC1,JC0}
-    );
-    
-    // DP vgaterm
-    wire vgaterm_select = (io_a[5:3] == 3'b011);            // I/O addr range 011xxx, regs 0x18-0x1f
-    wire vgaterm_re = vgaterm_select & io_re;
-    wire vgaterm_we = vgaterm_select & io_we;
-    wire vgaterm_stall;
-    wire vgaterm_ack;
-    vgaterm vga
-    (
-        clk, 
-        io_we, 1'b1, vgaterm_select, {5'b00000,io_a[2:0]}, vgaterm_stall, vgaterm_ack, io_do, vgaterm_dout, peri_clks, 
-        {vgaBlue[0], vgaGreen[0], vgaRed[0], vgaBlue[1], vgaGreen[1], vgaRed[1], Vsync, Hsync}
-    );
-
-    // I/O data source selection
- 
-    assign io_di =  (out4_select)    ? out4_dout      :   // 000111, reg  0x07
-`ifdef SYNTHESIS
-                    (keypad_io_select)  ? keypad_io_dout    :   // 000011, reg  0x03
-`endif                    
-                    (keyboard_select)   ? keyboard_dout     :   // 001000, reg  0x08
-                    (uart0_io_select)   ? uart0_io_dout     :   // 1000xx, regs 0x10-0x13
-                    (sound_io_select)   ? sound_io_dout     :   // 0100xx, regs 0x14-0x17
-                    (vgaterm_select)    ? vgaterm_dout      :   // 011xxx, regs 0x18-0x1f
-                    (basic_io_select)   ? basic_io_dout     :   // 00xxxx, regs 0x00-0x0f
-                    0;
-
 endmodule
 

@@ -39,7 +39,7 @@ module keyboard(
         data_curr <= 8'hf0;
         data_pre <= 8'hf0;
         //buffer <= 16'hfff0;
-        buffer <= hf0;
+        buffer <= 8'hf0;
     end
     
     // activating at negative edge of clock from keyboard

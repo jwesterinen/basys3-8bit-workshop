@@ -40,7 +40,30 @@
 */
 
 #include "../../include/avr_b3.h"
+
+#define LINK_BY_INCL
+#ifdef LINK_BY_INCL
+
+#define F_CPU 12500000UL
+#include <util/delay.h>
+
+static inline void msleep(uint16_t msec)
+{
+    while (msec)
+    {	
+        _delay_loop_2((uint32_t)F_CPU/4000UL);
+        msec--;
+    }
+}
+
+#include "../../lib/avr_b3_lib.c"
+
+#else // link by linker
+
+#include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
+
+#endif // LINK_BY_INCL
 
 // eval stack and its index, i.e. eval stack pointer
 int es[10], esp;

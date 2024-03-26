@@ -7,7 +7,8 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
+#OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
+OBJECTS=$(APP).o
 
 CC=avr-gcc
 AS=avr-as

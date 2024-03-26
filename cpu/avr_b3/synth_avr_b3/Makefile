@@ -2,7 +2,7 @@
 
 PROJ = avr_b3
 
-PROJ_SOURCES = top.v avr_core.v flash.v ram.v prescaler.v basic_io_b3.v display_io_b3.v keypad_io_b3.v PmodKYPD.v rom.mem
+PROJ_SOURCES = top.v avr_core.v flash.v ram.v prescaler.v basic_io_b3.v display_io_b3.v keypad_b3.v PmodKYPD.v sound_b3.v mmio.v rom.mem
 
 PROJ_XDC_FILE = $(PROJ).xdc
 

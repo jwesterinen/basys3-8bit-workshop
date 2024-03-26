@@ -3,14 +3,12 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+// I/O mapped I/O
+
 #define __IOR(x)    (*(volatile uint8_t *)(0x20+(x)))
 #define __IOW(x)    (*(volatile uint16_t *)(0x20+(x)))
 
-#define IO_BASE_BASIC_IO	0x00
 #define IO_BASE_UART0       0x10
-#define IO_BASE_SOUND_IO	0x14
-#define IO_BASE_VGATERM     0x18
-#define IO_BASE_TIMER0      0x08
 
 // uart.h
 
@@ -39,70 +37,47 @@
 #define RXCIE   7	
 
 
-// timer.h
+// memory mapped I/O
 
-#define TCNT0   __IOW(IO_BASE_TIMER0+0x00)
-#define TCR0    __IOR(IO_BASE_TIMER0+0x02)
-#define TSR0    __IOR(IO_BASE_TIMER0+0x03)
+#define __MMIOR(x) (*(volatile uint8_t *)(0x8000+(x)))
+#define __MMIOW(x) (*(volatile uint16_t *)(0x8000+(x)))
 
-#define TOF     7	// timer overflow
-#define TOFIE   7	// timer overflow interrupt enable
-#define TPRESC0 0	// timer prescaler bit 0
-#define TPRESC1 1	// timer prescaler bit 1
-
+#define MMIO_BASE_BASIC_IO   0x0000
+#define MMIO_BASE_KEYPAD     0x0100
+#define MMIO_BASE_SOUND      0x0200
 
 // basic I/O
+#define SW          __MMIOW(MMIO_BASE_BASIC_IO+0x00)    // all switches
+#define SW_LSB      __MMIOR(MMIO_BASE_BASIC_IO+0x00)    // switch LSB
+#define SW_MSB      __MMIOR(MMIO_BASE_BASIC_IO+0x01)    // switch MSB
+#define BUTTONS     __MMIOR(MMIO_BASE_BASIC_IO+0x02)    // buttons
+#define LED         __MMIOW(MMIO_BASE_BASIC_IO+0x04)    // all LEDs
+#define LED_LSB     __MMIOR(MMIO_BASE_BASIC_IO+0x04)    // LED LSB
+#define LED_MSB     __MMIOR(MMIO_BASE_BASIC_IO+0x05)    // LED MSB
+#define DP          __MMIOR(MMIO_BASE_BASIC_IO+0x06)    // decimal points
+#define DISPCTRL    __MMIOR(MMIO_BASE_BASIC_IO+0x0b)    // display control, pattern mode = 0, raw mode = !0
+#define DISPLAY0    __MMIOR(MMIO_BASE_BASIC_IO+0x0c)    // 7-segment display0
+#define DISPLAY1    __MMIOR(MMIO_BASE_BASIC_IO+0x0d)    // 7-segment display1
+#define DISPLAY2    __MMIOR(MMIO_BASE_BASIC_IO+0x0e)    // 7-segment display2
+#define DISPLAY3    __MMIOR(MMIO_BASE_BASIC_IO+0x0f)    // 7-segment display3
 
-#define SW          __IOW(IO_BASE_BASIC_IO+0x00)    // all switches
-#define SW_LSB      __IOR(IO_BASE_BASIC_IO+0x00)    // switch LSB
-#define SW_MSB      __IOR(IO_BASE_BASIC_IO+0x01)    // switch MSB
-#define BUTTONS     __IOR(IO_BASE_BASIC_IO+0x02)    // buttons
-#define KEYPAD      __IOR(IO_BASE_BASIC_IO+0x03)    // keypad
-#define LED         __IOW(IO_BASE_BASIC_IO+0x04)    // all LEDs
-#define LED_LSB     __IOR(IO_BASE_BASIC_IO+0x04)    // LED LSB
-#define LED_MSB     __IOR(IO_BASE_BASIC_IO+0x05)    // LED MSB
-#define DP          __IOW(IO_BASE_BASIC_IO+0x06)    // decimal points
-#define OUT4        __IOR(IO_BASE_BASIC_IO+0x07)    // 4-bit output port data on JC[3:0]
-#define KEYBOARD    __IOR(IO_BASE_BASIC_IO+0x08)    // PS2 keyboard
-#define DISPCTRL    __IOR(IO_BASE_BASIC_IO+0x0b)    // display control, pattern mode = 0, raw mode = !0
-#define DISPLAY0    __IOR(IO_BASE_BASIC_IO+0x0c)    // 7-segment display0
-#define DISPLAY1    __IOR(IO_BASE_BASIC_IO+0x0d)    // 7-segment display1
-#define DISPLAY2    __IOR(IO_BASE_BASIC_IO+0x0e)    // 7-segment display2
-#define DISPLAY3    __IOR(IO_BASE_BASIC_IO+0x0f)    // 7-segment display3
+// keypad
+#define KEYPAD      __MMIOR(MMIO_BASE_KEYPAD+0x00)   // key code
 
-// button codes
-#define BUTTON_NONE         0x00
-#define BUTTON_C            0x01
-#define BUTTON_U            0x02 
-#define BUTTON_L            0x04 
-#define BUTTON_R            0x08 
-#define BUTTON_D            0x10
+// sound generator
+#define VCO1_FREQ   __MMIOW(MMIO_BASE_SOUND+0x00)   // VCO 1 freq
+#define VCO2_FREQ   __MMIOW(MMIO_BASE_SOUND+0x02)   // VCO 2 freq
+#define NOISE_FREQ  __MMIOW(MMIO_BASE_SOUND+0x04)   // NOISE freq
+#define LFO_FREQ    __MMIOW(MMIO_BASE_SOUND+0x06)   // LFO freq
+#define MOD_DEPTH   __MMIOR(MMIO_BASE_SOUND+0x08)   // modulation depth
+#define MOD_SEL     __MMIOR(MMIO_BASE_SOUND+0x09)   // modulation select {noise, VCO2, VCO1}
+#define MIXER       __MMIOR(MMIO_BASE_SOUND+0x0a)   // mixer select {LFO, noise, VCO2, VCO1}
 
-// key codes
-#define KEY_NONE            0x00
-#define KEY_0               0x10
-#define KEY_1               0x11
-#define KEY_2               0x12
-#define KEY_3               0x13
-#define KEY_4               0x14     
-#define KEY_5               0x15
-#define KEY_6               0x16
-#define KEY_7               0x17
-#define KEY_8               0x18
-#define KEY_9               0x19
-#define KEY_A               0x1A
-#define KEY_B               0x1B
-#define KEY_C               0x1C
-#define KEY_D               0x1D
-#define KEY_E               0x1E
-#define KEY_F               0x1F
-
-// decimal points
-#define DP_NONE             0
-#define DP0                 0
-#define DP1                 1
-#define DP2                 2
-#define DP3                 3
+// sound generator oscillators
+#define VCO1    0x01
+#define VCO2    0x02
+#define NOISE   0x04
+#define LFO     0x08
 
 // display codes
 #define DISPLAY_CHAR_0      0x00
@@ -135,29 +110,38 @@
 #define DISPLAY_CHAR_G5     0x1B        // inverted C
 #define DISPLAY_CHAR_G6     0x1C        // 3 horiz segs
 
-// sound generator
+// decimal points
+#define DP_NONE 0
+#define DP0     0
+#define DP1     1
+#define DP2     2
+#define DP3     3
 
-#define VCO1        __IOR(IO_BASE_SOUND_IO+0x00)    // VCO1 related info
-#define VCO2        __IOR(IO_BASE_SOUND_IO+0x01)    // VCO2 related info
-#define NOISE       __IOR(IO_BASE_SOUND_IO+0x02)    // noise related info
-#define LFO         __IOR(IO_BASE_SOUND_IO+0x03)    // LFO related info
+// button codes
+#define BUTTON_NONE 0x00
+#define BUTTON_C    0x01
+#define BUTTON_U    0x02 
+#define BUTTON_L    0x04 
+#define BUTTON_R    0x08 
+#define BUTTON_D    0x10
 
-// register offsets and masks
-#define MOD_SEL             6
-#define MOD_EN              0x40
-#define LFO_SHIFT           4
-#define MIXER_SEL           7
-#define MIXER_EN            0x80
-#define FREQ_MASK           0x0f
-#define LFO_SHIFT_MASK      0x70
+// key codes
+#define KEY_NONE            0x00
+#define KEY_0               0x10
+#define KEY_1               0x11
+#define KEY_2               0x12
+#define KEY_3               0x13
+#define KEY_4               0x14     
+#define KEY_5               0x15
+#define KEY_6               0x16
+#define KEY_7               0x17
+#define KEY_8               0x18
+#define KEY_9               0x19
+#define KEY_A               0x1A
+#define KEY_B               0x1B
+#define KEY_C               0x1C
+#define KEY_D               0x1D
+#define KEY_E               0x1E
+#define KEY_F               0x1F
 
-// VGA terminal
-#define VGA_CHAR        __IOR(IO_BASE_VGATERM+0x00) // Character FIFO on write, char under cursor on read
-#define VGA_CUR_COL     __IOR(IO_BASE_VGATERM+0x01) // Set cursor col location on write, get location on read
-#define VGA_CUR_ROW     __IOR(IO_BASE_VGATERM+0x02) // Set cursor row location on write, get location on read
-#define VGA_ROW_OFFSET  __IOR(IO_BASE_VGATERM+0x03) // Display row offset.  Display this row after vsync
-#define VGA_CUR_STYLE   __IOR(IO_BASE_VGATERM+0x04) // Cursor style. Bit0=block/underline, Bit1=invisible/visible
-#define VGA_FG_COLOR    __IOR(IO_BASE_VGATERM+0x05) // Foreground color applied to all subsequent characters rgb 222
-#define VGA_BG_COLOR    __IOR(IO_BASE_VGATERM+0x06) // Background color applied to all subsequent characters rgb 222
-#define VGA_ATTR        __IOR(IO_BASE_VGATERM+0x07) // Attributes. Bit0=underline, Bit1=blink
 

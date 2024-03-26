@@ -10,6 +10,7 @@
 #include <util/delay.h>
 #include "../include/avr_b3.h"
 
+#ifndef LINK_BY_INCL
 void msleep(uint16_t msec)
 {
     while (msec)
@@ -18,6 +19,7 @@ void msleep(uint16_t msec)
         msec--;
     }
 }
+#endif
 
 void Display(uint16_t value, uint8_t displayQty)
 {
@@ -32,9 +34,10 @@ void Display(uint16_t value, uint8_t displayQty)
 
 void KeyBeep(uint8_t tone, uint16_t durationMs)
 {
-    VCO1 = MIXER_EN | (tone & FREQ_MASK);
+    MIXER = VCO1;
+    VCO1_FREQ = tone;
     msleep(durationMs);
-    VCO1 = MIXER_EN;
+    VCO1_FREQ = 0;
 }
 
 uint8_t ReadKeypad(bool beep, uint8_t tone, uint16_t durationMs)
