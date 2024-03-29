@@ -1,5 +1,6 @@
 // Force error when implicit net has no type.
 `default_nettype none
+`include "../sysdefs.h"
 
  
 module avr_b3_tb;

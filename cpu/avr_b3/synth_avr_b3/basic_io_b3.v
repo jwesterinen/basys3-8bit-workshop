@@ -1,5 +1,5 @@
 `ifdef SYNTHESIS
- `include "display_io_b3.v"
+ `include "display_b3.v"
 `endif
 
 /*
@@ -79,7 +79,7 @@ module basic_io_b3(
     end
     
     // IO peripherals
-    display_io_b3 display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], dp_buf, seg,  dp,  an);
+    display_b3 display(clk, display_ctrl_reg, display_buf[0], display_buf[1], display_buf[2], display_buf[3], dp_buf, seg,  dp,  an);
     assign led = led_buf;
 
     // local address decoding for writing to IO device regs

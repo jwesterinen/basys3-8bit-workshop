@@ -6,18 +6,23 @@
  *
  *  Peripherals:
  *      basic IO:   reg addrs 0x8000-0x80ff
- *      keypad:     reg addrs 0x8001-0x81ff
- *      sound:      reg addrs 0x8002-0x82ff
+ *      keypad:     reg addrs 0x8100-0x81ff
+ *      sound:      reg addrs 0x8200-0x82ff
+ *      vgaterm:    reg addrs 0x8300-0x83ff
  */
  
 `ifdef SYNTHESIS
  `include "basic_io_b3.v"
  `include "keypad_b3.v"
  `include "sound_b3.v"
+ `include "sysdefs.h"
+ `include "clocks.v"
+ `include "vgaterm.v"
 `endif
 
 module mmio
- (  input    clk,           // 100 MHz clock
+(  
+    input    clk,           // 100 MHz clock
     input    re,
     input    we,
     input    [14:0] addr,
@@ -33,14 +38,20 @@ module mmio
 `ifdef SYNTHESIS // (simulator doesn't like inout ports)
     inout [7:0] JB,         // PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
 `endif 	
-    output JA7              // Pmod-Audio, JA7 is left input (IL)
- );
+    output JA7,             // Pmod-Audio, JA7 is left input (IL)
+    output [3:0] vgaBlue,   // VGA signals
+    output [3:0] vgaGreen,
+    output [3:0] vgaRed,
+    output Vsync,
+    output Hsync
+);
 
     reg [7:0] out_buf;          // Latched output buffer for data_read
     
     wire [7:0] basic_io_dout;   // data from peripherals
     wire [7:0] keypad_dout;
     wire [7:0] sound_dout;
+    wire [7:0] vgaterm_dout;
 
     wire clk_50MHz;
 `ifdef SYNTHESIS    
@@ -85,13 +96,34 @@ module mmio
         JA7
     );
         
+    // DP peripherals
+
+    // DP clocks peripheral
+    wire CLK_O;
+    wire [`MXCLK:0] peri_clks;
+    clocks clks(clk, CLK_O, peri_clks);
+
+    // DP vgaterm
+    wire vgaterm_select = (addr[14:8] == 8'h03);
+    wire vgaterm_re = vgaterm_select & re;
+    wire vgaterm_we = vgaterm_select & we;
+    wire vgaterm_stall;
+    wire vgaterm_ack;
+    vgaterm vga
+    (
+        clk, 
+        vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, peri_clks, 
+        {vgaBlue[0], vgaGreen[0], vgaRed[0], vgaBlue[1], vgaGreen[1], vgaRed[1], Vsync, Hsync}
+    );
+
     // latch peripheral output
     always @(posedge clk) begin
-        out_buf <= (basic_io_select && re)  ? basic_io_dout  :
+        out_buf <= (basic_io_select && re)  ? basic_io_dout :
 `ifdef SYNTHESIS
-                   (keypad_select && re) ? keypad_dout :
+                   (keypad_select && re)    ? keypad_dout   :
 `endif                    
-                   (sound_select && re)  ? sound_dout  :
+                   (sound_select && re)     ? sound_dout    :
+                   (vgaterm_select && re)   ? vgaterm_dout  :
                    out_buf;
     end
     assign data_read = out_buf;

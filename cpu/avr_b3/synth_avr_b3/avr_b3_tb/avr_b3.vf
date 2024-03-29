@@ -4,10 +4,13 @@ avr_b3_tb.v
 ../flash.v
 ../ram.v
 ../mmio.v
+../prescaler.v
 ../avr_io_uart.v
 ../basic_io_b3.v
-../display_io_b3.v
-../sound_io_b3.v
+../display_b3.v
+../sound_b3.v
 ../SN76477.v
 ../lfsr.v
-../prescaler.v
+../clocks.v
+../vgaterm.v
+

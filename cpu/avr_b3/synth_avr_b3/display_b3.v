@@ -37,7 +37,7 @@
 *
 */
  
-module display_io_b3(
+module display_b3(
     input clk,                  // system clock
     input display_ctrl,         // display control reg
     input [7:0] display_buf0,   // display buffer 0

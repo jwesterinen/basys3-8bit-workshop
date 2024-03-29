@@ -42,9 +42,10 @@
 #define __MMIOR(x) (*(volatile uint8_t *)(0x8000+(x)))
 #define __MMIOW(x) (*(volatile uint16_t *)(0x8000+(x)))
 
-#define MMIO_BASE_BASIC_IO   0x0000
-#define MMIO_BASE_KEYPAD     0x0100
-#define MMIO_BASE_SOUND      0x0200
+#define MMIO_BASE_BASIC_IO  0x0000  // reg addrs 0x8000-0x80ff
+#define MMIO_BASE_KEYPAD    0x0100  // reg addrs 0x8100-0x81ff
+#define MMIO_BASE_SOUND     0x0200  // reg addrs 0x8200-0x82ff
+#define MMIO_BASE_VGATERM   0x0300  // reg addrs 0x8300-0x83ff
 
 // basic I/O
 #define SW          __MMIOW(MMIO_BASE_BASIC_IO+0x00)    // all switches
@@ -60,24 +61,6 @@
 #define DISPLAY1    __MMIOR(MMIO_BASE_BASIC_IO+0x0d)    // 7-segment display1
 #define DISPLAY2    __MMIOR(MMIO_BASE_BASIC_IO+0x0e)    // 7-segment display2
 #define DISPLAY3    __MMIOR(MMIO_BASE_BASIC_IO+0x0f)    // 7-segment display3
-
-// keypad
-#define KEYPAD      __MMIOR(MMIO_BASE_KEYPAD+0x00)   // key code
-
-// sound generator
-#define VCO1_FREQ   __MMIOW(MMIO_BASE_SOUND+0x00)   // VCO 1 freq
-#define VCO2_FREQ   __MMIOW(MMIO_BASE_SOUND+0x02)   // VCO 2 freq
-#define NOISE_FREQ  __MMIOW(MMIO_BASE_SOUND+0x04)   // NOISE freq
-#define LFO_FREQ    __MMIOW(MMIO_BASE_SOUND+0x06)   // LFO freq
-#define MOD_DEPTH   __MMIOR(MMIO_BASE_SOUND+0x08)   // modulation depth
-#define MOD_SEL     __MMIOR(MMIO_BASE_SOUND+0x09)   // modulation select {noise, VCO2, VCO1}
-#define MIXER       __MMIOR(MMIO_BASE_SOUND+0x0a)   // mixer select {LFO, noise, VCO2, VCO1}
-
-// sound generator oscillators
-#define VCO1    0x01
-#define VCO2    0x02
-#define NOISE   0x04
-#define LFO     0x08
 
 // display codes
 #define DISPLAY_CHAR_0      0x00
@@ -125,6 +108,9 @@
 #define BUTTON_R    0x08 
 #define BUTTON_D    0x10
 
+// keypad
+#define KEYPAD      __MMIOR(MMIO_BASE_KEYPAD+0x00)   // key code
+
 // key codes
 #define KEY_NONE            0x00
 #define KEY_0               0x10
@@ -144,4 +130,28 @@
 #define KEY_E               0x1E
 #define KEY_F               0x1F
 
+// sound generator
+#define VCO1_FREQ   __MMIOW(MMIO_BASE_SOUND+0x00)   // VCO 1 freq
+#define VCO2_FREQ   __MMIOW(MMIO_BASE_SOUND+0x02)   // VCO 2 freq
+#define NOISE_FREQ  __MMIOW(MMIO_BASE_SOUND+0x04)   // NOISE freq
+#define LFO_FREQ    __MMIOW(MMIO_BASE_SOUND+0x06)   // LFO freq
+#define MOD_DEPTH   __MMIOR(MMIO_BASE_SOUND+0x08)   // modulation depth
+#define MOD_SEL     __MMIOR(MMIO_BASE_SOUND+0x09)   // modulation select {noise, VCO2, VCO1}
+#define MIXER       __MMIOR(MMIO_BASE_SOUND+0x0a)   // mixer select {LFO, noise, VCO2, VCO1}
+
+// sound generator oscillators
+#define VCO1    0x01
+#define VCO2    0x02
+#define NOISE   0x04
+#define LFO     0x08
+
+// VGA terminal
+#define VGA_CHAR        __MMIOR(MMIO_BASE_VGATERM+0x00) // Character FIFO on write, char under cursor on read
+#define VGA_CUR_COL     __MMIOR(MMIO_BASE_VGATERM+0x01) // Set cursor col location on write, get location on read
+#define VGA_CUR_ROW     __MMIOR(MMIO_BASE_VGATERM+0x02) // Set cursor row location on write, get location on read
+#define VGA_ROW_OFFSET  __MMIOR(MMIO_BASE_VGATERM+0x03) // Display row offset.  Display this row after vsync
+#define VGA_CUR_STYLE   __MMIOR(MMIO_BASE_VGATERM+0x04) // Cursor style. Bit0=block/underline, Bit1=invisible/visible
+#define VGA_FG_COLOR    __MMIOR(MMIO_BASE_VGATERM+0x05) // Foreground color applied to all subsequent characters rgb 222
+#define VGA_BG_COLOR    __MMIOR(MMIO_BASE_VGATERM+0x06) // Background color applied to all subsequent characters rgb 222
+#define VGA_ATTR        __MMIOR(MMIO_BASE_VGATERM+0x07) // Attributes. Bit0=underline, Bit1=blink
 

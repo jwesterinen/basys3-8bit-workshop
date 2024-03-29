@@ -133,9 +133,10 @@ module avr_b3(
     (
         clk, mmio_re, mmio_we, rio_a, mmio_di, dmem_do, 
 `ifdef SYNTHESIS
-        sw, btn, led, seg, dp, an, JB, JA7
+        sw, btn, led, seg, dp, an, JB, JA7, vgaBlue, vgaGreen, vgaRed, Vsync, Hsync
+
 `else
-        sw, btn, led, seg, dp, an, JA7
+        sw, btn, led, seg, dp, an, JA7, vgaBlue, vgaGreen, vgaRed, Vsync, Hsync
 `endif        
     );
 

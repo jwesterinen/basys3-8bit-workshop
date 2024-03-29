@@ -1,6 +1,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
+/*
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
 
@@ -92,7 +93,6 @@ void test_sound(void)
     }
 }
 
-/*
 __attribute__((noinline)) void test_out4(void)
 {
     stdout = &mystdout;
@@ -107,9 +107,12 @@ __attribute__((noinline)) void test_out4(void)
         msleep(100);
     }
 }
+*/
 
 void test_vgaterm(void)
 {
+    //stdout = &mystdout;
+
     VGA_CUR_STYLE = 0x03;
     VGA_CHAR = 'H';
     VGA_CHAR = 'e';
@@ -124,21 +127,23 @@ void test_vgaterm(void)
     VGA_CHAR = 'l';
     VGA_CHAR = 'd';
     VGA_CHAR = '!';
+
+    //printf("char = %x, col = %x, row = %x, roff = %x, style = %x, fg = %x, bg = %x, attr = %x\r\n", 
+    //    VGA_CHAR, VGA_CUR_COL, VGA_CUR_ROW, VGA_ROW_OFFSET, VGA_CUR_STYLE, VGA_FG_COLOR, VGA_BG_COLOR, VGA_ATTR);
 }
-*/
 
 int main(void)
 {
     // set UART baud rate to 115200
     UBRR0 = 13-1;
 
-    test_printf();
+    //test_printf();
     //test_interrupt();
     //test_uart_isr();
     //test_io();
     //test_sound();
     //test_out4();
-    //test_vgaterm();
+    test_vgaterm();
     
     return(0);
 }
