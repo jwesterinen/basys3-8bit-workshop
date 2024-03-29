@@ -7,8 +7,8 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-#OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
-OBJECTS=$(APP).o
+OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_lib.o
+#OBJECTS=$(APP).o
 
 CC=avr-gcc
 AS=avr-as
@@ -26,8 +26,8 @@ ARCH_LIB = $(LIB_DIR)/crt0.o
 AFLAGS=-mmcu=$(ARCH)
 #CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -Wall -pedantic -O3
 CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wstrict-prototypes -Wno-unused-function -O3
-#LDFLAGS=-mmcu=$(ARCH) -T avr_b3_51.xn
-LDFLAGS=-mmcu=$(ARCH)
+LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn
+#LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
 
 PMEM_DEPTH=12

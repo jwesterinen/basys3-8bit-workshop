@@ -1,15 +1,26 @@
-//`define MMIO
-
+/*
+*   top.v for the avr_b3 project
+*
+*   The avr_b3 project is a general purpose computer based on an AVR core and 
+*   specifically written for the Digilent Basys3 FPGA dev board (B3).  The 
+*   peripheral set is configurable, but the current design contains the I/O
+*   device intrinsic to the B3 board, switches, buttons, LEDs, and 7-segment
+*   displays.  It also contains a UART that is used as a console device.  
+*   There are 2 external peripherals that are interfaced thru 2 of the B3's
+*   Pmod connectors, the Digilent PmodKYPD on JB and a pmod-audio v1.2 Pmod
+*   amp/speaker with volume control.  These all combine to allow applications
+*   to be written that use a keypad, the switches, and buttons as inputs and
+*   the 7-segment displays and the speaker as outputs.
+*/
+ 
 `ifdef SYNTHESIS
  `include "prescaler.v"
  `include "flash.v"
  `include "ram.v"
  `include "mmio.v"
- `include "avr_io_uart.v"
  `include "avr_core.v"
+ `include "avr_io_uart.v"
 `endif
-
-/*****************************************************************************/
 
 module priority_encoder ( input [3:0] irq_lines , output iflag, output reg [1:0] ivect );
 
@@ -101,8 +112,6 @@ module avr_b3(
     wire   [7:0] dmem_do;
     wire   [7:0] dmem_di;
 
-`ifdef MMIO
-
     // RAM
     wire   [dmem_width-2:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
     wire   ram_re;
@@ -114,8 +123,7 @@ module avr_b3(
     ram core0_ram(system_clk, ram_re, ram_we, rio_a, ram_di, dmem_do);
     defparam core0_ram.ram_width = dmem_width -1;
 
-
-    // MMIO memory mapped input/output
+    // memory mapped IO (MMIO)
     wire   mmio_re;
     wire   mmio_we;
     wire   [7:0] mmio_di;
@@ -143,33 +151,6 @@ module avr_b3(
                      (mmio_re || (lastread == 1)) ? mmio_di :
                      0;  
                      
-`else // no MMIO
-
-    // this is a test to see if a reduced dmem bus can be used for ram and still allow the uart to work
-    
-    // RAM
-    wire   [dmem_width-2:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
-    wire   ram_re;
-    wire   ram_we;
-    wire   [7:0] ram_di;
-    assign rio_a = dmem_a[dmem_width-2:0];   // ram/mmio address
-    assign ram_re = dmem_re & ~dmem_a[dmem_width-1];
-    assign ram_we = dmem_we & ~dmem_a[dmem_width-1];
-    
-    // this is what we need but when ram_re and ram_we are used the uart doesn't work correctly
-    //ram core0_ram(system_clk, ram_re, ram_we, rio_a, ram_di, dmem_do);
-
-    // this allows the uart to work correctly, e.g. by using dmem_re and dmem_we instead of ram_re and ram we
-    ram core0_ram(system_clk, dmem_re, dmem_we, rio_a, ram_di, dmem_do);
-    
-    // this is the original ram definition for no MMIO
-    //ram core0_ram(system_clk, dmem_re, dmem_we, dmem_a, dmem_di, dmem_do);  // dmem addrs 0x060-0xfff
-    defparam core0_ram.ram_width = dmem_width-1;
-    
-    assign dmem_di = ram_di;  
-    
-`endif // MMIO
-                    
     wire iflag;
     wire [1:0] ivect;
     wire [1:0] ieack;

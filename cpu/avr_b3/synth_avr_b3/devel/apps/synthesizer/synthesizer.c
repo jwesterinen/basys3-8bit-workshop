@@ -27,44 +27,10 @@
 *
 */
 
-#include <inttypes.h>
-#include <time.h>
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
-
-#define LINK_BY_INCL
-#ifdef LINK_BY_INCL
-
-#define F_CPU 12500000UL
-#include <util/delay.h>
-
-static int uart_putchar(char c, FILE *stream)
-{
-    loop_until_bit_is_set(UCSRA0, UDRE);
-    UDR0 = c;
-    
-    return(0);
-}
-
-static FILE mystdout = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_WRITE);
-
-static inline void msleep(uint16_t msec)
-{
-    while (msec)
-    {	
-        _delay_loop_2((uint32_t)F_CPU/4000UL);
-        msec--;
-    }
-}
-
-#include "../../lib/avr_b3_lib.c"
-
-#else // link by linker
-
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
-
-#endif // LINK_BY_INCL
 
 int main(void)
 {
