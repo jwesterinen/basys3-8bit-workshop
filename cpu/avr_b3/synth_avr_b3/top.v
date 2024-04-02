@@ -87,15 +87,6 @@ module avr_b3(
     assign system_clk = clk;
 `endif    
     
-    wire clk_50MHz;
-`ifdef SYNTHESIS    
-    // scale the input clock to 50MHz
-    prescaler #(.N(1)) ps50(clk, clk_50MHz);
-`else
-    // no scaling for simulator
-    assign clk_50MHz = clk;
-`endif    
-    
     // ROM
     parameter pmem_width = 12;    // 4K (0x1000)
     wire			pmem_ce;

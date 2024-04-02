@@ -62,6 +62,15 @@ module mmio
     assign clk_50MHz = clk;
 `endif    
     
+    wire clk_12MHz;
+`ifdef SYNTHESIS    
+    // scale the input clock to ~12.5MHz
+    prescaler #(.N(3)) ps12(clk, clk_12MHz);
+`else
+    // no scaling for simulator
+    assign clk_12MHz = clk;
+`endif    
+    
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
     wire basic_io_select = (addr[14:8] == 8'h00);            // addrs 0x8000-0x80ff
     wire basic_io_re = basic_io_select & re;
@@ -111,7 +120,7 @@ module mmio
     wire vgaterm_ack;
     vgaterm vga
     (
-        clk, 
+        clk_12MHz, 
         vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, peri_clks, 
         {vgaBlue[0], vgaGreen[0], vgaRed[0], vgaBlue[1], vgaGreen[1], vgaRed[1], Vsync, Hsync}
     );
