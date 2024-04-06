@@ -150,8 +150,15 @@
 #define VGA_CUR_COL     __MMIOR(MMIO_BASE_VGATERM+0x01) // Set cursor col location on write, get location on read
 #define VGA_CUR_ROW     __MMIOR(MMIO_BASE_VGATERM+0x02) // Set cursor row location on write, get location on read
 #define VGA_ROW_OFFSET  __MMIOR(MMIO_BASE_VGATERM+0x03) // Display row offset.  Display this row after vsync
-#define VGA_CUR_STYLE   __MMIOR(MMIO_BASE_VGATERM+0x04) // Cursor style. Bit0=block/underline, Bit1=invisible/visible
+#define VGA_CUR_STYLE   __MMIOR(MMIO_BASE_VGATERM+0x04) // Cursor style. Bit0=underline/block, Bit1=invisible/visible
 #define VGA_FG_COLOR    __MMIOR(MMIO_BASE_VGATERM+0x05) // Foreground color applied to all subsequent characters rgb 222
 #define VGA_BG_COLOR    __MMIOR(MMIO_BASE_VGATERM+0x06) // Background color applied to all subsequent characters rgb 222
 #define VGA_ATTR        __MMIOR(MMIO_BASE_VGATERM+0x07) // Attributes. Bit0=underline, Bit1=blink
+
+// VGA constants
+#define VGA_ROW_QTY     40
+#define VGA_COL_QTY     80
+#define VGA_ROW_MAX     39
+#define VGA_COL_MAX     79
+
 

@@ -19,5 +19,8 @@ clean-all:
 	$(MAKE) -C calc clean-all
 	$(MAKE) -C synthesizer clean-all
 	$(MAKE) -C ram_test clean-all
+	$(MAKE) -C vga clean-all
+	$(MAKE) -C calc_vga clean-all
+	$(MAKE) -C game_of_life clean-all
 	
 

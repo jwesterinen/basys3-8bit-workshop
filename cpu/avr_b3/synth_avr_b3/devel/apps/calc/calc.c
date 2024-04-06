@@ -83,7 +83,7 @@ int main(void)
         Display(value, 4);
         
         oldValue = value;
-        value = AppendKeyValue(value, &isNewEntry, true, 0x02, 100);
+        value = AppendKeypadValue(value, &isNewEntry, true, 0x02, 100);
         if (value != oldValue)
             DP = DP_NONE;
             

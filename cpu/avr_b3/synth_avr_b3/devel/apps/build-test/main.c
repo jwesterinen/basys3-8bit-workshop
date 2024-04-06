@@ -111,25 +111,10 @@ __attribute__((noinline)) void test_out4(void)
 
 void test_vgaterm(void)
 {
-    stdout = &mystdout;
-
-    VGA_CUR_STYLE = 0x03;
-    VGA_CHAR = 'H';
-    VGA_CHAR = 'e';
-    VGA_CHAR = 'l';
-    VGA_CHAR = 'l';
-    VGA_CHAR = 'o';
-    VGA_CHAR = ',';
-    VGA_CHAR = ' ';
-    VGA_CHAR = 'W';
-    VGA_CHAR = 'o';
-    VGA_CHAR = 'r';
-    VGA_CHAR = 'l';
-    VGA_CHAR = 'd';
-    VGA_CHAR = '!';
-
-    printf("char = %x, col = %x, row = %x, roff = %x, style = %x, fg = %x, bg = %x, attr = %x\r\n", 
-        VGA_CHAR, VGA_CUR_COL, VGA_CUR_ROW, VGA_ROW_OFFSET, VGA_CUR_STYLE, VGA_FG_COLOR, VGA_BG_COLOR, VGA_ATTR);
+    int i;
+    
+    for (i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
+        VGA_CHAR = i % 256;
 }
 
 int main(void)
