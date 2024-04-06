@@ -122,7 +122,7 @@ module mmio
     (
         clk_12MHz, 
         vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, peri_clks, 
-        {vgaBlue[0], vgaGreen[0], vgaRed[0], vgaBlue[1], vgaGreen[1], vgaRed[1], Vsync, Hsync}
+        {vgaBlue[1], vgaGreen[1], vgaRed[1], vgaBlue[2], vgaGreen[2], vgaRed[2], Vsync, Hsync}
     );
 
     // latch peripheral output
