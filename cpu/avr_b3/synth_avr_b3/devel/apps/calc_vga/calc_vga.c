@@ -45,7 +45,7 @@
 
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
-//#include "../../include/avr_b3_stdio.h"
+#include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
 
 // eval stack and its index, i.e. eval stack pointer
@@ -54,6 +54,9 @@ int es[10], esp = 0;
 // push a onto stack
 int Push(int a)
 {
+    stdout = &mystdout;
+    printf("push %d onto eval stack...\r\n", a);
+    
     es[esp++] = a;
     return a;
 }
@@ -61,6 +64,9 @@ int Push(int a)
 // pop the stack and return the value
 int Pop(void)
 {
+    stdout = &mystdout;
+    printf("pop %d from eval stack...\r\n", es[esp-1]);
+    
     return (esp > 0) ? es[--esp] : es[0];
 } 
 
@@ -73,6 +79,9 @@ int Top(void)
 // TOS = a
 int Put(int a)
 {
+    stdout = &mystdout;
+    printf("put %d onto top of eval stack...\r\n", a);
+    
     if (esp > 0)
         es[esp-1] = a;
     return a;
@@ -85,13 +94,19 @@ int main(void)
     int i = 0, value, b;
     bool entryComplete = false;
 
+    // set UART baud rate to 115200
+    UBRR0 = 13-1;
+
+    stdout = &mystdout;
+    printf("starting VGA calculator\r\n");
+
     // init the cursor to the bottom left
-    ClearVgaDisplay();
+    VgaClearFrameBuffer();
     VGA_CUR_ROW = VGA_ROW_MAX;
     VGA_CUR_COL = 0;
     VGA_ROW_OFFSET = 0;
        
-    PrintStr("> ");
+    VgaPrintStr("> ");
     while (1)
     {
         // read entry
@@ -99,7 +114,7 @@ int main(void)
         {
             if (keycode < KEY_A)
             {
-                valueStr[i++] = PrintKeypadCode(keycode);
+                valueStr[i++] = VgaPrintKeypadCode(keycode);
                 entryComplete = false;
             }
             else
@@ -120,8 +135,8 @@ int main(void)
                             // setup for next entry
                             entryComplete = true;
                             i = 0;
-                            Newline();
-                            PrintStr("> ");
+                            VgaNewline();
+                            VgaPrintStr("> ");
                         }
                         break;
                         
@@ -142,15 +157,15 @@ int main(void)
                         if (entryComplete)
                         {
                             // acknowledge with plus sign
-                            PrintStr("+");
-                            Newline();
+                            VgaPrintStr("+");
+                            VgaNewline();
                             
                             // put the sum of the top 2 expr stack entries onto the top of the stack and set the new value
                             value = Put(Pop() + Top());
                             sprintf(valueStr, "%d", value);
-                            PrintStr(valueStr);
-                            Newline();
-                            PrintStr("> ");
+                            VgaPrintStr(valueStr);
+                            VgaNewline();
+                            VgaPrintStr("> ");
                         }
                         break;
                         
@@ -159,16 +174,16 @@ int main(void)
                         if (entryComplete)
                         {
                             // acknowledge with minus sign
-                            PrintStr("-");
-                            Newline();
+                            VgaPrintStr("-");
+                            VgaNewline();
                             
                             // put the difference of the top 2 expr stack entries onto the top of the stack and set the new value
                             b = Pop();
                             value = Put(Top() - b);
                             sprintf(valueStr, "%d", value);
-                            PrintStr(valueStr);
-                            Newline();
-                            PrintStr("> ");
+                            VgaPrintStr(valueStr);
+                            VgaNewline();
+                            VgaPrintStr("> ");
                         }
                         break;
                 }

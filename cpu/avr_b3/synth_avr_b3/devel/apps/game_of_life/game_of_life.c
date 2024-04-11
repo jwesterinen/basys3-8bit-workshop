@@ -12,33 +12,38 @@
  * 
  */
 
-// this version is for the avr_b3
+// this version is for the Maker Display Arduino
 #include <time.h>
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
-//#include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
 
-// game parameters taylored to the specific HW
-#define XMAX 32                     // display width
-#define YMAX 9                      // display height
-#define XMAX_SEED 32                // seed buffer width
-#define YMAX_SEED 9                 // seed buffer height
-#define SEED_QTY 90                 // number of cells used to seed
-#define ON_COLOR 0x04               // color value of a live cell
-#define OFF_COLOR VGA_BLANK_CHAR    // color value of a dead cell
-#define TICK_DURATION 75          // framerate control - the larger the slower
-#define GENERATION_DURATION 200     // generation size
+//#define FIXED_SEED
+// game parameters taylored to the specific PLATFORM
+#define XMAX VGA_COL_QTY        // display width
+#define YMAX VGA_ROW_QTY        // display height
+#ifdef FIXED_SEED
+#define XMAX_SEED 32            // seed buffer width
+#define YMAX_SEED 9             // seed buffer height
+#else
+#define XMAX_SEED XMAX          // seed buffer width
+#define YMAX_SEED YMAX          // seed buffer height
+#endif
+#define SEED_QTY 900            // number of cells used to seed
+#define ON_COLOR true           // color value of a live cell
+#define OFF_COLOR false         // color value of a dead cell
+#define TICK_DURATION 25        // framerate control - the larger the slower
+#define GENERATION_DURATION 400 // generation size
 
 // define the semantics of the seed and pixel buffers
-typedef uint8_t PIXEL_BUFFER[YMAX][XMAX];
+typedef bool PIXEL_BUFFER[YMAX][XMAX];
 #define GetPixel(b,x,y) (b[(y)][(x)])         // get a single pixel from a pixel buffer
 #define SetPixel(b,x,y,c) (b[(y)][(x)] = (c)) // set a single pixel in a pixel buffer to the given color
-typedef PIXEL_BUFFER SEED_BUFFER;
+typedef bool SEED_BUFFER[YMAX_SEED][XMAX_SEED];
 
-// define target-specific functions
-#define random(mod) (rand() % (mod))
-#define delay(ms) msleep(ms)
+// platform-specific functions
+#define delay(t) msleep((t))
+#define random(max) rand() % (max)
 
 SEED_BUFFER sb_empty = 
 {
@@ -78,13 +83,13 @@ SEED_BUFFER sb_spaceship =
 };
 
 // select seed buffer
-//#define SEEDBUF sb_spaceship
-#define SEEDBUF sb_gliders
+#define SEEDBUF sb_spaceship
+//#define SEEDBUF sb_gliders
 
-namespace HW
+// The following functions and macros must be defined for the specific PLATFORM:
+
+namespace PLATFORM
 {
-// The following functions and macros must be defined for the specific HW:
-
 // clear the display
 void ClearDisplay(PIXEL_BUFFER refBuf, PIXEL_BUFFER fb, bool clearFB)
 {
@@ -101,52 +106,57 @@ void ClearDisplay(PIXEL_BUFFER refBuf, PIXEL_BUFFER fb, bool clearFB)
         }
     }
 
-    // use the HW's API to directly clear the display
-    ::ClearVgaDisplay();
+    // use the PLATFORM's API to directly clear the display
+    VgaClearFrameBuffer();
 }
 
 // display a pixel buffer
-void Display(PIXEL_BUFFER buffer)
+void DisplayBuf(PIXEL_BUFFER buffer)
 {
-    // use the HW's APIs to set all the pixels in the source buffer to the HW's display buffer
+    // use the PLATFORM's APIs to set all the pixels in the source buffer to the PLATFORM's display buffer
     for (int y = 0; y < YMAX; y++)
     {
         for (int x = 0; x < XMAX; x++)
         {
-            PutVgaChar(x, y, buffer[y][x]);
+            VgaPutChar(y, x, (buffer[y][x] == ON_COLOR) ? 0x04 : 0x20);
         }
     }
 }
+} // namespace PLATFORM
 
-} // namespace HW
-
-// include the HW-agnostic kernel code of the game of life
+// include the PLATFORM-agnostic kernel code of the game of life
 #include "life.h"
 
-int main(void)
+void setup() 
 {
+    // set console baud rate to 115200
+    UBRR0 = 13-1;
+
     // seed the random number generator
     srand(time(NULL));
     
     // init the VGA terminal for invisible cursor
     VGA_CUR_STYLE = 0x00;
 
+#ifdef FIXED_SEED
     // select seed buffer
-    Life::pSeedBuf = &SEEDBUF;
+    pSeedBuf = &SEEDBUF;
+#endif    
 
     // setup for game of life
     Life::InitGame();
-
-    // continually show new frames
-    while (1)
-    {
-        Life::ShowNextFrame();
-        /*
-        msleep(1);
-        //while (ReadButtons(false, 0, 0) == 0);
-        Life::ShowNextFrame();
-        msleep(100);
-        */
-    }
 }
 
+void loop() 
+{
+    Life::ShowNextFrame();
+}
+
+int main()
+{
+    setup();
+    while (1)
+    {
+        loop();
+    }
+}

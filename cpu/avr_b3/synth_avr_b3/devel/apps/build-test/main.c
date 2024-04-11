@@ -9,9 +9,10 @@ ISR(_VECTOR(3))
 {
     uint8_t	c;
     c = UDR0;
-    if ('a' <= c && c <= 'z')
-        c -= ('a'-'A');
+    //if ('a' <= c && c <= 'z')
+    //    c -= ('a'-'A');
     UDR0 = c + 1;
+    sei();
 }
 
 void test_printf(void)
@@ -33,12 +34,31 @@ void test_printf(void)
     }
 }
 
-void test_uart_isr(void)
+/*
+*   Test full duplex communications with a terminal emulator.
+*       Test procedure:
+*           1. Launch the terminal emulator at 115200 baud.
+*           2. Type characters and ensure that they are echoed back.
+*/
+void test_interrupt(void)
 {
     stdout = &mystdout;
     
-    printf("enter characters...\r\n");
-    while (1);
+    // set the receiver interrupt enable bit in the uart status reg B
+    UCSRB0 |= (1<<RXCIE);
+
+    // enable global interrupts
+    sei();
+
+    printf("Type characters and ensure they are echoed.\r\n");
+        
+    while ( 1 )
+    {
+        // flash the LSBit of the LEDs every second to signal that the test in running
+        // and to type chars at the terminal emulation app
+        LED_LSB ^= 0x01;
+        msleep(500);
+    }
 }
 
 __attribute__((noinline)) void test_io(void)
@@ -123,12 +143,11 @@ int main(void)
     UBRR0 = 13-1;
 
     //test_printf();
-    //test_interrupt();
-    //test_uart_isr();
+    test_interrupt();
     //test_io();
     //test_sound();
     //test_out4();
-    test_vgaterm();
+    //test_vgaterm();
     
     return(0);
 }

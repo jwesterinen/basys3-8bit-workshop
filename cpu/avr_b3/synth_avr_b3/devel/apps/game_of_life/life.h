@@ -17,12 +17,12 @@
  *     - int GetPixel(); 
  *     - void SetPixel();
  *  - the following manifest constants:
- *     - XMAX and YMAX which is the resolution of the display HW
+ *     - XMAX and YMAX which is the resolution of the display PLATFORM
  *     - ON_COLOR and OFF_COLOR which describe what color to use for an "on" and "off" pixel
  *     - SEED_QTY which describes how many cells will be randomly made alive to begin
- *  - two HW specific functions
- *     - void ClearDisplay(); which clears the HW display
- *     - void Display(PIXEL_BUFFER buffer); which displays the contents of the pixel buffer on the HW display
+ *  - two PLATFORM specific functions
+ *     - void ClearDisplay(); which clears the PLATFORM display
+ *     - void Display(PIXEL_BUFFER buffer); which displays the contents of the pixel buffer on the PLATFORM display
  */
 
 
@@ -42,23 +42,23 @@ bool clearFB = true;
 // initialize the game
 void InitGame() 
 {
-    int x = -1, y = -1;
-    int xPrev = x, yPrev = y;
+    int xPrev = -1, yPrev = -1;
+    int x = xPrev, y = yPrev;
     
     // reset the generation
     tick = 0;
     state = 0;
 
     // clear the display
-    HW::ClearDisplay(buf0, buf1, clearFB);
+    PLATFORM::ClearDisplay(buf0, buf1, clearFB);
 
     // seed and display the ref buffer
     if (pSeedBuf)
     {
         // load the ref buffer with a fixed seed
-        for (int y = 0; y < YMAX_SEED; y++)
+        for (y = 0; y < YMAX_SEED; y++)
         {
-            for (int x = 0; x < XMAX_SEED; x++)
+            for (x = 0; x < XMAX_SEED; x++)
             {
                 SetPixel(buf0, x, y, (*pSeedBuf)[y][x] ? ON_COLOR : OFF_COLOR);
             }
@@ -79,7 +79,7 @@ void InitGame()
             yPrev = y;
         }
     }
-    HW::Display(buf0);
+    PLATFORM::DisplayBuf(buf0);
 }
 
 // adjust x for the boarders to implement a toroidal array
@@ -150,7 +150,7 @@ bool CreateNextFrame(PIXEL_BUFFER refBuf, PIXEL_BUFFER frameBuf)
             // For a cell that is populated:
             // - Each cell with one or no neighbors dies, as if by solitude.
             // - Each cell with four or more neighbors dies, as if by overpopulation.
-            if ((alive = (GetPixel(refBuf, x, y) == ON_COLOR)))
+            if ((alive = GetPixel(refBuf, x, y)))
             {
                 if (n <= 1 || n >= 4)
                 {
@@ -176,7 +176,7 @@ bool CreateNextFrame(PIXEL_BUFFER refBuf, PIXEL_BUFFER frameBuf)
     }
 
     // display the contents of the current frame buffer
-    HW::Display(frameBuf);
+    PLATFORM::DisplayBuf(frameBuf);
 
     // return true if any changes were made to the frame buffer
     return changed;
@@ -212,5 +212,5 @@ void ShowNextFrame()
         InitGame();
     }
 }
-}
+} // namespace LIFE
 

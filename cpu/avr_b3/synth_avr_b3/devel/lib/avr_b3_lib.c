@@ -86,7 +86,7 @@ int AppendKeypadValue(int value, bool *pIsNewEntry, bool beep, uint8_t tone, uin
     return value;
 }
 
-uint8_t PrintKeypadCode(uint8_t keypadCode)
+uint8_t VgaPrintKeypadCode(uint8_t keypadCode)
 {
     uint8_t asciiVal;
     
@@ -98,7 +98,7 @@ uint8_t PrintKeypadCode(uint8_t keypadCode)
     return asciiVal;
 }
 
-void MoveVgaCursor(enum VGA_CUR_DIR dir)
+void VgaMoveCursor(enum VGA_CUR_DIR dir)
 {
     switch (dir)
     {
@@ -128,32 +128,49 @@ void MoveVgaCursor(enum VGA_CUR_DIR dir)
     }
 }
 
-uint8_t GetVgaChar(int col, int row)
+char VgaGetChar(int row, int col)
 {
-    VGA_CUR_COL = col;
     VGA_CUR_ROW = row;
+    VGA_CUR_COL = col;
     return VGA_CHAR;    
 }
 
-uint8_t PutVgaChar(int col, int row, uint8_t c)
+char VgaPutChar(int row, int col, char c)
 {
-    VGA_CUR_COL = col;
     VGA_CUR_ROW = row;
+    VGA_CUR_COL = col;
     VGA_CHAR = c;    
     return c;    
 }
 
-void FillVgaDisplay(uint8_t c)
+void VgaFillFrameBuffer(char c)
 {
-    int i;
-    
-    for (i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
-    {
+    for (int i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
         VGA_CHAR = c;
-    }
 }
 
-void Newline(void)
+void VgaLoadFrameBuffer(VGA_DISPLAY_BUFFER srcBuf)
+{
+    for (int row = 0; row < VGA_ROW_QTY; row++)
+        for (int col = 0; col < VGA_COL_QTY; col++)
+            VgaPutChar(row, col, srcBuf[row][col]);
+}
+
+void VgaFillDisplayBuffer(VGA_DISPLAY_BUFFER buffer, char c)
+{
+    for (int row = 0; row < VGA_ROW_QTY; row++)
+        for (int col = 0; col < VGA_COL_QTY; col++)
+            buffer[row][col] = c;
+}
+
+void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
+{
+    for (int row = 0; row < VGA_ROW_QTY; row++)
+        for (int col = 0; col < VGA_COL_QTY; col++)
+            destBuf[row][col] = srcBuf[row][col];
+}
+
+void VgaNewline(void)
 {
     static int curTopRow = 0;
     
@@ -162,7 +179,7 @@ void Newline(void)
     VGA_CUR_ROW = VGA_ROW_MAX;
 }
 
-void PrintStr(char *str)
+void VgaPrintStr(char *str)
 {
     int i = 0;
     

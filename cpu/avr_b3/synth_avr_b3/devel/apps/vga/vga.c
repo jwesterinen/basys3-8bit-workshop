@@ -20,29 +20,29 @@ void CursorTest(int row, int col)
         {
             // cursor up
             case BUTTON_U:
-                MoveCursor(CUR_UP);
+                VgaMoveCursor(CUR_UP);
                 break;
                 
             // cursor down
             case BUTTON_D:
-                MoveCursor(CUR_DOWN);
+                VgaMoveCursor(CUR_DOWN);
                 break;
                 
             // cursor left
             case BUTTON_L:
-                MoveCursor(CUR_LEFT);
+                VgaMoveCursor(CUR_LEFT);
                 break;
                 
             // cursor right
             case BUTTON_R:
-                MoveCursor(CUR_RIGHT);
+                VgaMoveCursor(CUR_RIGHT);
                 break;
         }
     
         // display keypad value
         if ((keypadCode = ReadKeypad(false, 0, 0)) != 0)
         {
-            PrintKeypadCode(keypadCode);
+            VgaPrintKeypadCode(keypadCode);
         }
     }
 }

@@ -25,6 +25,15 @@
 *     - display 2: noise oscillator
 *     - display 3: LFO
 *
+*   Test procedure:
+*       1. Press UP.
+*       2. Press 8.
+*       3. Press LEFT.
+*       4. Press 1.
+*       5. Press RIGHT.
+*       6. Press 9.
+*       7. Turn on switches 0, 1, 5, 6, 12, 13.
+*       8. A warbling sound should be heard.
 */
 
 #include <stdlib.h>
@@ -133,7 +142,7 @@ int main(void)
             }
         }
 
-#define VERBOSE
+//#define VERBOSE
 #ifdef VERBOSE        
         // display reg values on the console
         printf("vco1 freq = %x, vco2 freq = %x, noise freq = %x, lfo freq = %x\r\n", VCO1_FREQ, VCO2_FREQ, NOISE_FREQ, LFO_FREQ);
