@@ -172,11 +172,19 @@ void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
 
 void VgaNewline(void)
 {
-    static int curTopRow = 0;
+    // scroll the display up one row
+    VGA_ROW_OFFSET++;
     
-    VGA_ROW_OFFSET = ++curTopRow % VGA_ROW_QTY;
-    VGA_CUR_COL = 0;
+    // reposition the cursor at the last line on the screen
     VGA_CUR_ROW = VGA_ROW_MAX;
+    
+    // clear the line
+    for (int i = 0; i < VGA_COL_MAX; i++)
+    {
+        VGA_CUR_COL = i;
+        VGA_CHAR = 0x20;
+    }
+    VGA_CUR_COL = 0;
 }
 
 void VgaPrintStr(char *str)

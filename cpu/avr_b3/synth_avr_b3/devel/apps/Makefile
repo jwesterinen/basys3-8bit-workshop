@@ -22,5 +22,7 @@ clean-all:
 	$(MAKE) -C vga clean-all
 	$(MAKE) -C calc_vga clean-all
 	$(MAKE) -C game_of_life clean-all
+	$(MAKE) -C console clean-all
+	$(MAKE) -C basic clean-all
 	
 

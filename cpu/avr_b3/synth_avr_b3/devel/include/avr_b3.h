@@ -46,6 +46,7 @@
 #define MMIO_BASE_KEYPAD    0x0100  // reg addrs 0x8100-0x81ff
 #define MMIO_BASE_SOUND     0x0200  // reg addrs 0x8200-0x82ff
 #define MMIO_BASE_VGATERM   0x0300  // reg addrs 0x8300-0x83ff
+#define MMIO_BASE_KEYBOARD  0x0400  // reg addrs 0x8400-0x84ff
 
 // basic I/O
 #define SW          __MMIOW(MMIO_BASE_BASIC_IO+0x00)    // all switches
@@ -109,7 +110,7 @@
 #define BUTTON_D    0x10
 
 // keypad
-#define KEYPAD      __MMIOR(MMIO_BASE_KEYPAD+0x00)   // key code
+#define KEYPAD  __MMIOR(MMIO_BASE_KEYPAD+0x00)   // key code
 
 // key codes
 #define KEY_NONE            0x00
@@ -161,4 +162,6 @@
 #define VGA_ROW_MAX     39
 #define VGA_COL_MAX     79
 
+// PS2 keyboard
+#define KEYBOARD    __MMIOR(MMIO_BASE_KEYBOARD+0x00)    // key code
 

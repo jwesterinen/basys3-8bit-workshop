@@ -9,6 +9,7 @@
  *      keypad:     reg addrs 0x8100-0x81ff
  *      sound:      reg addrs 0x8200-0x82ff
  *      vgaterm:    reg addrs 0x8300-0x83ff
+ *      keyboard:   reg addrs 0x8400-0x84ff
  */
  
 `ifdef SYNTHESIS
@@ -18,6 +19,7 @@
  `include "sysdefs.h"
  `include "clocks.v"
  `include "vgaterm.v"
+ `include "keyboard.v"
 `endif
 
 module mmio
@@ -43,7 +45,9 @@ module mmio
     output [3:0] vgaGreen,
     output [3:0] vgaRed,
     output Vsync,
-    output Hsync
+    output Hsync,
+    input  PS2Clk,
+    input  PS2Data
 );
 
     reg [7:0] out_buf;          // Latched output buffer for data_read
@@ -52,6 +56,7 @@ module mmio
     wire [7:0] keypad_dout;
     wire [7:0] sound_dout;
     wire [7:0] vgaterm_dout;
+    wire [7:0] keyboard_dout;
 
     wire clk_50MHz;
 `ifdef SYNTHESIS    
@@ -105,6 +110,13 @@ module mmio
         JA7
     );
         
+    // PS2 keyboard
+    wire keyboard_select = (addr[14:8] == 8'h04);
+    keyboard kbd
+    (
+        PS2Clk, PS2Data, keyboard_dout
+    );
+        
     // DP peripherals
 
     // DP clocks peripheral
@@ -133,6 +145,7 @@ module mmio
 `endif                    
                    (sound_select && re)     ? sound_dout    :
                    (vgaterm_select && re)   ? vgaterm_dout  :
+                   (keyboard_select && re)  ? keyboard_dout :
                    out_buf;
     end
     assign data_read = out_buf;

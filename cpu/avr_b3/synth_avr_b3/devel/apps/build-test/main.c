@@ -137,17 +137,27 @@ void test_vgaterm(void)
         VGA_CHAR = i % 256;
 }
 
+void test_keyboard(void)
+{
+    while ( 1 )
+    {	
+        // write keyboard codes to LEDs
+        LED = KEYBOARD;
+    }
+}    
+
 int main(void)
 {
     // set UART baud rate to 115200
     UBRR0 = 13-1;
 
     //test_printf();
-    test_interrupt();
+    //test_interrupt();
     //test_io();
     //test_sound();
     //test_out4();
     //test_vgaterm();
+    test_keyboard();
     
     return(0);
 }
