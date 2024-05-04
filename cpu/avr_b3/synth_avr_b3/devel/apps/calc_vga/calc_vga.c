@@ -44,6 +44,7 @@
 */
 
 #include <stdlib.h>
+#include <string.h>
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
@@ -93,6 +94,7 @@ int main(void)
     char valueStr[20];
     int i = 0, value, b;
     bool entryComplete = false;
+    char *promptStr = "> ";
 
     // set UART baud rate to 115200
     UBRR0 = 13-1;
@@ -103,10 +105,9 @@ int main(void)
     // init the cursor to the bottom left
     VgaClearFrameBuffer();
     VGA_CUR_ROW = VGA_ROW_MAX;
-    VGA_CUR_COL = 0;
-    VGA_ROW_OFFSET = 0;
+    VGA_ROW_OFFSET = VGA_ROW_MIN;
        
-    VgaPrintStr("> ");
+    VgaPrintStr(promptStr);
     while (1)
     {
         // read entry
@@ -136,14 +137,14 @@ int main(void)
                             entryComplete = true;
                             i = 0;
                             VgaNewline();
-                            VgaPrintStr("> ");
+                            VgaPrintStr(promptStr);
                         }
                         break;
                         
                     // "Backspace"                
                     case KEY_B:
                         // clear the last char entered
-                        if (i > 0)
+                        if (VGA_CUR_COL > VGA_COL_MIN + strlen(promptStr))
                         {
                             VGA_CUR_COL--;
                             VGA_CHAR = ' ';

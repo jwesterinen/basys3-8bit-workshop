@@ -105,7 +105,7 @@ void VgaMoveCursor(enum VGA_CUR_DIR dir)
         // cursor up
         case CUR_UP:
             // move the cursor up
-            VGA_CUR_ROW -= (VGA_CUR_ROW > 0) ? 1 : 0;
+            VGA_CUR_ROW -= (VGA_CUR_ROW > VGA_ROW_MIN) ? 1 : 0;
             break;
             
         // cursor down
@@ -117,7 +117,7 @@ void VgaMoveCursor(enum VGA_CUR_DIR dir)
         // cursor left
         case CUR_LEFT:
             // move the cursor left
-            VGA_CUR_COL -= (VGA_CUR_COL > 0) ? 1 : 0;
+            VGA_CUR_COL -= (VGA_CUR_COL > VGA_COL_MIN) ? 1 : 0;
             break;
             
         // cursor right
@@ -130,43 +130,53 @@ void VgaMoveCursor(enum VGA_CUR_DIR dir)
 
 char VgaGetChar(int row, int col)
 {
-    VGA_CUR_ROW = row;
-    VGA_CUR_COL = col;
-    return VGA_CHAR;    
+    if ((VGA_ROW_MIN <= row && row <= VGA_ROW_MAX) && (VGA_COL_MIN <= col && col <= VGA_COL_MAX))
+    {
+        VGA_CUR_ROW = row;
+        VGA_CUR_COL = col;
+        return VGA_CHAR;    
+    }
+    return 0;
 }
 
 char VgaPutChar(int row, int col, char c)
 {
-    VGA_CUR_ROW = row;
-    VGA_CUR_COL = col;
-    VGA_CHAR = c;    
-    return c;    
+    if ((VGA_ROW_MIN <= row && row <= VGA_ROW_MAX) && (VGA_COL_MIN <= col && col <= VGA_COL_MAX))
+    {
+        VGA_CUR_ROW = row;
+        VGA_CUR_COL = col;
+        VGA_CHAR = c;   
+        return c;    
+    } 
+    return 0;
 }
 
 void VgaFillFrameBuffer(char c)
 {
+    VGA_CUR_ROW = VGA_ROW_MIN;
+    VGA_CUR_COL = VGA_COL_MIN;
     for (int i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
         VGA_CHAR = c;
 }
 
 void VgaLoadFrameBuffer(VGA_DISPLAY_BUFFER srcBuf)
 {
-    for (int row = 0; row < VGA_ROW_QTY; row++)
-        for (int col = 0; col < VGA_COL_QTY; col++)
-            VgaPutChar(row, col, srcBuf[row][col]);
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+            VgaPutChar(VGA_ROW_MIN + row, VGA_COL_MIN + col, srcBuf[row][col]);
 }
 
 void VgaFillDisplayBuffer(VGA_DISPLAY_BUFFER buffer, char c)
 {
-    for (int row = 0; row < VGA_ROW_QTY; row++)
-        for (int col = 0; col < VGA_COL_QTY; col++)
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
             buffer[row][col] = c;
 }
 
 void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
 {
-    for (int row = 0; row < VGA_ROW_QTY; row++)
-        for (int col = 0; col < VGA_COL_QTY; col++)
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
             destBuf[row][col] = srcBuf[row][col];
 }
 
@@ -179,12 +189,12 @@ void VgaNewline(void)
     VGA_CUR_ROW = VGA_ROW_MAX;
     
     // clear the line
-    for (int i = 0; i < VGA_COL_MAX; i++)
+    for (int i = VGA_COL_MIN; i < VGA_COL_MAX; i++)
     {
         VGA_CUR_COL = i;
         VGA_CHAR = 0x20;
     }
-    VGA_CUR_COL = 0;
+    VGA_CUR_COL = VGA_COL_MIN;
 }
 
 void VgaPrintStr(char *str)

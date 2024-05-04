@@ -35,11 +35,13 @@ void Console(void)
     // enable global interrupts
     sei();
 
+    // prompt string
+    char *promptStr = "> ";
+    
     // init the cursor to the bottom left
     VgaClearFrameBuffer();
     VGA_CUR_ROW = VGA_ROW_MAX;
-    VGA_CUR_COL = 0;
-    VGA_ROW_OFFSET = 0;
+    VGA_ROW_OFFSET = VGA_ROW_MIN;
        
     stdout = &mystdout;
     printf("starting console...\r\n");
@@ -59,14 +61,14 @@ void Console(void)
                 i = 0;
                 Parse(lineBuf);
                 VgaNewline();
-                VgaPrintStr("> ");
+                VgaPrintStr(promptStr);
                 //printf("VGA_ROW_OFFSET = %d\r\n", VGA_ROW_OFFSET);
             }
 
             // Backspace
             else if (kbBuf == BS)
             {
-                if (VGA_CUR_COL > 2)
+                if (VGA_CUR_COL > VGA_COL_MIN + strlen(promptStr))
                 {          
                     VGA_CUR_COL--;
                     VGA_CHAR = ' ';
@@ -75,7 +77,7 @@ void Console(void)
                 }
             }
 
-            // printable characters
+            // display only printable characters
             else if (SPACE <= kbBuf && kbBuf <= BS)
             {
                 lineBuf[i++] = kbBuf;

@@ -2,7 +2,7 @@
 #include <stdbool.h>
 
 enum VGA_CUR_DIR {CUR_UP, CUR_DOWN, CUR_LEFT, CUR_RIGHT};
-typedef char VGA_DISPLAY_BUFFER[VGA_ROW_QTY][VGA_COL_QTY];
+typedef char VGA_DISPLAY_BUFFER[VGA_ROW_MAX][VGA_COL_MAX];
 
 void Display(uint16_t value, uint8_t displayQty);
 void msleep(uint16_t msec);

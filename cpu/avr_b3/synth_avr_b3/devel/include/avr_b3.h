@@ -157,10 +157,14 @@
 #define VGA_ATTR        __MMIOR(MMIO_BASE_VGATERM+0x07) // Attributes. Bit0=underline, Bit1=blink
 
 // VGA constants
-#define VGA_ROW_QTY     40
-#define VGA_COL_QTY     80
-#define VGA_ROW_MAX     39
-#define VGA_COL_MAX     79
+#define VGA_CUR_UNDERLINE   0x00
+#define VGA_CUR_BLOCK       0x01
+#define VGA_CUR_INVISIBLE   0x00
+#define VGA_CUR_VISIBLE     0x02
+#define VGA_ROW_MIN         0
+#define VGA_ROW_MAX         39
+#define VGA_COL_MIN         0
+#define VGA_COL_MAX         79
 
 // PS2 keyboard
 #define KEYBOARD    __MMIOR(MMIO_BASE_KEYBOARD+0x00)    // key code

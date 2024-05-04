@@ -131,10 +131,13 @@ __attribute__((noinline)) void test_out4(void)
 
 void test_vgaterm(void)
 {
-    int i;
-    
-    for (i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
+    VGA_CUR_STYLE = VGA_CUR_INVISIBLE;
+    VGA_CUR_ROW = VGA_ROW_MIN;
+    VGA_CUR_COL = VGA_COL_MIN;
+    for (int i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
+    {
         VGA_CHAR = i % 256;
+    }
 }
 
 void test_keyboard(void)
@@ -156,8 +159,8 @@ int main(void)
     //test_io();
     //test_sound();
     //test_out4();
-    //test_vgaterm();
-    test_keyboard();
+    test_vgaterm();
+    //test_keyboard();
     
     return(0);
 }
