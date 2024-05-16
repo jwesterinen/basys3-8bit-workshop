@@ -20,8 +20,8 @@
 
 //#define FIXED_SEED
 // game parameters taylored to the specific PLATFORM
-#define XMAX VGA_COL_QTY        // display width
-#define YMAX VGA_ROW_QTY        // display height
+#define XMAX VGA_COL_MAX        // display width
+#define YMAX VGA_ROW_MAX        // display height
 #ifdef FIXED_SEED
 #define XMAX_SEED 32            // seed buffer width
 #define YMAX_SEED 9             // seed buffer height

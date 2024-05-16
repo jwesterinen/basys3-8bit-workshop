@@ -4,6 +4,7 @@
 
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
@@ -14,7 +15,13 @@
 
 char kbBuf;
 
-int Parse(const char* text);
+int Parse(const char* text)
+{
+    stdout = &mystdout;
+    
+    printf("line entered: %s\r\n", text);
+    return 0;
+}
 
 // UART receive ISR
 ISR(_VECTOR(3))
@@ -24,8 +31,11 @@ ISR(_VECTOR(3))
     sei();
 }
 
-void Console(void)
+int main(void)
 {
+    // set UART baud rate to 115200
+    UBRR0 = 13-1;
+
     char lineBuf[80];
     unsigned i = 0;
     

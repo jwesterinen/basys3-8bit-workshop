@@ -7,8 +7,7 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-OBJECTS=main.o ui.o $(LIB_DIR)/avr_b3_lib.o
-#OBJECTS=$(APP).o
+OBJECTS=main.o parser.o $(LIB_DIR)/avr_b3_lib.o
 
 CC=avr-gcc
 AS=avr-as
@@ -29,6 +28,7 @@ CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfiel
 LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn
 #LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
+#LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn -Wl,--defsym=__heap_end=0
 
 PMEM_DEPTH=12
 PMEM_WORDS=$(shell echo $$((1<<$(PMEM_DEPTH))))

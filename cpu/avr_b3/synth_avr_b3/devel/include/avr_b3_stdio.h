@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <avr/sfr_defs.h>
 
 // setup for printf
 static int uart_putchar(char c, FILE *stream)

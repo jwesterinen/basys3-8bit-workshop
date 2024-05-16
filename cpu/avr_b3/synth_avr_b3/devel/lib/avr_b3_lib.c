@@ -183,7 +183,7 @@ void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
 void VgaNewline(void)
 {
     // scroll the display up one row
-    VGA_ROW_OFFSET++;
+    VGA_ROW_OFFSET = (VGA_ROW_OFFSET == 39) ? 0 : VGA_ROW_OFFSET+1;
     
     // reposition the cursor at the last line on the screen
     VGA_CUR_ROW = VGA_ROW_MAX;

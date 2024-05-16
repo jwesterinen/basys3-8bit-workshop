@@ -1,7 +1,5 @@
-#include <avr/cpufunc.h>
-#include <avr/interrupt.h>
 #include <inttypes.h>
-#include <stdio.h>
+#include <avr/interrupt.h>
 
 // I/O mapped I/O
 
