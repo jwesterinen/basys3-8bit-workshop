@@ -149,6 +149,13 @@ void test_keyboard(void)
     }
 }    
 
+void test_heap(void)
+{
+    int *px = (int*)malloc(1 * sizeof(int));
+    *px = 0x1234;
+    LED = *px;
+}
+
 int main(void)
 {
     // set UART baud rate to 115200
@@ -159,8 +166,9 @@ int main(void)
     //test_io();
     //test_sound();
     //test_out4();
-    test_vgaterm();
+    //test_vgaterm();
     //test_keyboard();
+    test_heap();
     
     return(0);
 }

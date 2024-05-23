@@ -8,6 +8,7 @@
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
+#include "parser.h"
 
 #define CR      0x0d
 #define BS      0x7f
@@ -15,11 +16,10 @@
 
 char kbBuf;
 
+int result;
 char responseStr[80];
 extern char errorStr[80];
     
-bool Parse(const char* text);
-
 // UART receive ISR
 ISR(_VECTOR(3))
 {
@@ -68,6 +68,9 @@ int main(void)
                 i = 0;
                 if (Parse(lineBuf))
                 {
+                    sprintf(responseStr, "%d", result);
+                    VgaNewline();
+                    VgaPrintStr(responseStr);
                     strcpy(responseStr, "ready");
                 }
                 else
