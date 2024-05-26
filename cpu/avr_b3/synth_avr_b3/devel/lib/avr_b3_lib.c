@@ -11,6 +11,8 @@
 #include "../include/avr_b3.h"
 #include "../include/avr_b3_lib.h"
 
+#define TABSIZE 4
+
 void msleep(uint16_t msec)
 {
     while (msec)
@@ -203,7 +205,14 @@ void VgaPrintStr(char *str)
     
     while (str[i])
     {
-        VGA_CHAR = str[i++];
+        if (str[i] == '\t')
+        {
+            for (int j = 0; j < TABSIZE; j++)
+                VGA_CHAR = ' ';
+            i++;
+        }
+        else
+            VGA_CHAR = str[i++];
     }
 }
 

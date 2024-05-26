@@ -7,7 +7,7 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-OBJECTS=main.o parser.o eval_stack.o symtab.o $(LIB_DIR)/avr_b3_lib.o
+OBJECTS=main.o lexer.o parser.o eval_stack.o symtab.o $(LIB_DIR)/avr_b3_lib.o
 
 CC=avr-gcc
 AS=avr-as

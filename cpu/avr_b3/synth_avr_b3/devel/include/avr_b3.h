@@ -159,6 +159,8 @@
 #define VGA_CUR_BLOCK       0x01
 #define VGA_CUR_INVISIBLE   0x00
 #define VGA_CUR_VISIBLE     0x02
+#define VGA_ATTR_UNDERLINE  0x01
+#define VGA_ATTR_BLINK      0x02
 #define VGA_ROW_MIN         0
 #define VGA_ROW_MAX         39
 #define VGA_COL_MIN         0

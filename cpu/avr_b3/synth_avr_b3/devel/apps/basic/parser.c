@@ -12,35 +12,42 @@
 #include <string.h>
 #include <inttypes.h>
 #include "symtab.h"
+#include "parser.h"
+#include "lexer.h"
 #include "eval_stack.h"
 
 enum NodeType {
-    TYPE_NONE = 0,
-    TYPE_INSTR,
-    TYPE_PRINT, TYPE_ASSIGN,
-    TYPE_E, TYPE_EP, TYPE_T, TYPE_TP, TYPE_F, 
-    TYPE_PLUS_OP, TYPE_MULT_OP, TYPE_ASSIGN_OP, TYPE_PRINT_OP,
-    TYPE_LPAREN, TYPE_RPAREN, 
-    TYPE_NUM, TYPE_ID
+    NT_NONE = 0,
+    NT_INSTR,
+    NT_PRINT, NT_ASSIGN, NT_EXPR_LIST,
+    NT_EXPR, NT_EXPR_PRIME, NT_TERM, NT_TERM_PRIME, NT_FACTOR, 
+    NT_ADD_OP, NT_SUB_OP, NT_MUL_OP, NT_DIV_OP,
+    NT_CONSTANT, NT_IDENTIFIER
 };
 typedef uint8_t NodeID;
 typedef struct Node {
-    NodeID id;
     enum NodeType type;
-    union {
-        int op;
-        int constant;
-        SymbolID symbol;
-    } value;
-    NodeID son;
+    int constant;
+    SymbolID symbol;
     NodeID bro;
+    NodeID son;
 } Node;
+
+#define TYPE(node)      nodetab[(node)].type
+#define CONSTANT(node)  nodetab[(node)].constant
+#define SYMBOL(node)    nodetab[(node)].symbol
+#define BRO(node)       nodetab[(node)].bro
+#define SON(node)       nodetab[(node)].son
+#define SYMNAME(symbol) symtab[(symbol)].name
+#define SYMVAL(symbol)  symtab[(symbol)].value
+#define SYMDEF(symbol)  symtab[(symbol)].isDefined
 
 char *Type2Name(enum NodeType type);
 NodeID NewNode(enum NodeType type);
 NodeID AddSon(NodeID parent, NodeID node);
 bool IsInstr(NodeID *pNode);
 bool IsPrint(NodeID *pNode);
+bool IsExprList(NodeID *pNode);
 bool IsAssign(NodeID *pNode);
 bool IsExpr(NodeID *pNode);
 bool IsExprPrime(NodeID *pNode);
@@ -48,13 +55,8 @@ bool IsTerm(NodeID *pNode);
 bool IsTermPrime(NodeID *pNode);
 bool IsFactor(NodeID *pNode);
 
-char *nextChar;
-int token;
-char lexeme[80];
-SymbolID lexsym;
-int i = 0;
 char errorStr[80];
-extern int result;
+char resultStr[80];
 
 Node nodetab[100];
 int nodetabIdx = 1;
@@ -63,21 +65,20 @@ char *Type2Name(enum NodeType type)
 {
     switch (type)
     {
-        case TYPE_PLUS_OP:      return "+";         break;
-        case TYPE_MULT_OP:      return "*";         break;
-        case TYPE_ASSIGN_OP:    return "=";         break;
-        case TYPE_LPAREN:       return "(";         break;
-        case TYPE_RPAREN:       return ")";         break;
-        case TYPE_NUM:          return "number";    break;
-        case TYPE_ID:           return "id";        break;
-        case TYPE_E:            return "<expr>";    break;
-        case TYPE_EP:           return "<expr'>";   break;
-        case TYPE_T:            return "<term>";    break;
-        case TYPE_TP:           return "<term'>";   break;
-        case TYPE_F:            return "<factor>";  break;
-        case TYPE_INSTR:        return "<instr>";   break;
-        case TYPE_PRINT:        return "<print>";  break;
-        case TYPE_ASSIGN:       return "<assign>";  break;
+        case NT_INSTR:      return "instr";     break;
+        case NT_PRINT:      return "print";     break;
+        case NT_ASSIGN:     return "assign";    break;
+        case NT_EXPR:       return "expr";      break;
+        case NT_EXPR_PRIME: return "expr'";     break;
+        case NT_TERM:       return "term";      break;
+        case NT_TERM_PRIME: return "term'";     break;
+        case NT_FACTOR:     return "factor";    break;
+        case NT_CONSTANT:   return "number";    break;
+        case NT_IDENTIFIER: return "id";        break;
+        case NT_ADD_OP:     return "+";         break;
+        case NT_SUB_OP:     return "-";         break;
+        case NT_MUL_OP:     return "*";         break;
+        case NT_DIV_OP:     return "/";         break;
         default:
             break;
     }
@@ -86,7 +87,6 @@ char *Type2Name(enum NodeType type)
 
 NodeID NewNode(enum NodeType type)
 {
-    nodetab[nodetabIdx].id = nodetabIdx;
     nodetab[nodetabIdx].type = type;
     nodetab[nodetabIdx].son = 0;
     nodetab[nodetabIdx].bro = 0;
@@ -98,201 +98,53 @@ NodeID AddSon(NodeID parent, NodeID node)
 {
     NodeID next, last;
     
-    next = nodetab[parent].son;
+    next = SON(parent);
     if (next == 0)
     {
-        nodetab[parent].son = node;
-        //printf("added node %s\n", Type2Name(nodetab[node].type));
+        SON(parent) = node;
+        //printf("added node %s\n", Type2Name(TYPE(node)));
         return node;
     }
     while (next != 0)
     {
         last = next;
-        next = nodetab[next].bro;
+        next = BRO(next);
     }
-    nodetab[last].bro = node;
+    BRO(last) = node;
     
-    //printf("added node %s\n", Type2Name(nodetab[node].type));
+    //printf("added node %s\n", Type2Name(TYPE(node)));
     return node;
-}
-
-/*
-*   lexical grammar
-*
-*   letter          [a-zA-Z_]
-*   digit           [0-9]
-*   letter_or_digit [a-zA-Z_0-9]
-*   
-*   "print"                     return PRINT
-*   {letter}{letter_or_digit}*  return Identifier
-*   {digit}+                    return Number
-*   {other}                     return .
-*/
-
-// token values, single char tokens use their ASCII values
-#define NUMBER  300
-#define ID      301
-#define PRINT   302
-#define LET     303
-
-struct KeywordTableEntry {
-    char *keyword;
-    int token;
-} keywordTab[] = {
-        {"print", PRINT},
-        {"let", LET},
-};
-int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
-
-// return the next token in the instruction
-void GetNextToken(void)
-{
-    static int state = 0;
-    
-    //printf("\tGetNextToken: \n");
-    
-    while (1)
-    {
-        switch (state)
-        {
-            case 0:
-                // remove whitespace
-                //printf("\t\tstate 0, remove whitespace\n");
-                if (isspace(*nextChar))
-                {
-                    nextChar++;
-                }
-                else
-                {
-                    state = 1;
-                }
-                break;
-                
-            case 1:
-                // direct the lexer to parse a number, ID, or single char
-                //printf("\t\tstate 1, direct lexer\n");
-                if (isdigit(*nextChar))
-                {
-                    lexeme[i++] = *nextChar++;
-                    state = 2;
-                }
-                else if (isalpha(*nextChar))
-                {
-                    lexeme[i++] = *nextChar++;
-                    state = 3;
-                }
-                else if (*nextChar != '\0')
-                {
-                    lexeme[0] = *nextChar++;
-                    state = 6;
-                }
-                else
-                {
-                    state = 7;
-                }
-                break;
-                
-            case 2:
-                // parse a number
-                //printf("\t\tstate 3, parse a number\n");
-                if (isdigit(*nextChar))
-                {
-                    lexeme[i++] = *nextChar++;
-                }
-                else
-                {
-                    state = 4;
-                }
-                break;
-                
-            case 3:
-                // parse an ID or keyword
-                //printf("\t\tstate 4, parse in ID\n");
-                if (isalnum(*nextChar))
-                {
-                    lexeme[i++] = *nextChar++;
-                }
-                else
-                {
-                    state = 5;
-                }
-                break;
-                
-            case 4:
-                // return NUMBER token
-                lexeme[i] = '\0';
-                //printf("\t\tstate 5, token = NUMBER %s\n", lexeme);
-                i = 0;
-                state = 0;
-                token = NUMBER;
-                return;
-                
-            case 5:
-                // return ID or keyword token
-                lexeme[i] = '\0';
-                //printf("\t\tstate 6, token = ID %s\n", lexeme);
-                i = 0;
-                state = 0;
-                
-                // if the lexeme is a keyword, return its corresponding token
-                for (int j = 0; j < keywordTableSize; j++)
-                {
-                    if (!strcmp(keywordTab[j].keyword, lexeme))
-                    {
-                        token = keywordTab[j].token;
-                        return;
-                    }
-                }
-                
-                // if the lexeme isn't a keyword, lookup a symbol and return ID
-                token = ID;
-                lexsym = SymLookup(lexeme);
-                return;
-                
-            case 6:
-                // return single char token
-                lexeme[1] = '\0';
-                //printf("\t\tstate 7, token = single char token %c\n", lexeme[0]);
-                i = 0;
-                state = 0;
-                token = lexeme[0];
-                return;
-                
-            case 7:
-                // return EOL
-                //printf("\t\tstate 8, token = EOL\n");
-                i = 0;
-                state = 0;
-                token = 0;
-                return;
-        }
-    }
 }
 
 /*
     BASIC grammar:
     
-    <instr>         := <print> | <assignment> | <expr>
-    <print>         := PRINT <expr>
-    <assignment>    := [let] ID '=' <expr>
-    <expr>          := <term> <expr-prime>
-    <expr-prime>    := '+' <term> <expr-prime> | $
-    <term>          := <factor> <term-prime>
-    <term-prime>    := '*' <factor> <term-prime> | $
-    <factor>        := '(' <expr> ')' | NUMBER | ID
+    instr       : print | assignment
+    print       : PRINT expr-list
+    expr-list   : expr ','  expr-list | expr
+    assignment  : [let] Identifier '=' expr
+    expr        : term expr-prime
+    expr-prime  : '+' term expr-prime | '-' term expr-prime | $
+    term        : factor term-prime
+    term-prime  : '*' factor term-prime | '/' factor term-prime | $
+    factor  : '(' expr ')' | Constant | Identifier
 */
 
-// <instr> := <assignment> | <print> | <expr>
+// instr : 
 bool IsInstr(NodeID *pNode)
 {
     NodeID son;
     
-    *pNode = NewNode(TYPE_INSTR);
+    *pNode = NewNode(NT_INSTR);
+    
+    // print
     if (IsPrint(&son))
     {
         AddSon(*pNode, son);
         return true;
     }
+    
+    // assignment
     else if (IsAssign(&son))
     {
         AddSon(*pNode, son);
@@ -302,77 +154,92 @@ bool IsInstr(NodeID *pNode)
     return false;
 }
 
-// <print> := PRINT <expr>
+// print : PRINT expr-list
 bool IsPrint(NodeID *pNode)
 {
     NodeID son;
     
     if (token == PRINT)
     {
-        *pNode = NewNode(TYPE_PRINT);
-        
-        AddSon(*pNode, NewNode(TYPE_PRINT_OP));
-        GetNextToken();
-        if (IsExpr(&son))
+        *pNode = NewNode(NT_PRINT);        
+        GetNextToken(NULL);
+        if (IsExprList(&son))
         {
             AddSon(*pNode, son);
             return true;
-        }
-        else
-        {
-            return false;
         }
     }
     
     return false;
 }
     
-// <assignment> := ID '=' <expr>
+// expr-list :
+bool IsExprList(NodeID *pNode)
+{
+    NodeID son;
+    
+    //  expr ','  expr-list | expr
+    if (IsExpr(&son))
+    {
+        *pNode = NewNode(NT_EXPR_LIST);
+        AddSon(*pNode, son);
+        if (token == ',')
+        {
+            GetNextToken(NULL);
+            if (IsExprList(&son))
+            {
+                AddSon(*pNode, son);
+            }
+            return true;
+        }
+        return true;
+    }
+    
+    return false;
+}
+    
+// assignment :
 bool IsAssign(NodeID *pNode)
 {
     NodeID son;
     
+    // [let]
     if (token == LET)
     {
         // optional syntactic sugar
-        GetNextToken();
+        GetNextToken(NULL);
     }
-    if (token == ID)
+    
+    // Identifier '=' expr
+    if (token == Identifier)
     {
-        *pNode = NewNode(TYPE_ASSIGN);
-        son = NewNode(TYPE_ID);
-        nodetab[son].value.symbol = lexsym;
+        *pNode = NewNode(NT_ASSIGN);
+        son = NewNode(NT_IDENTIFIER);
+        nodetab[son].symbol = lexsym;
         AddSon(*pNode, son);
-        GetNextToken();
+        GetNextToken(NULL);
         if (token == '=')
         {
-            AddSon(*pNode, NewNode(TYPE_ASSIGN_OP));
-            GetNextToken();
+            GetNextToken(NULL);
             if (IsExpr(&son))
             {
                 AddSon(*pNode, son);
                 return true;
             }
-            else
-            {
-                return false;
-            }
         }
-        else
-            return false;
     }
     
     return false;
 }
 
-// <expr> := <term> <expr-prime>
+// expr :
 bool IsExpr(NodeID *pNode)
 {
     NodeID son;
     
-    //printf("%d E -> T E'\n", token);
-    *pNode = NewNode(TYPE_E);
+    *pNode = NewNode(NT_EXPR);
     
+    // term expr-prime
     if (IsTerm(&son))
     {
         AddSon(*pNode, son);
@@ -381,24 +248,22 @@ bool IsExpr(NodeID *pNode)
             AddSon(*pNode, son);
             return true;
         }
-        else
-            return false;
     }
     
     return false;
 }
 
-// <expr-prime> := '+' <term> <expr-prime> | $
+// expr-prime :
 bool IsExprPrime(NodeID *pNode)
 {
     NodeID son;
     
+    // '+' term expr-prime
     if (token == '+')
     {
-        *pNode = NewNode(TYPE_EP);
-        //printf("%d E' -> + T E'\n", token);
-        AddSon(*pNode, NewNode(TYPE_PLUS_OP));
-        GetNextToken();
+        *pNode = NewNode(NT_EXPR_PRIME);
+        AddSon(*pNode, NewNode(NT_ADD_OP));
+        GetNextToken(NULL);
         if (IsTerm(&son))
         {
             AddSon(*pNode, son);
@@ -411,19 +276,38 @@ bool IsExprPrime(NodeID *pNode)
                 return false;
         }
     }
-
-    //printf("%d E' -> $\n", token);
+    
+    // '-' term expr-prime
+    else if (token == '-')
+    {
+        *pNode = NewNode(NT_EXPR_PRIME);
+        AddSon(*pNode, NewNode(NT_SUB_OP));
+        GetNextToken(NULL);
+        if (IsTerm(&son))
+        {
+            AddSon(*pNode, son);
+            if (IsExprPrime(&son))
+            {
+                AddSon(*pNode, son);
+                return true;
+            }
+            else
+                return false;
+        }
+    }
+    
+    // $
     *pNode = 0;
     return true;
 }
 
-// <term> := <factor> <term-prime>
+// term :
 bool IsTerm(NodeID *pNode)
 {
     NodeID son;
     
-    //printf("%d T -> F T'\n", token);
-    *pNode = NewNode(TYPE_T);    
+    // factor term-prime
+    *pNode = NewNode(NT_TERM);    
     if (IsFactor(&son))
     {
         AddSon(*pNode, son);
@@ -432,24 +316,41 @@ bool IsTerm(NodeID *pNode)
             AddSon(*pNode, son);
             return true;
         }
-        else
-            return false;
     }
 
     return false;
 }
 
-// <term-prime> := '*' <factor> <term-prime> | $
+// term-prime :
 bool IsTermPrime(NodeID *pNode)
 {
     NodeID son;
     
+    // '*' factor term-prime
     if (token == '*')
     {
-        *pNode = NewNode(TYPE_TP);
-        //printf("%d T' -> * F T'\n", token);
-        AddSon(*pNode, NewNode(TYPE_MULT_OP));
-        GetNextToken();
+        *pNode = NewNode(NT_TERM_PRIME);
+        AddSon(*pNode, NewNode(NT_MUL_OP));
+        GetNextToken(NULL);
+        if (IsFactor(&son))
+        {
+            AddSon(*pNode, son);
+            if (IsTermPrime(&son))
+            {
+                AddSon(*pNode, son);
+                return true;
+            }
+            else
+                return false;
+        }
+    }
+    
+    // '/' factor term-prime
+    else if (token == '/')
+    {
+        *pNode = NewNode(NT_TERM_PRIME);
+        AddSon(*pNode, NewNode(NT_DIV_OP));
+        GetNextToken(NULL);
         if (IsFactor(&son))
         {
             AddSon(*pNode, son);
@@ -463,139 +364,161 @@ bool IsTermPrime(NodeID *pNode)
         }
     }
 
-    //printf("%d T' -> $\n", token);
+    // $
     *pNode = 0;
     return true;
 }
 
-// <factor> := '(' <expr> ')' | NUMBER | ID
+// factor :
 bool IsFactor(NodeID *pNode)
 {
     NodeID son;
 
-    *pNode = NewNode(TYPE_F);    
+    // '(' expr ')'
+    *pNode = NewNode(NT_FACTOR);    
     if (token == '(')
     {
-        //printf("%d F -> ( E )\n", token);
-        AddSon(*pNode, NewNode(TYPE_LPAREN));
-        GetNextToken();
+        GetNextToken(NULL);
         if (IsExpr(&son))
         {
             AddSon(*pNode, son);
             if (token == ')')
             {
-                AddSon(*pNode, NewNode(TYPE_RPAREN));
-                GetNextToken();
+                GetNextToken(NULL);
                 return true;
             }
-            else
-                return false;
         }
-        else
-            return false;
     }
-    else if (token == NUMBER)
+    
+    // Constant
+    else if (token == Constant)
     {
-        //printf("%d F -> NUMBER\n", token);
-        son = NewNode(TYPE_NUM);
-        nodetab[son].value.constant = atoi(lexeme);
+        //printf("%d F -> Constant\n", token);
+        son = NewNode(NT_CONSTANT);
+        CONSTANT(son) = atoi(lexeme);
         AddSon(*pNode, son);
-        GetNextToken();
+        GetNextToken(NULL);
         return true;
     }
-    else if (token == ID)
+    
+    // Identifier
+    else if (token == Identifier)
     {
-        //printf("%d F -> ID\n", token);
-        son = NewNode(TYPE_ID);
-        nodetab[son].value.symbol = lexsym;
+        //printf("%d F -> Identifier\n", token);
+        son = NewNode(NT_IDENTIFIER);
+        SYMBOL(son) = lexsym;
         AddSon(*pNode, son);
-        GetNextToken();
+        GetNextToken(NULL);
         return true;
     }
     
     return false;
 }
 
-// depth first traversal
+// tree traversal is guided by the grammar rule
 bool TraverseTree(NodeID node)
 {
-    NodeID son;
-    SymbolID symbol;
     bool retval = true;
+    //char tmpStr[80];
     
     if (node != 0)
     {
-        //printf("node type %s\n", Type2Name(nodetab[node].type));
-        switch (nodetab[node].type)
+        //printf("node type %s\n", Type2Name(TYPE(node)));
+        switch (TYPE(node))
         {
-            // leaf nodes
-            case TYPE_PLUS_OP:
+            case NT_INSTR:
+                retval &= TraverseTree(SON(node));
+                break;
+                
+            case NT_PRINT:
+                // print
+                //   expr-list
+                retval &= TraverseTree(SON(node));
+                break;
+                
+            case NT_EXPR_LIST:
+            {
+                char exprStr[80];
+                // expr-list
+                //   expr expr-list | expr
+                retval &= TraverseTree(SON(node));          // expr and push expr value
+                sprintf(exprStr, "%d", Pop());              // convert expr value to ascii
+                strcat(resultStr, exprStr);                 // cat to existing result string
+                if (BRO(SON(node)))
+                {
+                    strcat(resultStr, "\t");                // cat intervening tab
+                    retval &= TraverseTree(BRO(SON(node))); // expr-list
+                }
+            }
+                break;
+                
+            case NT_ASSIGN:
+                // assignment
+                //   Identifier expr
+                retval &= TraverseTree(BRO(SON(node))); // eval
+                SYMVAL(SYMBOL(SON(node))) = Pop();      // Identifier's symbol value = expr value
+                SYMDEF(SYMBOL(SON(node))) = true;       // flag symbol as defined
+                break;
+                
+            case NT_EXPR:
+                // expr 
+                //   term expr-prime
+            case NT_TERM:
+                // term
+                //   factor term-prime
+                retval &= TraverseTree(SON(node));
+                retval &= TraverseTree(BRO(SON(node)));            
+                break;
+                
+            case NT_EXPR_PRIME:
+                // expr-prime
+                //   '+' term expr-prime | '-' term expr-prime
+            case NT_TERM_PRIME:
+                // term-prime
+                //   '*' factor term-prime | '/' factor term-prime
+                retval &= TraverseTree(BRO(SON(node)));    // left opnd
+                retval &= TraverseTree(BRO(BRO(SON(node))));    // right opnd
+                retval &= TraverseTree(SON(node));   // op
+                break;
+                
+            case NT_FACTOR:
+                // factor
+                //   expr | Constant | Identifier
+                retval &= TraverseTree(SON(node));
+                break;
+                
+            case NT_ADD_OP:
                 Add();
                 break;
-            case TYPE_MULT_OP:
+                
+            case NT_SUB_OP:
+                Subtract();
+                break;
+                
+            case NT_MUL_OP:
                 Multiply();
                 break;
-            case TYPE_NUM:
-                Push(nodetab[node].value.constant);
+                
+            case NT_DIV_OP:
+                Divide();
                 break;
-            case TYPE_ID:
-                symbol = nodetab[node].value.symbol;
-                if (symtab[symbol].isDefined)
+                
+            case NT_CONSTANT:
+                Push(CONSTANT(node));
+                break;
+                
+            case NT_IDENTIFIER:
+                if (SYMDEF(SYMBOL(node)) == true)
                 {
-                    Push(symtab[symbol].value);
+                    Push(SYMVAL(SYMBOL(node)));
                 }
                 else
                 {
-                    sprintf(errorStr, "undefined variable %s", symtab[symbol].name);
+                    sprintf(errorStr, "undefined variable %s", SYMNAME(SYMBOL(node)));
                     retval = false;
                 }
                 break;
 
-            // internal nodes
-            case TYPE_INSTR:
-                node = nodetab[node].son;
-                retval &= TraverseTree(node);
-                break;
-            case TYPE_PRINT:
-                // <print> := PRINT <expr>
-                son = nodetab[node].son;        // PRINT
-                son = nodetab[son].bro;         // <expr>
-                retval &= TraverseTree(son);
-                break;
-            case TYPE_ASSIGN:
-                // <assignment> := ID '=' <expr>
-                son = nodetab[node].son;            // ID
-                son = nodetab[son].bro;             // '='
-                son = nodetab[son].bro;             // <expr>
-                retval &= TraverseTree(son);        // push expr value
-                son = nodetab[node].son;            // ID
-                symbol = nodetab[son].value.symbol; // ID's symbol
-                symtab[symbol].value = Top();       // ID's symbol value defined as expr value
-                symtab[symbol].isDefined = true;
-                break;
-            case TYPE_E:
-            case TYPE_T:
-                node = nodetab[node].son;
-                retval &= TraverseTree(node);
-                node = nodetab[node].bro;
-                retval &= TraverseTree(node);            
-                break;
-            case TYPE_EP:
-            case TYPE_TP:
-                node = nodetab[node].son;
-                son = nodetab[node].bro;
-                retval &= TraverseTree(son);
-                son = nodetab[son].bro;
-                retval &= TraverseTree(son);
-                retval &= TraverseTree(node);
-                break;
-            case TYPE_F:
-                node = nodetab[node].son;
-                if (nodetab[node].type == TYPE_LPAREN)
-                    node = nodetab[node].bro;
-                retval &= TraverseTree(node);
-                break;
-                
             default:
                 puts("unknown node type");
                 retval = false;
@@ -607,29 +530,30 @@ bool TraverseTree(NodeID node)
 }
 
 
-bool Parse(char *exprStr)
+bool ProcessCommand(char *command)
 {
     NodeID root;
     
     // init the parser
     InitEvalStack();
     nodetabIdx = 1;
+    errorStr[0] = '\0';
+    resultStr[0] = '\0';
     
     // create the parse tree
-    nextChar = exprStr;
-    GetNextToken();
+    //nextChar = exprStr;
+    GetNextToken(command);
     if (!IsInstr(&root))
     {
         strcpy(errorStr, "syntax error");
         return false;
     }
     
-    // evaluate the expression
+    // execute the instruction
     if (!TraverseTree(root))
     {
         return false;
     }
-    result = Top();
     
     return true;
 }

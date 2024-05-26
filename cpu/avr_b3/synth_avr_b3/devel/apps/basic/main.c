@@ -16,8 +16,7 @@
 
 char kbBuf;
 
-int result;
-char responseStr[80];
+char resultStr[80];
 extern char errorStr[80];
     
 // UART receive ISR
@@ -33,7 +32,7 @@ int main(void)
     // set UART baud rate to 115200
     UBRR0 = 13-1;
 
-    char lineBuf[80];
+    char commandBuf[80];
     unsigned i = 0;
     
     // enable UART receiver interrupts
@@ -54,7 +53,7 @@ int main(void)
     printf("starting basic interpreter...\r\n");
     
     kbBuf = 0x00;
-    VgaPrintStr("> ");
+    VgaPrintStr(promptStr);
     while (1)
     {
         if (kbBuf)
@@ -64,21 +63,24 @@ int main(void)
             // Enter
             if (kbBuf == CR)
             {
-                lineBuf[i] = (uint8_t)'\0';
+                commandBuf[i] = (uint8_t)'\0';
                 i = 0;
-                if (Parse(lineBuf))
+                if (ProcessCommand(commandBuf))
                 {
-                    sprintf(responseStr, "%d", result);
-                    VgaNewline();
-                    VgaPrintStr(responseStr);
-                    strcpy(responseStr, "ready");
+                    if (resultStr[0] != '\0')
+                    {
+                        VgaNewline();
+                        VgaPrintStr(resultStr);
+                        resultStr[0] = '\0';
+                    }
                 }
                 else
                 {
-                    strcpy(responseStr, errorStr);
+                    VgaNewline();
+                    VgaPrintStr(errorStr);
                 }
                 VgaNewline();
-                VgaPrintStr(responseStr);
+                VgaPrintStr("ready");
                 VgaNewline();
                 VgaPrintStr(promptStr);
                 //printf("VGA_ROW_OFFSET = %d\r\n", VGA_ROW_OFFSET);
@@ -99,7 +101,7 @@ int main(void)
             // display only printable characters
             else if (SPACE <= kbBuf && kbBuf <= BS)
             {
-                lineBuf[i++] = kbBuf;
+                commandBuf[i++] = kbBuf;
                 VGA_CHAR = kbBuf;
             }
             
