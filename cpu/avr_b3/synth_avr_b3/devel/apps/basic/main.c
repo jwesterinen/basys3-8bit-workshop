@@ -44,15 +44,12 @@ int main(void)
     // prompt string
     char *promptStr = "> ";
     
-    // init the cursor to the bottom left
-    VgaClearFrameBuffer();
-    VGA_CUR_ROW = VGA_ROW_MAX;
-    VGA_ROW_OFFSET = VGA_ROW_MIN;
-       
     stdout = &mystdout;
     printf("starting basic interpreter...\r\n");
     
     kbBuf = 0x00;
+    VgaClearFrameBuffer();
+    VgaPrintStr("AVR_B3 Basic Interpreter\n\n");
     VgaPrintStr(promptStr);
     while (1)
     {
@@ -80,8 +77,7 @@ int main(void)
                     VgaPrintStr(errorStr);
                 }
                 VgaNewline();
-                VgaPrintStr("ready");
-                VgaNewline();
+                VgaPrintStr("ready\n");
                 VgaPrintStr(promptStr);
                 //printf("VGA_ROW_OFFSET = %d\r\n", VGA_ROW_OFFSET);
             }

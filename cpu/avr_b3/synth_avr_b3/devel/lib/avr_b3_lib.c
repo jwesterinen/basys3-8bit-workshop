@@ -184,18 +184,26 @@ void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
 
 void VgaNewline(void)
 {
-    // scroll the display up one row
-    VGA_ROW_OFFSET = (VGA_ROW_OFFSET == 39) ? 0 : VGA_ROW_OFFSET+1;
-    
-    // reposition the cursor at the last line on the screen
-    VGA_CUR_ROW = VGA_ROW_MAX;
-    
-    // clear the line
-    for (int i = VGA_COL_MIN; i < VGA_COL_MAX; i++)
+    // line feed
+    if (VGA_CUR_ROW < VGA_ROW_MAX)
     {
-        VGA_CUR_COL = i;
-        VGA_CHAR = 0x20;
+        // move the cursor to the next row down
+        VGA_CUR_ROW++;
     }
+    else
+    {
+        // scroll the display up one row if the cursor is on the last row
+        VGA_ROW_OFFSET = (VGA_ROW_OFFSET == 39) ? 0 : VGA_ROW_OFFSET+1;
+        
+        // clear the line
+        for (int i = VGA_COL_MIN; i < VGA_COL_MAX; i++)
+        {
+            VGA_CUR_COL = i;
+            VGA_CHAR = 0x20;
+        }
+    }
+    
+    // carriage return
     VGA_CUR_COL = VGA_COL_MIN;
 }
 
@@ -205,14 +213,23 @@ void VgaPrintStr(char *str)
     
     while (str[i])
     {
-        if (str[i] == '\t')
+        switch (str[i])
         {
-            for (int j = 0; j < TABSIZE; j++)
-                VGA_CHAR = ' ';
-            i++;
+            case '\n':
+                VgaNewline();
+                i++;
+                break;
+            
+            case '\t':
+                for (int j = 0; j < TABSIZE; j++)
+                    VGA_CHAR = ' ';
+                i++;
+                break;
+            
+            default:
+                VGA_CHAR = str[i++];
+                break;
         }
-        else
-            VGA_CHAR = str[i++];
     }
 }
 

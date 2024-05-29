@@ -10,7 +10,6 @@ typedef struct Symbol
 {
     char        name[20];
     int         value;
-    bool        isDefined;
     SymbolID    next;
 } Symbol;
 

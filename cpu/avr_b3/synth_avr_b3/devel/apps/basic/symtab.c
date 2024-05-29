@@ -17,7 +17,6 @@ static SymbolID SymCreate(const char *name)
     SymbolID newSymbol = symtabIdx++;    
     strcpy(symtab[newSymbol].name, name);
     symtab[newSymbol].value = 0;
-    symtab[newSymbol].isDefined = false;
      
     return newSymbol;
 }
