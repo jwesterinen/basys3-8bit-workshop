@@ -54,8 +54,8 @@ module avr_b3(
     output JC3,
     input RsRx,         // UART receive signal
     output RsTx,        // UART transmit signal
-    input PS2Clk,       // PS2 keyboard clock
-    input PS2Data,      // PS2 keyboard data
+    inout PS2Clk,       // PS2 keyboard clock
+    inout PS2Data,      // PS2 keyboard data
     output [3:0] vgaBlue,  // VGA signals
     output [3:0] vgaGreen,
     output [3:0] vgaRed,
@@ -118,16 +118,18 @@ module avr_b3(
     wire   mmio_re;
     wire   mmio_we;
     wire   [7:0] mmio_di;
+    wire   PS2irq;
     assign mmio_re = dmem_re & dmem_a[dmem_width -1];
     assign mmio_we = dmem_we & dmem_a[dmem_width -1];
     mmio core0_mmio
     (
         clk, mmio_re, mmio_we, rio_a, mmio_di, dmem_do, 
 `ifdef SYNTHESIS
-        sw, btn, led, seg, dp, an, JB, JA7, vgaBlue, vgaGreen, vgaRed, Vsync, Hsync, PS2Clk, PS2Data
-
+        sw, btn, led, seg, dp, an, JB, JA7, vgaBlue, vgaGreen, vgaRed,
+        Vsync, Hsync, PS2Clk, PS2Data, PS2irq
 `else
-        sw, btn, led, seg, dp, an, JA7, vgaBlue, vgaGreen, vgaRed, Vsync, Hsync, PS2Clk, PS2Data
+        sw, btn, led, seg, dp, an, JA7, vgaBlue, vgaGreen, vgaRed,
+        Vsync, Hsync, PS2Clk, PS2Data, PS2irq
 `endif        
     );
 
@@ -150,7 +152,8 @@ module avr_b3(
 
     //assign systick0_ack = (ieack==2'b01);     // example of interrupt ack
 
-    priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, 1'b0, 1'b0 }, iflag, ivect );
+    //priority_encoder irq0 ( { |uart0_irq[2:0], 1'b0, 1'b0, 1'b0 }, iflag, ivect );
+    priority_encoder irq0 ( { |uart0_irq[2:0], PS2irq, 1'b0, 1'b0 }, iflag, ivect );
 
     avr_core core0 
     (	

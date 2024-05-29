@@ -9,7 +9,7 @@
  *      keypad:     reg addrs 0x8100-0x81ff
  *      sound:      reg addrs 0x8200-0x82ff
  *      vgaterm:    reg addrs 0x8300-0x83ff
- *      keyboard:   reg addrs 0x8400-0x84ff
+ *      ps2:        reg addrs 0x8400-0x84ff
  */
  
 `ifdef SYNTHESIS
@@ -19,7 +19,7 @@
  `include "sysdefs.h"
  `include "clocks.v"
  `include "vgaterm.v"
- `include "keyboard.v"
+ `include "ps2.v"
 `endif
 
 module mmio
@@ -46,8 +46,9 @@ module mmio
     output [3:0] vgaRed,
     output Vsync,
     output Hsync,
-    input  PS2Clk,
-    input  PS2Data
+    inout  PS2Clk,
+    inout  PS2Data,
+    output PS2irq
 );
 
     reg [7:0] out_buf;          // Latched output buffer for data_read
@@ -56,7 +57,6 @@ module mmio
     wire [7:0] keypad_dout;
     wire [7:0] sound_dout;
     wire [7:0] vgaterm_dout;
-    wire [7:0] keyboard_dout;
 
     wire clk_50MHz;
 `ifdef SYNTHESIS    
@@ -110,13 +110,6 @@ module mmio
         JA7
     );
         
-    // PS2 keyboard
-    wire keyboard_select = (addr[14:8] == 8'h04);
-    keyboard kbd
-    (
-        PS2Clk, PS2Data, keyboard_dout
-    );
-        
     // DP peripherals
 
     // DP clocks peripheral
@@ -137,6 +130,19 @@ module mmio
         {vgaBlue[1], vgaGreen[1], vgaRed[1], vgaBlue[2], vgaGreen[2], vgaRed[2], Vsync, Hsync}
     );
 
+    // PeriCtrl ps2
+    wire [7:0] ps2_dout;
+    wire ps2_select = (addr[14:8] == 8'h04);
+    wire ps2_re = ps2_select & re;
+    wire ps2_we = ps2_select & we;
+    wire ps2_stall;
+    wire ps2_ack;
+    ps2 ps2_b3 (
+        clk, ps2_we, ~addr[7], ps2_select, {1'b0, addr[6:0]},
+        ps2_stall, ps2_ack, data_write, ps2_dout, PS2irq,
+        peri_clks, {PS2Clk, PS2Clk, PS2Data, PS2Data }
+    );
+
     // latch peripheral output
     always @(posedge clk) begin
         out_buf <= (basic_io_select && re)  ? basic_io_dout :
@@ -145,7 +151,7 @@ module mmio
 `endif                    
                    (sound_select && re)     ? sound_dout    :
                    (vgaterm_select && re)   ? vgaterm_dout  :
-                   (keyboard_select && re)  ? keyboard_dout :
+                   (ps2_select && re)       ? ps2_dout :
                    out_buf;
     end
     assign data_read = out_buf;

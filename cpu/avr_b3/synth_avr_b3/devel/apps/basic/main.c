@@ -8,22 +8,56 @@
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_lib.h"
+#include "../../include/keycodes.h"
 #include "parser.h"
 
+//#define USE_CONSOLE_KB
+
+#ifdef USE_CONSOLE_KB
 #define CR      0x0d
 #define BS      0x7f
+#else
+#define CR      '\n'
+#define BS      '\b'
+#endif
 #define SPACE   0X20
 
-char kbBuf;
+char keycode = 0;
 
 char resultStr[80];
 extern char errorStr[80];
+
+char GetKey(void)
+{
+#ifndef USE_CONSOLE_KB
+    keycode = getps2();
+#endif
+    return keycode;
+}
     
 // UART receive ISR
 ISR(_VECTOR(3))
 {
     // load the keyboard buffer with the char received by the UART
-    kbBuf = UDR0;
+    keycode = UDR0;
+    sei();
+}
+
+// PS2 receive ISR
+ISR(_VECTOR(2))
+{
+    extern uint16_t ps2_keycode;
+    uint8_t volatile *addr;
+
+    getkey();
+
+    
+    addr = (volatile uint8_t *)(0x8004);
+    *addr++ = (uint8_t) (ps2_keycode & 0xff);
+    *addr = (uint8_t) ((ps2_keycode >> 8) & 0xff);
+
+    //UDR0 = (uint8_t) (code & 0xff);
+
     sei();
 }
 
@@ -47,18 +81,18 @@ int main(void)
     stdout = &mystdout;
     printf("starting basic interpreter...\r\n");
     
-    kbBuf = 0x00;
     VgaClearFrameBuffer();
     VgaPrintStr("AVR_B3 Basic Interpreter\n\n");
     VgaPrintStr(promptStr);
     while (1)
     {
-        if (kbBuf)
+        //if (keycode)
+        if (GetKey())
         {
-            //printf("keycode: %02x\r\n", kbBuf);
+            //printf("keycode: %02x\r\n", keycode);
             
             // Enter
-            if (kbBuf == CR)
+            if (keycode == CR)
             {
                 commandBuf[i] = (uint8_t)'\0';
                 i = 0;
@@ -83,7 +117,7 @@ int main(void)
             }
 
             // Backspace
-            else if (kbBuf == BS)
+            else if (keycode == BS)
             {
                 if (VGA_CUR_COL > VGA_COL_MIN + strlen(promptStr))
                 {          
@@ -95,13 +129,14 @@ int main(void)
             }
 
             // display only printable characters
-            else if (SPACE <= kbBuf && kbBuf <= BS)
+            else if (0x20 <= keycode && keycode <= 0x7f)
             {
-                commandBuf[i++] = kbBuf;
-                VGA_CHAR = kbBuf;
+                commandBuf[i++] = keycode;
+                VGA_CHAR = keycode;
             }
             
-            kbBuf = 0x00;
+            // clear the old keycode -- really only necessary for the console
+            keycode = 0x00;
         }
         msleep(50);
     }

@@ -234,3 +234,416 @@ void VgaPrintStr(char *str)
 }
 
 
+/************** PS2 keyboard routines **************/
+#include "../include/keycodes.h"
+
+
+/************** Defines and global variables   ************/
+        /* Scan codes for modifier keys */
+#define MOD_CAPLCK    0x58
+#define MOD_SHIFTL    0x12
+#define MOD_SHIFTR    0x59
+#define MOD_ALTL      0x11
+#define MOD_ALTR      0x11   /* in E0 character set */
+#define MOD_CTRLL     0x14
+#define MOD_CTRLR     0x14   /* in E0 character set */
+#define EVT_UP        0xF0
+#define EXTENDED      0xE0
+
+/**************** Static storage allocation ***************/
+uint8_t   ps2_sem;
+uint16_t  ps2_keycode;
+
+/* Scancode to ASCII conversion for normal and shifted char */
+typedef struct  {
+    uint8_t   scancode;
+    uint8_t   shifascii;
+    uint8_t   normascii;
+} SCASCII;
+
+/* one byte scan code to ASCII */
+SCASCII basickeys[] = {
+    { 0x01, KEY_F9, KEY_F9 },
+    { 0x03, KEY_F5, KEY_F5 },
+    { 0x04, KEY_F3, KEY_F3 },
+    { 0x05, KEY_F1, KEY_F1 },
+    { 0x06, KEY_F2, KEY_F2 },
+    { 0x07, KEY_F12, KEY_F12 },
+    { 0x09, KEY_F10, KEY_F10 },
+    { 0x0A, KEY_F8, KEY_F8 },
+    { 0x0B, KEY_F6, KEY_F6 },
+    { 0x0C, KEY_F4, KEY_F4 },
+    { 0x0D, '\t', '\t' }, // tab
+    { 0x0E, '~', '`' },
+    { 0x15, 'Q', 'q' },
+    { 0x16, '!', '1' },
+    { 0x1A, 'Z', 'z' },
+    { 0x1B, 'S', 's' },
+    { 0x1C, 'A', 'a' },
+    { 0x1D, 'W', 'w' },
+    { 0x1E, '@', '2' },
+    { 0x21, 'C', 'c' },
+    { 0x22, 'X', 'x' },
+    { 0x23, 'D', 'd' },
+    { 0x24, 'E', 'e' },
+    { 0x25, '$', '4' },
+    { 0x26, '#', '3' },
+    { 0x29, ' ', ' ' },  // space
+    { 0x2A, 'V', 'v' },
+    { 0x2B, 'F', 'f' },
+    { 0x2C, 'T', 't' },
+    { 0x2D, 'R', 'r' },
+    { 0x2E, '%', '5' },
+    { 0x31, 'N', 'n' },
+    { 0x32, 'B', 'b' },
+    { 0x33, 'H', 'h' },
+    { 0x34, 'G', 'g' },
+    { 0x35, 'Y', 'y' },
+    { 0x36, '^', '6' },
+    { 0x3A, 'M', 'm' },
+    { 0x3B, 'J', 'j' },
+    { 0x3C, 'U', 'u' },
+    { 0x3D, '&', '7' },
+    { 0x3E, '*', '8' },
+    { 0x41, '<', ',' },
+    { 0x42, 'K', 'k' },
+    { 0x43, 'I', 'i' },
+    { 0x44, 'O', 'o' },
+    { 0x45, ')', '0' },
+    { 0x46, '(', '9' },
+    { 0x49, '>', '.' },
+    { 0x4A, '?', '/' },
+    { 0x4B, 'L', 'l' },
+    { 0x4C, ':', ';' },
+    { 0x4D, 'P', 'p' },
+    { 0x4E, '_', '-' },
+    { 0x52, '"', '\'' },
+    { 0x54, '{', '[' },
+    { 0x55, '+', '=' },
+    { 0x5a, '\n', '\n' },  // enter (carriage return)
+    { 0x5B, '}', ']' },
+    { 0x5D, '|', '\\' },
+    { 0x66, 0x08, 0x08 },  // backspace
+    { 0x76, 0x1b, 0x1b },  // escape
+    { 0x78, KEY_F11, KEY_F11 },
+    { 0x83, KEY_F7, KEY_F7 }
+};
+#define NBASIC (sizeof(basickeys) / sizeof(SCASCII))
+
+
+/* Scancode to KEY_ conversion for E0 extended character set */
+typedef struct  {
+    uint8_t   scancode;
+    uint8_t   keycode;
+} SCKEY;
+
+/* one byte scan code to ASCII */
+SCKEY E0keys[] = {
+    { 0x1F, KEY_WINL },
+    { 0x27, KEY_WINR },
+    { 0x2F, KEY_WINMENU },
+    { 0x5A, KEY_ENTER },
+    { 0x69, KEY_END },
+    { 0x6B, KEY_LEFT },
+    { 0x6C, KEY_HOME },
+    { 0x70, KEY_INSERT },
+    { 0x71, KEY_DELETE },
+    { 0x72, KEY_DOWN },
+    { 0x74, KEY_RIGHT },
+    { 0x75, KEY_UP },
+    { 0x7A, KEY_PAGEDOWN },
+    { 0x7D, KEY_PAGEUP }
+};
+#define NE0 (sizeof(E0keys) / sizeof(SCKEY))
+ 
+
+// Return PS2 keycode if a new key is available.
+// Otherwise return zero
+
+uint16_t getps2(void)
+{
+    uint16_t  key = 0;
+
+    if (ps2_sem) {
+        key = ps2_keycode;  // get key before clearing semaphore
+        ps2_sem = 0;
+    }
+    return(key);
+}
+
+
+// Return the byte in the 11 bit scancode at addr.
+// Ignore start, stop, and parity bits.  FIX_ME(?)
+int getscancode(uint8_t volatile *addr)
+{
+    int temp;
+
+    addr++;                   // skip over start bit
+    temp = (int)*(addr++);    // LSB first
+    temp = (*addr++ == 1) ? temp + 2 : temp;
+    temp = (*addr++ == 1) ? temp + 4 : temp;
+    temp = (*addr++ == 1) ? temp + 8 : temp;
+    temp = (*addr++ == 1) ? temp + 16 : temp;
+    temp = (*addr++ == 1) ? temp + 32 : temp;
+    temp = (*addr++ == 1) ? temp + 64 : temp;
+    temp = (*addr++ == 1) ? temp + 128 : temp;
+    return(temp);
+}
+
+void setcapled(int capled)
+{
+    uint8_t volatile *addr;
+    __attribute__((unused)) uint8_t key;
+
+    // Set keyboard LEDs on
+    addr = (volatile uint8_t *)(0x8400);
+    key = *addr;
+    *(addr++) = 0;     // start
+    *(addr++) = 1;     // ED is 11101101, reversed is 10110111
+    *(addr++) = 0;
+    *(addr++) = 1;
+    *(addr++) = 1;
+    *(addr++) = 0;
+    *(addr++) = 1;
+    *(addr++) = 1;
+    *(addr++) = 1;
+    *(addr++) = 1;     // odd parity
+    *(addr++) = 1;     // stop
+    (void) msleep(10);
+    addr = (volatile uint8_t *)(0x8400);
+    key = *addr;
+    *(addr++) = 0;     // start
+    *(addr++) = 0;     // LEDs 00000111, reversed 11100000
+    *(addr++) = 0;
+    *(addr++) = capled & 0x01;
+    *(addr++) = 0;
+    *(addr++) = 0;
+    *(addr++) = 0;
+    *(addr++) = 0;
+    *(addr++) = 0;
+    *(addr++) = (capled == 0) ? 1 : 0;     // odd parity
+    *(addr++) = 1;     // stop
+    msleep(10);
+    addr = (volatile uint8_t *)(0x8400);
+    key = *addr;
+}
+
+
+//  getkey() -- // Convert a series of scan code bytes into
+//  key events.
+//
+//  Scan codes can have up to 8 bytes although
+//  the most common codes have up to 3 bytes.
+//  This code deals with the most common codes.
+//
+//  The returned key codes are 16 bits in lenght.
+//  If the upper 8 bits are zero, the lower 8 bits
+//  are an ASCII character.  Shift and shift lock
+//  are handled internally.  The Ctrl and Alt set
+//  bit in the upper byte of the key code.  The
+//  key up event also sets a bit in the upper byte.
+//  If you just want key down and ASCII then you
+//  can quietly ignore key codes with set bits in
+//  the upper byte.
+
+//  State information includes:
+//  - Caps lock on or off
+//  - Shift left down or up
+//  - Shift right down or up
+//  - Alt left down or up
+//  - Alt right down or up
+//  - Ctrl left down or up
+//  - Ctrl right down or up
+//  - Last scancode byte was E0
+//  - Last scancode was F0 (may be preceded by E0)
+
+// Output is a 16 bit number with the character
+// (or KEY_CODE) in the low 8 bits and with the
+// modifier information in the high 8 bits.  The
+// modifier information is all zeros for normal
+// characters and key codes.  
+// the modifier information as:
+//  - bit6 : Caps lock (zero if not a KEY_CODE)
+//  - bit5 : Shift left (zero if not a KEY_CODE)
+//  - bit4 : Shift right (zero if not a KEY_CODE)
+//  - bit3 : Alt left 
+//  - bit2 : Alt right
+//  - bit1 : Ctrl left
+//  - bit0 : Ctrl right
+
+void getkey(void)
+{
+    uint8_t  volatile *addr;
+    __attribute__((unused)) uint8_t  key;
+    uint8_t  ready_count;
+    int      i = 0;
+    uint8_t  scancode[4];
+    int      cidx;          // index into scancode
+    int      byte_count;
+    uint16_t outchar = 0;
+
+    /* State variables */
+    static uint8_t  mod_caplck = 0;
+    static uint8_t  mod_shiftl = 0;
+    static uint8_t  mod_shiftr = 0;
+    static uint8_t  mod_altl = 0;
+    static uint8_t  mod_altr = 0;
+    static uint8_t  mod_ctrll = 0;
+    static uint8_t  mod_ctrlr = 0;
+    static uint8_t  evt_up = 0;
+    static uint8_t  extended = 0;
+
+
+    // return if no scancode present
+    addr = (volatile uint8_t *)(0x8480);
+    ready_count = (uint8_t)*(addr);
+    if (ready_count == 0)
+        return;
+
+    // All scancode words have 11 bits. (start, 8 data, parity, stop)
+    // Quietly ignore mal-formed scancodes
+    if (ready_count % 11 != 0) {
+        addr = (volatile uint8_t *)(0x8400);
+        key = *(addr);     // clear data ready
+        return;
+    }
+
+    // get scancodes in buffer (usually one) and process each
+    byte_count = ready_count / 11;
+    addr = (volatile uint8_t *)(0x8400);
+    for (cidx = 0; cidx < byte_count; cidx++) {
+        scancode[cidx] = getscancode(addr + (cidx * 11));
+    }
+
+    // Process each scancode byte
+    for (cidx = 0; cidx < byte_count; cidx++) {
+        outchar = 0;
+        //printf("_%02x_ %d _%1d%1d%1d%1d%1d%1d%1d%1d \n", scancode[cidx], byte_count,
+        //extended, evt_up, mod_caplck, mod_shiftl,mod_shiftr, mod_ctrll, mod_altl, mod_altr);
+
+        // Handle the modifier keys
+        switch (scancode[cidx]) {
+            case EVT_UP:
+                evt_up = 1;
+                continue;
+                break;
+            case EXTENDED :
+                extended = 1;
+                continue;
+                break;
+            case MOD_CAPLCK : // toggle caplock on key down event
+                mod_caplck = (evt_up == 0) ? mod_caplck ^ 1 : mod_caplck;
+                evt_up = 0;
+                setcapled(mod_caplck);
+                continue;
+                break;
+            case MOD_SHIFTL :
+                mod_shiftl = (evt_up) ? 0 : 1;
+                evt_up = 0;
+                continue;
+                break;
+            case MOD_SHIFTR :
+                mod_shiftr = (evt_up) ? 0 : 1;
+                evt_up = 0;
+                continue;
+                break;
+            case MOD_ALTL :
+                mod_altl = (evt_up) ? 0 : 1;
+                evt_up = 0;
+                continue;
+                break;
+            case MOD_CTRLL :
+                mod_ctrll = (evt_up) ? 0 : 1;
+                evt_up = 0;
+                continue;
+                break;
+        }
+
+        // We have a new scancode and it is not one of the modifiers.
+        // Search the basic table for a match.
+        if (extended == 0) {
+            for (i = 0; i < NBASIC; i++) {
+                if (basickeys[i].scancode == scancode[cidx]) {
+                    if(evt_up == 0) {
+                        // If capslock but not shift, print caps for A-Z
+                        if (mod_caplck && (basickeys[i].normascii >= 'a') &&
+                            (basickeys[i].normascii <= 'z')) {
+                            if (mod_shiftr || mod_shiftl)
+                                outchar = basickeys[i].normascii;
+                            else
+                                outchar = basickeys[i].shifascii;
+                        }
+                        else {
+                            // Handle function keys
+                            if (mod_shiftr || mod_shiftl)
+                                outchar = basickeys[i].shifascii;
+                            else
+                                outchar = basickeys[i].normascii;
+                        }
+                    }
+                    break;
+                }
+            }
+            if (i == NBASIC)   // unknown key
+                continue;      // quietly ignored
+        }
+        else {
+            // Search the E0 extended scan codes
+            // Handle the modifier keys
+            switch (scancode[cidx]) {
+                case MOD_ALTR :
+                    mod_altr = (evt_up) ? 0 : 1;
+                    evt_up = 0;
+                    continue;
+                    break;
+                case MOD_CTRLR :
+                    mod_ctrlr = (evt_up) ? 0 : 1;
+                    evt_up = 0;
+                    continue;
+                    break;
+            }
+            for (i = 0; i < NE0; i++) {
+                if (E0keys[i].scancode == scancode[cidx]) {
+                    if(evt_up == 0) {
+                        // Handle function keys
+                        if (E0keys[i].keycode >= KEY_MIN)
+                            outchar =  E0keys[i].keycode;
+                    }
+                    break;
+                }
+            }
+            if (scancode[cidx] != EVT_UP)
+                extended = 0;
+            if (i == NE0)   // unknown key
+                continue;   // quietly ignored
+        }
+        if (evt_up) {
+            evt_up = 0;
+            continue;
+        }
+
+        outchar += (mod_altl) ? (1 << 11) : 0;
+        outchar += (mod_altr) ? (1 << 10) : 0;
+        outchar += (mod_ctrll) ? (1 << 9) : 0;
+        outchar += (mod_ctrlr) ? (1 << 8) : 0;
+
+        if (outchar >= KEY_MIN) {
+            outchar += (mod_caplck) ? (1 << 14) : 0;
+            outchar += (mod_shiftl) ? (1 << 13) : 0;
+            outchar += (mod_shiftr) ? (1 << 12) : 0;
+        }
+    }
+
+    // Save keycode to the user buffer is empty.  Discards
+    // previous keycode if buffer is not empty.  Don't post
+    // if outchar is zero
+    if (0xff & outchar) {
+        ps2_keycode = outchar;
+        ps2_sem = 1;
+    }
+
+    return;
+}
+
+
+
