@@ -16,7 +16,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
-#include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_stdio.h"
 
 //#define FIXED_SEED
 // game parameters taylored to the specific PLATFORM

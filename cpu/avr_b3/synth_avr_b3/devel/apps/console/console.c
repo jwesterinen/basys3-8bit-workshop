@@ -7,7 +7,7 @@
 #include <string.h>
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
-#include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_console.h"
 
 #define CR      0x0d
 #define BS      0x7f

@@ -39,7 +39,7 @@
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
-#include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_console.h"
 
 int main(void)
 {

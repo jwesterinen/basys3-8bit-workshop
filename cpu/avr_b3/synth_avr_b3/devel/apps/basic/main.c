@@ -7,34 +7,33 @@
 #include <string.h>
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
-#include "../../include/avr_b3_lib.h"
-#include "../../include/keycodes.h"
+#include "../../include/avr_b3_console.h"
 #include "parser.h"
 
-//#define USE_CONSOLE_KB
+#define USE_CONSOLE_KB
 
 #ifdef USE_CONSOLE_KB
-#define CR      0x0d
-#define BS      0x7f
-#else
-#define CR      '\n'
-#define BS      '\b'
-#endif
-#define SPACE   0X20
+
+#define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
+#define BS      0x7f    // backspaces are returned as delete (DEL) by terminal emulators
 
 char keycode = 0;
+#define GetKey() keycode
+    
+#else // default is PS2 keyboard
 
-char resultStr[80];
-extern char errorStr[80];
+#define CR      '\n'
+#define BS      '\b'
 
+uint16_t keycode;
 char GetKey(void)
 {
-#ifndef USE_CONSOLE_KB
-    keycode = getps2();
-#endif
-    return keycode;
+    return (keycode = getps2());
 }
     
+#endif
+
+
 // UART receive ISR
 ISR(_VECTOR(3))
 {
@@ -46,20 +45,13 @@ ISR(_VECTOR(3))
 // PS2 receive ISR
 ISR(_VECTOR(2))
 {
-    extern uint16_t ps2_keycode;
-    uint8_t volatile *addr;
-
+    // PS2 HW API to get a ps2_keycode when there is a keypress
     getkey();
-
-    
-    addr = (volatile uint8_t *)(0x8004);
-    *addr++ = (uint8_t) (ps2_keycode & 0xff);
-    *addr = (uint8_t) ((ps2_keycode >> 8) & 0xff);
-
-    //UDR0 = (uint8_t) (code & 0xff);
-
     sei();
 }
+
+char resultStr[80];
+extern char errorStr[80];
 
 int main(void)
 {
@@ -81,7 +73,7 @@ int main(void)
     stdout = &mystdout;
     printf("starting basic interpreter...\r\n");
     
-    VgaClearFrameBuffer();
+    VgaReset();
     VgaPrintStr("AVR_B3 Basic Interpreter\n\n");
     VgaPrintStr(promptStr);
     while (1)
@@ -96,21 +88,21 @@ int main(void)
             {
                 commandBuf[i] = (uint8_t)'\0';
                 i = 0;
+                VgaNewline();
                 if (ProcessCommand(commandBuf))
                 {
                     if (resultStr[0] != '\0')
                     {
-                        VgaNewline();
                         VgaPrintStr(resultStr);
                         resultStr[0] = '\0';
+                        VgaNewline();
                     }
                 }
                 else
                 {
-                    VgaNewline();
                     VgaPrintStr(errorStr);
+                    VgaNewline();
                 }
-                VgaNewline();
                 VgaPrintStr("ready\n");
                 VgaPrintStr(promptStr);
                 //printf("VGA_ROW_OFFSET = %d\r\n", VGA_ROW_OFFSET);
@@ -138,7 +130,11 @@ int main(void)
             // clear the old keycode -- really only necessary for the console
             keycode = 0x00;
         }
+        
+#ifdef USE_CONSOLE_KB
+        // required when using the console KB
         msleep(50);
+#endif        
     }
 }
 

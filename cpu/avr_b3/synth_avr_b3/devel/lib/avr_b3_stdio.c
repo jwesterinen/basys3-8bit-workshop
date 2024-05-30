@@ -9,7 +9,7 @@
 #include <stdbool.h>
 #include <util/delay.h>
 #include "../include/avr_b3.h"
-#include "../include/avr_b3_lib.h"
+#include "../include/avr_b3_stdio.h"
 
 #define TABSIZE 4
 
@@ -182,6 +182,14 @@ void VgaLoadDisplayBuffer(VGA_DISPLAY_BUFFER destBuf, VGA_DISPLAY_BUFFER srcBuf)
             destBuf[row][col] = srcBuf[row][col];
 }
 
+void VgaReset(void)
+{
+    VGA_CUR_ROW = 0;
+    VGA_CUR_COL = 0;
+    VGA_ROW_OFFSET = 0;
+    VgaClearFrameBuffer();
+}
+
 void VgaNewline(void)
 {
     // line feed
@@ -207,7 +215,7 @@ void VgaNewline(void)
     VGA_CUR_COL = VGA_COL_MIN;
 }
 
-void VgaPrintStr(char *str)
+void VgaPrintStr(const char *str)
 {
     int i = 0;
     
@@ -235,7 +243,6 @@ void VgaPrintStr(char *str)
 
 
 /************** PS2 keyboard routines **************/
-#include "../include/keycodes.h"
 
 
 /************** Defines and global variables   ************/
@@ -251,8 +258,27 @@ void VgaPrintStr(char *str)
 #define EXTENDED      0xE0
 
 /**************** Static storage allocation ***************/
-uint8_t   ps2_sem;
-uint16_t  ps2_keycode;
+#define   PS2BUFSZ    8
+uint8_t   ps2_wridx = 0;
+uint8_t   ps2_rdidx = 0;
+uint16_t  ps2_keycode[PS2BUFSZ];
+
+
+// Return PS2 keycode if a new key is available.
+// Otherwise return zero
+uint16_t getps2(void)
+{
+    uint16_t  key = 0;
+
+    if (ps2_wridx == ps2_rdidx)  // no key presses if equal
+        return(0);
+
+    key = ps2_keycode[ps2_rdidx];
+    ps2_rdidx = (ps2_rdidx == PS2BUFSZ -1) ? 0 : ps2_rdidx +1;
+
+    return(key);
+}
+
 
 /* Scancode to ASCII conversion for normal and shifted char */
 typedef struct  {
@@ -356,21 +382,6 @@ SCKEY E0keys[] = {
 };
 #define NE0 (sizeof(E0keys) / sizeof(SCKEY))
  
-
-// Return PS2 keycode if a new key is available.
-// Otherwise return zero
-
-uint16_t getps2(void)
-{
-    uint16_t  key = 0;
-
-    if (ps2_sem) {
-        key = ps2_keycode;  // get key before clearing semaphore
-        ps2_sem = 0;
-    }
-    return(key);
-}
-
 
 // Return the byte in the 11 bit scancode at addr.
 // Ignore start, stop, and parity bits.  FIX_ME(?)
@@ -635,11 +646,11 @@ void getkey(void)
     }
 
     // Save keycode to the user buffer is empty.  Discards
-    // previous keycode if buffer is not empty.  Don't post
+    // previous keycodes on buffer overrun.  Don't post
     // if outchar is zero
     if (0xff & outchar) {
-        ps2_keycode = outchar;
-        ps2_sem = 1;
+        ps2_keycode[ps2_wridx] = outchar;
+        ps2_wridx = (ps2_wridx == PS2BUFSZ -1) ? 0 : ps2_wridx +1;
     }
 
     return;

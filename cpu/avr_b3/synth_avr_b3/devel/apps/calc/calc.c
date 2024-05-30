@@ -40,8 +40,7 @@
 */
 
 #include "../../include/avr_b3.h"
-//#include "../../include/avr_b3_stdio.h"
-#include "../../include/avr_b3_lib.h"
+#include "../../include/avr_b3_stdio.h"
 
 // eval stack and its index, i.e. eval stack pointer
 int es[10], esp;
