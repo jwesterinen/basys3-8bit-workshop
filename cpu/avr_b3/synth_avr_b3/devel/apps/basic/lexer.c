@@ -11,9 +11,11 @@
 #include <ctype.h>
 #include <string.h>
 #include <inttypes.h>
-#include "parser.h"
 #include "symtab.h"
-#include "eval_stack.h"
+#include "lexer.h"
+#include "parser.h"
+
+#define STRING_LEN 80
 
 /*
 *   lexical grammar
@@ -26,6 +28,7 @@
 *   "let"                       return LET
 *   {letter}{letter_or_digit}*  return Identifier
 *   {digit}+                    return Number
+*   \"{.}*\"                    return String
 *   {other}                     return .
 */
 
@@ -36,18 +39,25 @@ struct KeywordTableEntry {
 //       lexeme     token
         {"print",   PRINT   },
         {"let",     LET     },
+        {"if",      IF      },
+        {"then",    THEN    },
+        {"goto",    GOTO    },
+        {"for",     FOR     },
+        {"to",      TO      },
+        {"step",    STEP    },
+        {"next",    NEXT    }
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 
+char *nextChar;
 int token;
-char lexeme[80];
+char lexeme[STRING_LEN];
 SymbolID lexsym;
 
 // return the next token in the instruction
 void GetNextToken(char *codeStr)
 {
     static int state = 0;
-    static char *nextChar;
     int i = 0;
     
     //printf("\tGetNextToken: \n");
@@ -89,6 +99,11 @@ void GetNextToken(char *codeStr)
                     lexeme[i++] = *nextChar++;
                     state = 3;
                 }
+                else if (*nextChar == '"')
+                {
+                    lexeme[i++] = *nextChar++;
+                    state = 10;
+                }
                 else if (*nextChar != '\0')
                 {
                     lexeme[0] = *nextChar++;
@@ -125,6 +140,28 @@ void GetNextToken(char *codeStr)
                     state = 5;
                 }
                 break;
+                
+            case 10:
+                // parse a string
+                //printf("\t\tstate 10, parse string\n");
+                if (*nextChar != '"')
+                {
+                    lexeme[i++] = *nextChar++;
+                }
+                else
+                {
+                    state = 11;
+                }
+                break;
+                
+            case 11:
+                // return String token
+                lexeme[i] = '\0';
+                //printf("\t\tstate 11, token = String %s\n", lexeme);
+                i = 0;
+                state = 0;
+                token = String;
+                return;
                 
             case 4:
                 // return Constant token

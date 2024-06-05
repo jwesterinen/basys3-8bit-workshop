@@ -10,47 +10,41 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#include <inttypes.h>
 #include "symtab.h"
-#include "parser.h"
 #include "lexer.h"
-#include "eval_stack.h"
+#include "parser.h"
 
-enum NodeType {
-    NT_NONE = 0,
-    NT_EXPR, NT_EXPR_PRIME, NT_TERM, NT_TERM_PRIME, NT_FACTOR, 
-    NT_OP,
-    NT_CONSTANT, NT_IDENTIFIER
-};
-typedef uint8_t NodeID;
-union NodeValue {
-    int constant;
-    SymbolID symbol;
-    char op;
-};
-typedef struct Node {
-    enum NodeType type;
-    union NodeValue value;
-    NodeID bro;
-    NodeID son;
-} Node;
+#define STACK_SIZE 100
 
-#define TYPE(node)      nodetab[(node)].type
-#define CONSTANT(node)  nodetab[(node)].value.constant
-#define SYMBOL(node)    nodetab[(node)].value.symbol
-#define OP(node)        nodetab[(node)].value.op
-#define BRO(node)       nodetab[(node)].bro
-#define SON(node)       nodetab[(node)].son
-#define SYMNAME(symbol) symtab[(symbol)].name
-#define SYMVAL(symbol)  symtab[(symbol)].value
+// eval stack and its index, i.e. eval stack pointer
+int es[STACK_SIZE];
+unsigned esp;
+int Push(int a)
+{
+    if (esp < STACK_SIZE)
+    {
+        es[esp++] = a;
+        return a;
+    }
+    return -1;
+}
+int Pop(void)
+{
+    return es[--esp];
+} 
+int Top(void)
+{
+    return es[esp-1];
+} 
+int Put(int a)
+{
+    es[esp-1] = a;
+    return a;
+}
 
 char *Type2Name(enum NodeType type);
 NodeID NewNode(enum NodeType type, union NodeValue value);
 NodeID AddSon(NodeID parent, NodeID node);
-bool IsInstr(void);
-bool IsPrint(void);
-bool IsExprList(void);
-bool IsAssign(void);
 bool IsExpr(NodeID *pNode);
 bool IsExprPrime(NodeID *pNode);
 bool IsTerm(NodeID *pNode);
@@ -58,10 +52,9 @@ bool IsTermPrime(NodeID *pNode);
 bool IsFactor(NodeID *pNode);
 bool TraverseTree(NodeID node);
 
-char errorStr[80];
-char resultStr[80];
-
-Node nodetab[100];
+// node table and index
+#define NODETAB_LEN 100
+Node nodetab[NODETAB_LEN];
 int nodetabIdx = 1;
 
 char *Type2Name(enum NodeType type)
@@ -113,105 +106,25 @@ NodeID AddSon(NodeID parent, NodeID node)
     return node;
 }
 
-/*
-    BASIC grammar:
-    
-    instr           : print | assignment
-    print           : PRINT print-list
-    print-list      ; printable  [';' | ','] print-list | printable
-    printable       : expr | String
-    assignment      : [let] Identifier '=' expr
-    str-assignment  : [let] Identifier '=' expr
-    expr            : term expr-prime
-    expr-prime      : ['+' | '-'] term expr-prime | $
-    term            : factor term-prime
-    term-prime      : ['*' | '/'] factor term-prime | $
-    factor          : '(' expr ')' | Constant | Identifier
-*/
-
-// instr : print | assignment
-bool IsInstr()
+void InitParser()
 {
-    // print
-    if (IsPrint() || IsAssign())
-    {
-        return true;
-    }
-    
-    return false;
+    // init eval stack pointer and node table
+    esp = 0;
+    nodetabIdx = 1;
 }
 
-// print : PRINT expr-list
-bool IsPrint()
-{
-    if (token == PRINT)
-    {
-        GetNextToken(NULL);
-        if (IsExprList())
-        {
-            return true;
-        }
-    }
-    
-    return false;
-}
-    
-// expr-list : expr [';' | ','] expr-list | expr
-bool IsExprList()
-{
-    NodeID expr;
-    char exprStr[80];
-    
-    if (IsExpr(&expr))
-    {
-        if (TraverseTree(expr))
-        {
-            sprintf(exprStr, "%d", Pop());              // convert expr value to ascii
-            strcat(resultStr, exprStr);                 // cat to existing result string
-            if (token == ';' || token == ',')
-            {
-                if (token == ',')
-                {
-                    strcat(resultStr, "\t");                // cat intervening tab
-                }
-                GetNextToken(NULL);
-                if (IsExprList())
-                {
-                    return true;
-                }
-            }
-            else
-                return true;
-        }
-    }
-    
-    return false;
-}
-    
-// assignment : [let] Identifier '=' expr
-bool IsAssign()
+// return the value of an expression
+bool GetExprValue(int *pValue)
 {
     NodeID node;
     
-    if (token == LET)
+    // create an expression tree and traverse it to produce the value on the eval stack
+    if (IsExpr(&node))
     {
-        // optional syntactic sugar
-        GetNextToken(NULL);
-    }
-    if (token == Identifier)
-    {
-        GetNextToken(NULL);
-        if (token == '=')
+        if (TraverseTree(node))
         {
-            GetNextToken(NULL);
-            if (IsExpr(&node))
-            {
-                if (TraverseTree(node))
-                {
-                    SYMVAL(lexsym) = Pop();      // Identifier's symbol value = expr value
-                    return true;
-                }
-            }
+            *pValue = Pop();
+            return true;
         }
     }
     
@@ -396,19 +309,29 @@ bool TraverseTree(NodeID node)
                 switch (OP(node))
                 {
                     case '+':
-                        Add();
+                        // put the sum of the top 2 expr stack entries onto the top of the stack and set the new value
+                        Put(Pop() + Top());
                         break;
                         
                     case '-':
-                        Subtract();
+                    {
+                        // put the difference of the top 2 expr stack entries onto the top of the stack and set the new value
+                        int b = Pop();
+                        Put(Top() - b);
+                    }
                         break;
                         
                     case '*':
-                        Multiply();
+                        // put the sum of the top 2 expr stack entries onto the top of the stack and set the new value
+                        Put(Pop() * Top());
                         break;
                         
                     case '/':
-                        Divide();
+                    {
+                        // put the difference of the top 2 expr stack entries onto the top of the stack and set the new value
+                        int b = Pop();
+                        Put(Top() / b);
+                    }
                         break;
                 }
                 break;
@@ -429,25 +352,6 @@ bool TraverseTree(NodeID node)
     }
     
     return retval;
-}
-
-bool ProcessCommand(char *command)
-{
-    // init the parser
-    InitEvalStack();
-    nodetabIdx = 1;
-    errorStr[0] = '\0';
-    resultStr[0] = '\0';
-    
-    // parse the command
-    GetNextToken(command);
-    if (!IsInstr())
-    {
-        strcpy(errorStr, "syntax error");
-        return false;
-    }    
-    
-    return true;
 }
 
 // end of parser.c

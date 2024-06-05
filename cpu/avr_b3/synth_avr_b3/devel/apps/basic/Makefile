@@ -7,7 +7,8 @@ TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
 
-OBJECTS=main.o lexer.o parser.o eval_stack.o symtab.o $(LIB_DIR)/avr_b3_stdio.o
+HEADERS=symtab.h lexer.h parser.h runtime.h
+OBJECTS=main.o symtab.o lexer.o parser.o runtime.o $(LIB_DIR)/avr_b3_stdio.o
 
 CC=avr-gcc
 AS=avr-as
@@ -24,7 +25,7 @@ ARCH_LIB = $(LIB_DIR)/crt0.o
 
 AFLAGS=-mmcu=$(ARCH)
 #CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -Wall -pedantic -O3
-CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wstrict-prototypes -Wno-unused-function -Os
+CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wstrict-prototypes -Wno-unused-function -c -Os
 LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn
 #LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
@@ -40,11 +41,14 @@ TARGET=rom.mem
 
 all: $(TARGET)
 
+%.o: %.c $(HEADERS)
+	$(CC) $(DEFINES) $(CFLAGS) -o $@ $<
+
 $(ARCH_LIB): $(LIB_DIR)/crt0.S
 	$(AS) $(AFLAGS) -o $(ARCH_LIB) $^
 
 $(APP).elf: $(OBJECTS) $(ARCH_LIB)
-	$(CC) $(LDFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(ARCH_LIB)
 	$(OBJDUMP) -s -m $(ARCH) -d $(APP).elf > $(APP).disasm
 
 $(APP).bin: $(APP).elf

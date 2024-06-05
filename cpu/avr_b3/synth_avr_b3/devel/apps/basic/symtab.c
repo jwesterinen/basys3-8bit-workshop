@@ -6,10 +6,9 @@
 #include <string.h>
 #include "symtab.h"
 
-#define SYMTAB_SIZE 40
-
 // symbol table
-Symbol symtab[SYMTAB_SIZE];
+#define SYMTAB_LEN 100
+Symbol symtab[SYMTAB_LEN];
 int symtabIdx = 1;
 
 static SymbolID SymCreate(const char *name)
@@ -33,7 +32,7 @@ SymbolID SymLookup(const char *name)
 SymbolID SymFind(const char *name)
 {
     // search symtab until match of end of symtab chain
-    for (int i = 0; i < SYMTAB_SIZE; i++)
+    for (int i = 0; i < SYMTAB_LEN; i++)
         if (strcmp(symtab[i].name, name) == 0)
             return i;
    

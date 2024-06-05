@@ -8,29 +8,26 @@
 #include "../../include/avr_b3.h"
 #include "../../include/avr_b3_stdio.h"
 #include "../../include/avr_b3_console.h"
-#include "parser.h"
+#include "runtime.h"
 
-#define USE_CONSOLE_KB
+// default is PS2 keyboard
+//#define USE_CONSOLE_KB
 
 #ifdef USE_CONSOLE_KB
+    #define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
+    #define BS      0x7f    // backspaces are returned as delete (DEL) by terminal emulators
 
-#define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
-#define BS      0x7f    // backspaces are returned as delete (DEL) by terminal emulators
+    char keycode = 0;
+    #define GetKey() keycode    
+#else
+    #define CR      '\n'
+    #define BS      '\b'
 
-char keycode = 0;
-#define GetKey() keycode
-    
-#else // default is PS2 keyboard
-
-#define CR      '\n'
-#define BS      '\b'
-
-uint16_t keycode;
-char GetKey(void)
-{
-    return (keycode = getps2());
-}
-    
+    uint16_t keycode;
+    char GetKey(void)
+    {
+        return (keycode = getps2());
+    }    
 #endif
 
 
@@ -50,8 +47,17 @@ ISR(_VECTOR(2))
     sei();
 }
 
-char resultStr[80];
-extern char errorStr[80];
+extern bool ready;
+
+void PrintResult(void)
+{
+    if (resultStr[0] != '\0')
+    {
+        VgaPrintStr(resultStr);
+        VgaNewline();
+        resultStr[0] = '\0';
+    }
+}
 
 int main(void)
 {
@@ -75,37 +81,28 @@ int main(void)
     
     VgaReset();
     VgaPrintStr("AVR_B3 Basic Interpreter\n\n");
-    VgaPrintStr(promptStr);
+    VgaPrintStr("ready\n");
+    VgaPrintStr(promptStr);    
     while (1)
     {
-        //if (keycode)
         if (GetKey())
         {
-            //printf("keycode: %02x\r\n", keycode);
-            
             // Enter
             if (keycode == CR)
             {
                 commandBuf[i] = (uint8_t)'\0';
                 i = 0;
                 VgaNewline();
-                if (ProcessCommand(commandBuf))
-                {
-                    if (resultStr[0] != '\0')
-                    {
-                        VgaPrintStr(resultStr);
-                        resultStr[0] = '\0';
-                        VgaNewline();
-                    }
-                }
-                else
+                if (!ProcessCommand(commandBuf))
                 {
                     VgaPrintStr(errorStr);
                     VgaNewline();
                 }
-                VgaPrintStr("ready\n");
-                VgaPrintStr(promptStr);
-                //printf("VGA_ROW_OFFSET = %d\r\n", VGA_ROW_OFFSET);
+                if (ready)
+                {
+                    VgaPrintStr("ready\n");
+                }
+                VgaPrintStr(promptStr);        
             }
 
             // Backspace
