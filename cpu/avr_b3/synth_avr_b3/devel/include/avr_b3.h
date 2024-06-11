@@ -37,8 +37,11 @@
 
 // memory mapped I/O
 
-#define __MMIOR(x) (*(volatile uint8_t *)(0x8000+(x)))
-#define __MMIOW(x) (*(volatile uint16_t *)(0x8000+(x)))
+#define MMIO_BASE_ADDR  0xf000
+#define __MMIOR_ADDR(x) ((volatile uint8_t *)((MMIO_BASE_ADDR)+(x)))
+#define __MMIOW_ADDR(x) ((volatile uint16_t *)((MMIO_BASE_ADDR)+(x)))
+#define __MMIOR(x) (*(__MMIOR_ADDR(x)))
+#define __MMIOW(x) (*(__MMIOW_ADDR(x)))
 
 #define MMIO_BASE_BASIC_IO  0x0000  // reg addrs 0x8000-0x80ff
 #define MMIO_BASE_KEYPAD    0x0100  // reg addrs 0x8100-0x81ff
@@ -167,5 +170,17 @@
 #define VGA_COL_MAX         79
 
 // PS2 keyboard
-#define KEYBOARD    __MMIOR(MMIO_BASE_KEYBOARD+0x00)    // key code
+#define PS2_START_BIT_ADDR      __MMIOR_ADDR(MMIO_BASE_KEYBOARD+0x00)
+#define PS2_START_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x00)
+#define PS2_DATA0_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x01)
+#define PS2_DATA1_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x02)
+#define PS2_DATA2_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x03)
+#define PS2_DATA3_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x04)
+#define PS2_DATA4_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x05)
+#define PS2_DATA5_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x06)
+#define PS2_DATA6_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x07)
+#define PS2_DATA7_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x08)
+#define PS2_PARITY_BIT          __MMIOR(MMIO_BASE_KEYBOARD+0x09)
+#define PS2_STOP_BIT            __MMIOR(MMIO_BASE_KEYBOARD+0x0a)
+#define PS2_READY_COUNT         __MMIOR(MMIO_BASE_KEYBOARD+0x80)
 

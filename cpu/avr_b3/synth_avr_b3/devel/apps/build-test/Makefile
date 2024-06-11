@@ -6,9 +6,10 @@ SYNTH_DIR = ../../..
 TB_DIR = ../../../avr_b3_tb
 LIB_DIR = ../../lib
 INC_DIR = ../../include
+MISC_DIR = ../../misc
 
-OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_stdio.o
-#OBJECTS=$(APP).o
+#OBJECTS=$(APP).o $(LIB_DIR)/avr_b3_stdio.o
+OBJECTS=$(APP).o
 
 CC=avr-gcc
 AS=avr-as
@@ -25,13 +26,13 @@ ARCH_LIB = $(LIB_DIR)/crt0.o
 
 AFLAGS=-mmcu=$(ARCH)
 #CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -Wall -pedantic -O3
-CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wstrict-prototypes -Wno-unused-function -O3
-LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn
+CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums -Wall -Wstrict-prototypes -Wno-unused-function -Os
 #LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
-LDFLAGS=-mmcu=$(ARCH) -Wl,--defsym=__heap_start=0x806000,--defsym=__heap_end=0x807fff
+#LDFLAGS=-mmcu=$(ARCH) -T ../../misc/avr_b3_51.xn
+LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn -Wl,--defsym=__heap_start=0x80d000,--defsym=__heap_end=0x80efff
 
-PMEM_DEPTH=12
+PMEM_DEPTH=15
 PMEM_WORDS=$(shell echo $$((1<<$(PMEM_DEPTH))))
 PMEM_SIZE=$(shell echo $$((2<<$(PMEM_DEPTH))))
 

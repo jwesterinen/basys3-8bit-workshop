@@ -3,13 +3,14 @@
  *
  *  Description:
  *      This module contains all of the peripherals with memory mapped IO registers.
+ *  There are 16 possible peripheras, each with up to 256 registers.
  *
  *  Peripherals:
- *      basic IO:   reg addrs 0x8000-0x80ff
- *      keypad:     reg addrs 0x8100-0x81ff
- *      sound:      reg addrs 0x8200-0x82ff
- *      vgaterm:    reg addrs 0x8300-0x83ff
- *      ps2:        reg addrs 0x8400-0x84ff
+ *      basic IO:   reg addrs 0x000-0x0ff
+ *      keypad:     reg addrs 0x100-0x1ff
+ *      sound:      reg addrs 0x200-0x2ff
+ *      vgaterm:    reg addrs 0x300-0x3ff
+ *      ps2:        reg addrs 0x400-0x4ff
  */
  
 `ifdef SYNTHESIS
@@ -22,12 +23,18 @@
  `include "ps2.v"
 `endif
 
+`define BASIC_IO_SELECT 4'h0
+`define KEYPAD_SELECT   4'h1
+`define SOUND_SELECT    4'h2
+`define VGATERM_SELECT  4'h3
+`define PS2_SELECT      4'h4
+
 module mmio
 (  
     input    clk,           // 100 MHz clock
     input    re,
     input    we,
-    input    [14:0] addr,
+    input    [11:0] addr,
     output   [7:0] data_read,
     input    [7:0] data_write,
 
@@ -77,7 +84,7 @@ module mmio
 `endif    
     
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
-    wire basic_io_select = (addr[14:8] == 8'h00);            // addrs 0x8000-0x80ff
+    wire basic_io_select = (addr[11:8] == `BASIC_IO_SELECT);
     wire basic_io_re = basic_io_select & re;
     wire basic_io_we = basic_io_select & we;
     basic_io_b3 basic_io
@@ -89,7 +96,7 @@ module mmio
 
 `ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     // Pmod keypad
-    wire keypad_select = (addr[14:8] == 8'h01);
+    wire keypad_select = (addr[11:8] == `KEYPAD_SELECT);
     wire keypad_re = keypad_select & re;
 	keypad_b3 keypad
 	(
@@ -100,7 +107,7 @@ module mmio
 `endif    
 
     // sound generator w/Pmod amp/speaker
-    wire sound_select = (addr[14:8] == 8'h02);
+    wire sound_select = (addr[11:8] == `SOUND_SELECT);
     wire sound_re = sound_select & re;
     wire sound_we = sound_select & we;
     sound_b3 sound
@@ -118,7 +125,7 @@ module mmio
     clocks clks(clk, CLK_O, peri_clks);
 
     // DP vgaterm
-    wire vgaterm_select = (addr[14:8] == 8'h03);
+    wire vgaterm_select = (addr[11:8] == `VGATERM_SELECT);
     wire vgaterm_re = vgaterm_select & re;
     wire vgaterm_we = vgaterm_select & we;
     wire vgaterm_stall;
@@ -132,7 +139,7 @@ module mmio
 
     // PeriCtrl ps2
     wire [7:0] ps2_dout;
-    wire ps2_select = (addr[14:8] == 8'h04);
+    wire ps2_select = (addr[11:8] == `PS2_SELECT);
     wire ps2_re = ps2_select & re;
     wire ps2_we = ps2_select & we;
     wire ps2_stall;

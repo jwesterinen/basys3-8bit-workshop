@@ -43,14 +43,14 @@ int Put(int a)
 }
 
 char *Type2Name(enum NodeType type);
-NodeID NewNode(enum NodeType type, union NodeValue value);
-NodeID AddSon(NodeID parent, NodeID node);
-bool IsExpr(NodeID *pNode);
-bool IsExprPrime(NodeID *pNode);
-bool IsTerm(NodeID *pNode);
-bool IsTermPrime(NodeID *pNode);
-bool IsFactor(NodeID *pNode);
-bool TraverseTree(NodeID node);
+Node *NewNode(enum NodeType type, union NodeValue value);
+Node *AddSon(Node *parent, Node *node);
+bool IsExpr(Node **ppNode);
+bool IsExprPrime(Node **ppNode);
+bool IsTerm(Node **ppNode);
+bool IsTermPrime(Node **ppNode);
+bool IsFactor(Node **ppNode);
+bool TraverseTree(Node *node);
 
 // node table and index
 #define NODETAB_LEN 100
@@ -74,28 +74,27 @@ char *Type2Name(enum NodeType type)
     return "unknown node type";
 }
 
-NodeID NewNode(enum NodeType type, union NodeValue value)
+Node *NewNode(enum NodeType type, union NodeValue value)
 {
-    nodetab[nodetabIdx].type = type;
-    nodetab[nodetabIdx].son = 0;
-    nodetab[nodetabIdx].bro = 0;
-    nodetab[nodetabIdx].value = value;
+    Node *newNode = (Node *)calloc(1, sizeof(Node));
+    newNode->type = type;
+    newNode->value = value;
     //printf("added node type %s\n", Type2Name(type));
-    return nodetabIdx++;
+    return newNode;
 }
 
-NodeID AddSon(NodeID parent, NodeID node)
+Node *AddSon(Node *parent, Node *node)
 {
-    NodeID next, last;
+    Node *next, *last;
     
     next = SON(parent);
-    if (next == 0)
+    if (next == NULL)
     {
         SON(parent) = node;
         //printf("added node %s\n", Type2Name(TYPE(node)));
         return node;
     }
-    while (next != 0)
+    while (next != NULL)
     {
         last = next;
         next = BRO(next);
@@ -110,13 +109,12 @@ void InitParser()
 {
     // init eval stack pointer and node table
     esp = 0;
-    nodetabIdx = 1;
 }
 
 // return the value of an expression
 bool GetExprValue(int *pValue)
 {
-    NodeID node;
+    Node *node;
     
     // create an expression tree and traverse it to produce the value on the eval stack
     if (IsExpr(&node))
@@ -131,18 +129,29 @@ bool GetExprValue(int *pValue)
     return false;
 }
 
-// expr : term expr-prime
-bool IsExpr(NodeID *pNode)
-{
-    NodeID son;
+/*
+    Expression Grammar:
     
-    *pNode = NewNode(NT_EXPR, (union NodeValue)0);
+    expr            : term expr-prime
+    expr-prime      : ['+' | '-'] term expr-prime | $
+    term            : factor term-prime
+    term-prime      : ['*' | '/'] factor term-prime | $
+    factor          : '(' expr ')' | Constant | Identifier
+    string          : '"' (printable-char)+ '"'
+*/
+
+// expr : term expr-prime
+bool IsExpr(Node **ppNode)
+{
+    Node *son;
+    
+    *ppNode = NewNode(NT_EXPR, (union NodeValue)0);
     if (IsTerm(&son))
     {
-        AddSon(*pNode, son);
+        AddSon(*ppNode, son);
         if (IsExprPrime(&son))
         {
-            AddSon(*pNode, son);
+            AddSon(*ppNode, son);
             return true;
         }
     }
@@ -151,21 +160,21 @@ bool IsExpr(NodeID *pNode)
 }
 
 // expr-prime : ['+' | '-'] term expr-prime | $
-bool IsExprPrime(NodeID *pNode)
+bool IsExprPrime(Node **ppNode)
 {
-    NodeID son;
+    Node *son;
     
     if (token == '+' || token == '-')
     {
-        *pNode = NewNode(NT_EXPR_PRIME, (union NodeValue)0);
-        AddSon(*pNode, NewNode(NT_OP, (union NodeValue)token));
+        *ppNode = NewNode(NT_EXPR_PRIME, (union NodeValue)0);
+        AddSon(*ppNode, NewNode(NT_OP, (union NodeValue)token));
         GetNextToken(NULL);
         if (IsTerm(&son))
         {
-            AddSon(*pNode, son);
+            AddSon(*ppNode, son);
             if (IsExprPrime(&son))
             {
-                AddSon(*pNode, son);
+                AddSon(*ppNode, son);
                 return true;
             }
             else
@@ -174,22 +183,22 @@ bool IsExprPrime(NodeID *pNode)
     }
     
     // $
-    *pNode = 0;
+    *ppNode = 0;
     return true;
 }
 
 // term : factor term-prime
-bool IsTerm(NodeID *pNode)
+bool IsTerm(Node **ppNode)
 {
-    NodeID son;
+    Node *son;
     
-    *pNode = NewNode(NT_TERM, (union NodeValue)0);    
+    *ppNode = NewNode(NT_TERM, (union NodeValue)0);    
     if (IsFactor(&son))
     {
-        AddSon(*pNode, son);
+        AddSon(*ppNode, son);
         if (IsTermPrime(&son))
         {
-            AddSon(*pNode, son);
+            AddSon(*ppNode, son);
             return true;
         }
     }
@@ -198,21 +207,21 @@ bool IsTerm(NodeID *pNode)
 }
 
 // term-prime : '*' factor term-prime
-bool IsTermPrime(NodeID *pNode)
+bool IsTermPrime(Node **ppNode)
 {
-    NodeID son;
+    Node *son;
     
     if (token == '*' || token == '/')
     {
-        *pNode = NewNode(NT_TERM_PRIME, (union NodeValue)0);
-        AddSon(*pNode, NewNode(NT_OP, (union NodeValue)token));
+        *ppNode = NewNode(NT_TERM_PRIME, (union NodeValue)0);
+        AddSon(*ppNode, NewNode(NT_OP, (union NodeValue)token));
         GetNextToken(NULL);
         if (IsFactor(&son))
         {
-            AddSon(*pNode, son);
+            AddSon(*ppNode, son);
             if (IsTermPrime(&son))
             {
-                AddSon(*pNode, son);
+                AddSon(*ppNode, son);
                 return true;
             }
             else
@@ -221,23 +230,23 @@ bool IsTermPrime(NodeID *pNode)
     }
 
     // $
-    *pNode = 0;
+    *ppNode = 0;
     return true;
 }
 
 // factor :
-bool IsFactor(NodeID *pNode)
+bool IsFactor(Node **ppNode)
 {
-    NodeID son;
+    Node *son;
 
     // '(' expr ')'
-    *pNode = NewNode(NT_FACTOR, (union NodeValue)0);    
+    *ppNode = NewNode(NT_FACTOR, (union NodeValue)0);    
     if (token == '(')
     {
         GetNextToken(NULL);
         if (IsExpr(&son))
         {
-            AddSon(*pNode, son);
+            AddSon(*ppNode, son);
             if (token == ')')
             {
                 GetNextToken(NULL);
@@ -250,16 +259,16 @@ bool IsFactor(NodeID *pNode)
     else if (token == Constant)
     {
         //printf("%d F -> Constant\n", token);
-        AddSon(*pNode, NewNode(NT_CONSTANT, (union NodeValue)atoi(lexeme)));
+        AddSon(*ppNode, NewNode(NT_CONSTANT, (union NodeValue)atoi(lexeme)));
         GetNextToken(NULL);
         return true;
     }
     
-    // Identifier
-    else if (token == Identifier)
+    // Intvar
+    else if (token == Intvar)
     {
         //printf("%d F -> Identifier\n", token);
-        AddSon(*pNode, NewNode(NT_IDENTIFIER, (union NodeValue)lexsym));
+        AddSon(*ppNode, NewNode(NT_IDENTIFIER, (union NodeValue)lexsym));
         GetNextToken(NULL);
         return true;
     }
@@ -268,15 +277,14 @@ bool IsFactor(NodeID *pNode)
 }
 
 // tree traversal is guided by the grammar rule
-bool TraverseTree(NodeID node)
+bool TraverseTree(Node *node)
 {
     bool retval = true;
-    //char tmpStr[80];
     
-    if (node != 0)
+    if (node != NULL)
     {
         //printf("node type %s\n", Type2Name(TYPE(node)));
-        switch (TYPE(node))
+        switch (NODE_TYPE(node))
         {
             case NT_EXPR:
                 // expr 
@@ -294,9 +302,9 @@ bool TraverseTree(NodeID node)
             case NT_TERM_PRIME:
                 // term-prime
                 //   '*' factor term-prime | '/' factor term-prime
-                retval &= TraverseTree(BRO(SON(node)));    // left opnd
+                retval &= TraverseTree(BRO(SON(node)));         // left opnd
                 retval &= TraverseTree(BRO(BRO(SON(node))));    // right opnd
-                retval &= TraverseTree(SON(node));   // op
+                retval &= TraverseTree(SON(node));              // op
                 break;
                 
             case NT_FACTOR:
@@ -306,7 +314,7 @@ bool TraverseTree(NodeID node)
                 break;
             
             case NT_OP:
-                switch (OP(node))
+                switch (NODE_VAL_OP(node))
                 {
                     case '+':
                         // put the sum of the top 2 expr stack entries onto the top of the stack and set the new value
@@ -337,11 +345,11 @@ bool TraverseTree(NodeID node)
                 break;
                 
             case NT_CONSTANT:
-                Push(CONSTANT(node));
+                Push(NODE_VAL_CONST(node));
                 break;
                 
             case NT_IDENTIFIER:
-                Push(SYMVAL(SYMBOL(node)));
+                Push(SYM_INTVAL(NODE_VAL_SYMBOL(node)));
                 break;
 
             default:

@@ -1,9 +1,10 @@
 #include <time.h>
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
-#include "../../include/avr_b3_stdio.h"
-#include "../../include/avr_b3_console.h"
+//#include "../../include/avr_b3_stdio.h"
+//#include "../../include/avr_b3_console.h"
 
+#if 0
 // UART receive ISR
 ISR(_VECTOR(3))
 {
@@ -148,10 +149,11 @@ void test_keyboard(void)
         LED = KEYBOARD;
     }
 }    
+#endif
 
 void test_heap(void)
 {
-    int *px = (int*)malloc(1 * sizeof(int));
+    int *px = (int*)calloc(1, sizeof(int));
     *px = 0x1234;
     LED = *px;
 }
@@ -159,7 +161,7 @@ void test_heap(void)
 int main(void)
 {
     // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    //UBRR0 = 13-1;
 
     //test_printf();
     //test_interrupt();

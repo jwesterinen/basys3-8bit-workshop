@@ -9,25 +9,24 @@ enum NodeType {
     NT_OP,
     NT_CONSTANT, NT_IDENTIFIER
 };
-typedef int NodeID;
 union NodeValue {
     int constant;
-    SymbolID symbol;
+    Symbol *symbol;
     char op;
 };
 typedef struct Node {
     enum NodeType type;
     union NodeValue value;
-    NodeID bro;
-    NodeID son;
+    struct Node *bro;
+    struct Node *son;
 } Node;
 
-#define TYPE(node)      nodetab[(node)].type
-#define CONSTANT(node)  nodetab[(node)].value.constant
-#define SYMBOL(node)    nodetab[(node)].value.symbol
-#define OP(node)        nodetab[(node)].value.op
-#define BRO(node)       nodetab[(node)].bro
-#define SON(node)       nodetab[(node)].son
+#define NODE_TYPE(node)         node->type
+#define NODE_VAL_CONST(node)    node->value.constant
+#define NODE_VAL_SYMBOL(node)   node->value.symbol
+#define NODE_VAL_OP(node)       node->value.op
+#define BRO(node)               node->bro
+#define SON(node)               node->son
 
 void InitParser(void);
 bool GetExprValue(int *pValue);

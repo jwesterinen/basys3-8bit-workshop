@@ -1,5 +1,5 @@
 /*
-*   system_avr_lib
+*   avr_b3_stdio.c
 *
 *   This file contains utilities to access avr_b3 peripherals.
 *
@@ -10,6 +10,7 @@
 #include <util/delay.h>
 #include "../include/avr_b3.h"
 #include "../include/avr_b3_stdio.h"
+//#include "avr_b3_ps2.c"
 
 #define TABSIZE 4
 
@@ -403,40 +404,35 @@ int getscancode(uint8_t volatile *addr)
 
 void setcapled(int capled)
 {
-    uint8_t volatile *addr;
     __attribute__((unused)) uint8_t key;
 
-    // Set keyboard LEDs on
-    addr = (volatile uint8_t *)(0x8400);
-    key = *addr;
-    *(addr++) = 0;     // start
-    *(addr++) = 1;     // ED is 11101101, reversed is 10110111
-    *(addr++) = 0;
-    *(addr++) = 1;
-    *(addr++) = 1;
-    *(addr++) = 0;
-    *(addr++) = 1;
-    *(addr++) = 1;
-    *(addr++) = 1;
-    *(addr++) = 1;     // odd parity
-    *(addr++) = 1;     // stop
-    (void) msleep(10);
-    addr = (volatile uint8_t *)(0x8400);
-    key = *addr;
-    *(addr++) = 0;     // start
-    *(addr++) = 0;     // LEDs 00000111, reversed 11100000
-    *(addr++) = 0;
-    *(addr++) = capled & 0x01;
-    *(addr++) = 0;
-    *(addr++) = 0;
-    *(addr++) = 0;
-    *(addr++) = 0;
-    *(addr++) = 0;
-    *(addr++) = (capled == 0) ? 1 : 0;     // odd parity
-    *(addr++) = 1;     // stop
+    key = PS2_START_BIT;
+    PS2_START_BIT = 0;      // start
+    PS2_DATA0_BIT = 1;      // ED is 11101101, reversed is 10110111
+    PS2_DATA1_BIT = 0;
+    PS2_DATA2_BIT = 1;
+    PS2_DATA3_BIT = 1;
+    PS2_DATA4_BIT = 0;
+    PS2_DATA5_BIT = 1;
+    PS2_DATA6_BIT = 1;
+    PS2_DATA7_BIT = 1;
+    PS2_PARITY_BIT = 1;     // odd parity
+    PS2_STOP_BIT = 1;       // stop
     msleep(10);
-    addr = (volatile uint8_t *)(0x8400);
-    key = *addr;
+    key = PS2_START_BIT;
+    PS2_START_BIT = 0;      // start
+    PS2_DATA0_BIT = 0;      // LEDs 00000111, reversed 11100000
+    PS2_DATA1_BIT = 0;
+    PS2_DATA2_BIT = capled & 0x01;
+    PS2_DATA3_BIT = 0;
+    PS2_DATA4_BIT = 0;
+    PS2_DATA5_BIT = 0;
+    PS2_DATA6_BIT = 0;
+    PS2_DATA7_BIT = 0;
+    PS2_PARITY_BIT = (capled == 0) ? 1 : 0;     // odd parity
+    PS2_STOP_BIT = 1;       // stop
+    msleep(10);
+    key = PS2_START_BIT;
 }
 
 
@@ -486,7 +482,6 @@ void getkey(void)
 {
     uint8_t  volatile *addr;
     __attribute__((unused)) uint8_t  key;
-    uint8_t  ready_count;
     int      i = 0;
     uint8_t  scancode[4];
     int      cidx;          // index into scancode
@@ -506,22 +501,22 @@ void getkey(void)
 
 
     // return if no scancode present
-    addr = (volatile uint8_t *)(0x8480);
-    ready_count = (uint8_t)*(addr);
-    if (ready_count == 0)
+    if (PS2_READY_COUNT == 0)
         return;
 
     // All scancode words have 11 bits. (start, 8 data, parity, stop)
     // Quietly ignore mal-formed scancodes
-    if (ready_count % 11 != 0) {
-        addr = (volatile uint8_t *)(0x8400);
-        key = *(addr);     // clear data ready
+    if (PS2_READY_COUNT % 11 != 0) {
+        key = PS2_START_BIT;     // clear data ready
         return;
     }
 
     // get scancodes in buffer (usually one) and process each
-    byte_count = ready_count / 11;
-    addr = (volatile uint8_t *)(0x8400);
+    // NOTE: this is an unconventional way to access the peripheral regs, 
+    //       by address instead of contents-of-address, but it's a shorthand
+    //       to prevent the definition of 44 register aliases
+    byte_count = PS2_READY_COUNT / 11;
+    addr = PS2_START_BIT_ADDR;
     for (cidx = 0; cidx < byte_count; cidx++) {
         scancode[cidx] = getscancode(addr + (cidx * 11));
     }
@@ -655,6 +650,5 @@ void getkey(void)
 
     return;
 }
-
-
+// end of avr_b3_stdio.c
 

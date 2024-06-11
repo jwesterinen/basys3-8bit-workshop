@@ -2,6 +2,12 @@
 *   parser.c
 *
 *   Basic interpreter parser.
+*
+*   Todo items:
+*    - reclaim dynamic memory
+*    - don't allocate nodes before checking syntax
+*    - change all strings to dynamic allocation, i.e. Program, Strings
+*    - syntax check for program lines before adding to Program
 */
 
 #include <time.h>
@@ -28,27 +34,28 @@ bool IsExprList(void);
 bool IsAssign(void);
 bool IsFor(void);
 bool IsNext(void);
+bool IsGoto(void);
 bool ExecCommand(void);
 
 bool ready = true;
 char errorStr[STRING_LEN];
 char resultStr[STRING_LEN];
 
-
 typedef struct ForInstruction {
     int lineNum;
-    SymbolID symbol;
+    Symbol *symbol;
     int to;
     int step;
 } ForInstruction;
 ForInstruction fortab[INSTR_TAB_LEN];
 int fortabIdx = 0;
 
-#define PROGRAM_LEN 100
-struct CodeLine {
+#define MAX_PROGRAM_LEN 100
+typedef struct CodeLine {
     int lineNum;
     char command[STRING_LEN]; 
-} Program[PROGRAM_LEN];
+} CodeLine;
+CodeLine Program[MAX_PROGRAM_LEN];
 int programIdx = 0;     // program index used to add commands to the program
 int ip = 0;             // instruction pointer used to point to the current command in the program
 
@@ -56,25 +63,22 @@ int ip = 0;             // instruction pointer used to point to the current comm
     BASIC grammar:
     
     command         : directive | deferred-cmd | immediate-cmd
-    directive       : RUN | LIST | NEW
+    directive       : RUN | LIST | NEW | BYE
     deferred-cmd    : [Constant] executable-cmd
-    executable-cmd  : immediate-cmd | if | for | next
+    executable-cmd  : immediate-cmd | for | next | goto
     immediate-cmd   : print | assignment
     print           : PRINT print-list
     print-list      : printable  [';' | ','] print-list | printable
     printable       : expr | String
-    assignment      : [LET] Identifier '=' [expr | String]
-    if              : IF expr THEN immediate-cmd | IF expr THEN [GOTO] Constant | IF expr [THEN] GOTO Constant
-    goto            : GOTO Constant
+    assignment      : (Intvar '=' expr) | (Strvar '=' String)
     for             : FOR Identifier '=' expr TO expr [STEP expr]
     next            : NEXT [Identifier]
     
-    expr            : term expr-prime
-    expr-prime      : ['+' | '-'] term expr-prime | $
-    term            : factor term-prime
-    term-prime      : ['*' | '/'] factor term-prime | $
-    factor          : '(' expr ')' | Constant | Identifier
-    string          : '"' (printable-char)+ '"'
+    goto            : GOTO Constant
+    if              : IF expr THEN immediate-cmd | IF expr THEN [GOTO] Constant | IF expr [THEN] GOTO Constant
+    gosub           :
+    return          :
+    
 */
 
 // convert a command line number to an index to the program
@@ -93,6 +97,41 @@ int Idx2lineNum(int idx)
         return Program[idx].lineNum;
     return 0;
 }
+
+void SwapProgLines(int progIdxA, int progIdxB) 
+{ 
+    CodeLine temp;
+    
+    // copy a to temp
+    temp.lineNum = Program[progIdxA].lineNum; 
+    strcpy(temp.command, Program[progIdxA].command);
+    
+    // copy b to a
+    Program[progIdxA].lineNum = Program[progIdxB].lineNum; 
+    strcpy(Program[progIdxA].command, Program[progIdxB].command);
+    
+    // copy temp to b
+    Program[progIdxB].lineNum = temp.lineNum; 
+    strcpy(Program[progIdxB].command, temp.command);
+} 
+
+void SortProgramByLineNum(void) 
+{ 
+    int i, j, min_idx; 
+  
+    // One by one move boundary of unsorted subarray 
+    for (i = 0; i < programIdx - 1; i++) 
+    { 
+        // Find the minimum element in unsorted array 
+        min_idx = i; 
+        for (j = i + 1; j < programIdx; j++) 
+            if (Program[j].lineNum < Program[min_idx].lineNum) 
+                min_idx = j; 
+  
+        // Swap the found minimum element with the first element 
+        SwapProgLines(min_idx, i); 
+    } 
+} 
 
 // command : directive | statement
 bool ProcessCommand(char *command)
@@ -114,21 +153,49 @@ bool ProcessCommand(char *command)
     {
         return (programIdx = 0);
     }
+    else if (!strcmp(command, "bye"))
+    {
+        exit(0);
+    }
     
     // determine deferred or immediate command
     GetNextToken(command);
     if (token == Constant)
     {
         // deferred - add to program
-        strcpy(Program[programIdx].command, command);
-        Program[programIdx].lineNum = atoi(lexeme);
-        programIdx++;
+        int lineNum = atoi(lexeme);
+        int lineIdx;
+        
+        // check to see if this is a replacement of an existing line by number
+        for (lineIdx = 0; lineIdx < programIdx; lineIdx++)
+        {
+            if (Program[lineIdx].lineNum == lineNum)
+            {
+                break;
+            }
+        }
+        strcpy(Program[lineIdx].command, command);
+        if (lineIdx == programIdx)
+        {
+            Program[lineIdx].lineNum = lineNum;
+            if (programIdx < MAX_PROGRAM_LEN-1)
+            {
+                programIdx++;
+            }
+            else
+            {
+                sprintf(errorStr, "no more program space");
+                return false;
+            }
+        }
+        SortProgramByLineNum();
         ready = false;
     }
     else
     {
-        // execute the command directly
-        ExecCommand();
+        // immediate - execute the command directly
+        if (!ExecCommand())
+            return false;
         ready = true;
     }
     
@@ -177,7 +244,7 @@ bool ExecCommand()
     return true;
 }
 
-// command : print | assignment | if | for | next
+// command : print | assignment | for | next | if
 bool IsCommand()
 {
     if (token == Constant)
@@ -186,11 +253,7 @@ bool IsCommand()
     }
     
     // print | assignment
-#ifdef FOR_NEXT
-    if (IsPrint() || IsAssign() || IsFor() || IsNext())
-#else    
-    if (IsPrint() || IsAssign())
-#endif    
+    if (IsPrint() || IsAssign() || IsFor() || IsNext() || IsGoto())
     {
         return true;
     }
@@ -214,7 +277,7 @@ bool IsPrint()
     return false;
 }
     
-// expr-list : (expr | String) [';' | ','] expr-list | (expr | String)
+// expr-list : (Identifier '$' | expr | String) [';' | ','] expr-list | (Identifier '$' | expr | String)
 // create a result string to be printed
 bool IsExprList()
 {
@@ -222,49 +285,80 @@ bool IsExprList()
     char exprStr[80];
     
     //puts("IsExprList");
-    if (GetExprValue(&exprVal))
+    if (token == Strvar)
+    {
+        strcat(resultStr, SYM_STRVAL(lexsym));
+        GetNextToken(NULL);
+    }
+    else if (GetExprValue(&exprVal))
     {
         // convert expr value to ascii and cat to existing result string
         sprintf(exprStr, "%d", exprVal);              
         strcat(resultStr, exprStr);
-        if (token == ';' || token == ',')
-        {
-            if (token == ',')
-            {
-                // cat intervening tab
-                strcat(resultStr, "\t");                
-            }
-            GetNextToken(NULL);
-            if (IsExprList())
-            {
-                return true;
-            }
-        }
-        else
-            return true;
     }
+    else if (token == String)
+    {
+        // cat the string to the result string
+        strcat(resultStr, lexeme);
+        GetNextToken(NULL);
+    }
+    else
+    {
+        return false;
+    }
+    
+    if (token == ';' || token == ',')
+    {
+        if (token == ',')
+        {
+            // cat intervening tab
+            strcat(resultStr, "\t");                
+        }
+        GetNextToken(NULL);
+        if (IsExprList())
+        {
+            return true;
+        }
+    }
+    else
+        return true;
     
     return false;
 }
     
-// assignment : [let] Identifier '=' expr
+// assignment : Intvar '=' expr | Strvar = String
 bool IsAssign()
 {
-    if (token == LET)
-    {
-        // optional syntactic sugar
-        GetNextToken(NULL);
-    }
-    if (token == Identifier)
+    if (token == Intvar)
     {
         //puts("IsAssign");
         GetNextToken(NULL);
         if (token == '=')
         {
             GetNextToken(NULL);
-            if (GetExprValue(&(SYMVAL(lexsym))))
+            if (GetExprValue(&(SYM_INTVAL(lexsym))))
             {
+                SYM_TYPE(lexsym) = ST_INTVAR;
                 return true;
+            }
+        }
+    }
+    else if (token == Strvar)
+    {
+        GetNextToken(NULL);
+        if (token == '=')
+        {
+            GetNextToken(NULL);
+            if (token == String)
+            {
+                // copy the string to the symbol's string value
+                SYM_STRVAL(lexsym) = calloc(strlen(lexeme)+1, 1);
+                if (SYM_STRVAL(lexsym))
+                {
+                    strcpy(SYM_STRVAL(lexsym), lexeme);
+                    SYM_TYPE(lexsym) = ST_STRVAR;
+                    return true;
+                }
             }
         }
     }
@@ -272,8 +366,7 @@ bool IsAssign()
     return false;
 }
 
-#ifdef FOR_NEXT
-// for : FOR Identifier '=' expr TO expr STEP expr
+// for : FOR Intvar '=' expr TO expr STEP expr
 bool IsFor()
 {
     int to, step = 1;
@@ -282,13 +375,13 @@ bool IsFor()
     {
         //puts("IsFor");
         GetNextToken(NULL);
-        if (token == Identifier)
+        if (token == Intvar)
         {
             GetNextToken(NULL);
             if (token == '=')
             {
                 GetNextToken(NULL);
-                if (GetExprValue(&(SYMVAL(lexsym))))
+                if (GetExprValue(&(SYM_INTVAL(lexsym))))
                 {
                     //GetNextToken(NULL);
                     if (token == TO)
@@ -320,7 +413,7 @@ bool IsFor()
     return false;       
 }
 
-// next : NEXT [Identifier]
+// next : NEXT [Intvar]
 bool IsNext()
 {
     if (token == NEXT)
@@ -330,12 +423,12 @@ bool IsNext()
         ForInstruction forInstr = fortab[fortabIdx - 1];
         
         GetNextToken(NULL);
-        if (token == Identifier)
+        if (token == Intvar)
         {
             // find the explicit for instruction associated with the next instruction's var name
             for (int i = 0; i < fortabIdx; i++)
             {
-                if (!strcmp(SYMNAME(fortab[i].symbol), lexeme))
+                if (!strcmp(SYM_NAME(fortab[i].symbol), lexeme))
                 {
                     forInstr = fortab[i];
                 }
@@ -343,10 +436,10 @@ bool IsNext()
         }
         
         // change the variable value based on the for instruction's step value
-        SYMVAL(forInstr.symbol) += forInstr.step;
+        SYM_INTVAL(forInstr.symbol) += forInstr.step;
         
         // check that the variable's value is in the range of the for instruction
-        if (SYMVAL(forInstr.symbol) <= forInstr.to)
+        if (SYM_INTVAL(forInstr.symbol) <= forInstr.to)
         {
             // goto command at code line number following the for command
             ip = LineNum2Ip(forInstr.lineNum);
@@ -356,7 +449,28 @@ bool IsNext()
     
     return false;
 }
-#endif
+
+// goto : GOTO Constant
+bool IsGoto()
+{
+    int destination;
+    
+    if (token == GOTO)
+    {
+        GetNextToken(NULL);
+        if (GetExprValue(&destination))
+        {
+            if (destination > 0)
+            {
+                ip = LineNum2Ip(destination);
+                return true;
+            }
+        }
+    }        
+
+    return false;
+}
+
 
 // end of runtime.c
 

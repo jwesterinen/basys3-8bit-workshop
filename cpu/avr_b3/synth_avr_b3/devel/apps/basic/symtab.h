@@ -5,20 +5,24 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#define SYMNAME(symbol) symtab[(symbol)].name
-#define SYMVAL(symbol)  symtab[(symbol)].value
+#define SYM_NAME(symbol) symbol->name
+#define SYM_TYPE(symbol)  symbol->type
+#define SYM_INTVAL(symbol)  symbol->value.intval
+#define SYM_STRVAL(symbol)  symbol->value.strval
 
-#define NAME_LEN 80
-typedef uint8_t SymbolID;
+enum SYMTYPE {ST_INTVAR, ST_STRVAR};
 typedef struct Symbol
 {
-    char        name[NAME_LEN];
-    int         value;
-    SymbolID    next;
+    char *name;
+    enum SYMTYPE type;
+    union 
+    {
+        int intval;
+        char *strval;
+    } value; 
+    struct Symbol *next;
 } Symbol;
 
-extern Symbol symtab[];
-
-SymbolID SymLookup(const char *name);
-SymbolID SymFind(const char *name);
+Symbol *SymLookup(const char *name);
+Symbol *SymFind(const char *name);
 

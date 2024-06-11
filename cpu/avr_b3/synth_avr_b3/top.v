@@ -4,13 +4,21 @@
 *   The avr_b3 project is a general purpose computer based on an AVR core and 
 *   specifically written for the Digilent Basys3 FPGA dev board (B3).  The 
 *   peripheral set is configurable, but the current design contains the I/O
-*   device intrinsic to the B3 board, switches, buttons, LEDs, and 7-segment
-*   displays.  It also contains a UART that is used as a console device.  
-*   There are 2 external peripherals that are interfaced thru 2 of the B3's
-*   Pmod connectors, the Digilent PmodKYPD on JB and a pmod-audio v1.2 Pmod
-*   amp/speaker with volume control.  These all combine to allow applications
-*   to be written that use a keypad, the switches, and buttons as inputs and
-*   the 7-segment displays and the speaker as outputs.
+*   devices intrinsic to the B3 board, switches, buttons, LEDs, and 7-segment
+*   displays, VGA terminal and PS2 keyboard.  It also contains a UART that is 
+*   used as a console device.  Additionally, there are 2 external peripherals 
+*   that are interfaced thru 2 of the B3's Pmod connectors, the Digilent PmodKYPD 
+*   on JB and a pmod-audio v1.2 Pmod amp/speaker with volume control.
+*
+*   With respect to the AVR core, there are 32K words (64K bytes) of program memory,
+*   and 0xf000 bytes of data memory; the last 0x1000 bytes of the 64K data memory
+*   contains memory-mapped I/O registers, which allows for 16 peripherals, each 
+*   with up to 256 registers.  The MMIO space begins at address 0xf000.
+*
+*   Memory map for AVR_B3:
+*       Program space:  0x0000-0xffff in program memory
+*       Data space:     0x0000-0xefff in data memory
+*       MMIO space:     0xf000-0xffff in data memory
 */
  
 `ifdef SYNTHESIS
@@ -21,6 +29,8 @@
  `include "avr_core.v"
  `include "avr_io_uart.v"
 `endif
+
+`define MMIO_BASE 4'hf
 
 module priority_encoder ( input [3:0] irq_lines , output iflag, output reg [1:0] ivect );
 
@@ -88,15 +98,15 @@ module avr_b3(
 `endif    
     
     // ROM
-    parameter pmem_width = 12;    // 4K (0x1000)
+    parameter pmem_width = 15;      // 15-bit width = 32K program space, BUT the AVR pmem works in _words_, so it's actually 64K _bytes_
     wire			pmem_ce;
     wire [pmem_width-1:0]	pmem_a;
     wire [15:0]		pmem_d;
-    flash core0_flash(system_clk, pmem_ce, pmem_a, pmem_d);                 // pmem addrs 0x000-0xfff
+    flash core0_flash(system_clk, pmem_ce, pmem_a, pmem_d); // pmem addrs 0x000-0x7fff (words!)
     defparam core0_flash.flash_width = pmem_width;
 
     // CPU data bus for RAM and MMIO
-    parameter dmem_width = 16;
+    parameter dmem_width = 16;      // 64K
     wire   [dmem_width-1:0] dmem_a;  // Data bus address from the CPU
     wire   dmem_re;
     wire   dmem_we;
@@ -104,26 +114,26 @@ module avr_b3(
     wire   [7:0] dmem_di;
 
     // RAM
-    wire   [dmem_width-2:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
+    wire   [dmem_width-1:0] rio_a;   // RAM/MMIO address (-2 to let msb select ram/mmio)
     wire   ram_re;
     wire   ram_we;
     wire   [7:0] ram_di;
-    assign rio_a = dmem_a[dmem_width-2:0];   // ram/mmio address
-    assign ram_re = dmem_re & ~dmem_a[dmem_width-1];
-    assign ram_we = dmem_we & ~dmem_a[dmem_width-1];
+    assign rio_a = dmem_a[dmem_width-1:0];   // ram/mmio address
+    assign ram_re = dmem_re & (dmem_a[15:12] != `MMIO_BASE);
+    assign ram_we = dmem_we & (dmem_a[15:12] != `MMIO_BASE);
     ram core0_ram(system_clk, ram_re, ram_we, rio_a, ram_di, dmem_do);
-    defparam core0_ram.ram_width = dmem_width -1;
+    defparam core0_ram.ram_width = dmem_width;
 
     // memory mapped IO (MMIO)
     wire   mmio_re;
     wire   mmio_we;
     wire   [7:0] mmio_di;
     wire   PS2irq;
-    assign mmio_re = dmem_re & dmem_a[dmem_width -1];
-    assign mmio_we = dmem_we & dmem_a[dmem_width -1];
+    assign mmio_re = dmem_re & (dmem_a[15:12] == `MMIO_BASE);
+    assign mmio_we = dmem_we & (dmem_a[15:12] == `MMIO_BASE);
     mmio core0_mmio
     (
-        clk, mmio_re, mmio_we, rio_a, mmio_di, dmem_do, 
+        clk, mmio_re, mmio_we, rio_a[11:0], mmio_di, dmem_do, 
 `ifdef SYNTHESIS
         sw, btn, led, seg, dp, an, JB, JA7, vgaBlue, vgaGreen, vgaRed,
         Vsync, Hsync, PS2Clk, PS2Data, PS2irq

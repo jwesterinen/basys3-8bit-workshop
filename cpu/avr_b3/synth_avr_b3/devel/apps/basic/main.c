@@ -1,5 +1,5 @@
 /*
-*   This is the main module for the a Basic interpreter retro computer.
+*   This is the main module for a Basic interpreter retro computer.
 */
 
 #include <time.h>
@@ -11,7 +11,7 @@
 #include "runtime.h"
 
 // default is PS2 keyboard
-//#define USE_CONSOLE_KB
+#define USE_CONSOLE_KB
 
 #ifdef USE_CONSOLE_KB
     #define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
@@ -39,6 +39,7 @@ ISR(_VECTOR(3))
     sei();
 }
 
+#ifndef USE_CONSOLE_KB
 // PS2 receive ISR
 ISR(_VECTOR(2))
 {
@@ -46,8 +47,11 @@ ISR(_VECTOR(2))
     getkey();
     sei();
 }
+#endif
 
 extern bool ready;
+
+#define TABSIZE 4
 
 void PrintResult(void)
 {
@@ -79,8 +83,8 @@ int main(void)
     stdout = &mystdout;
     printf("starting basic interpreter...\r\n");
     
-    VgaReset();
-    VgaPrintStr("AVR_B3 Basic Interpreter\n\n");
+    //VgaReset();
+    VgaPrintStr("AVR_B3 Basic Interpreter (dynamic symtab and node version)\n\n");
     VgaPrintStr("ready\n");
     VgaPrintStr(promptStr);    
     while (1)

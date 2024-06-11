@@ -7,36 +7,56 @@
 #include "symtab.h"
 
 // symbol table
-#define SYMTAB_LEN 100
-Symbol symtab[SYMTAB_LEN];
-int symtabIdx = 1;
+static Symbol *symtab = NULL;
 
-static SymbolID SymCreate(const char *name)
+static char* strsave(const char* s)
 {
-    SymbolID newSymbol = symtabIdx++;    
-    strcpy(symtab[newSymbol].name, name);
-    symtab[newSymbol].value = 0;
+    char* cp = calloc(strlen(s)+1, 1);
+    if (cp)
+    {
+        strcpy(cp, s);
+        return cp;
+    }
+    
+    return (char*)NULL;
+}
+  
+static Symbol *SymCreate(const char *name)
+{
+    // create a new symbol
+    Symbol *newEntry = (Symbol *)calloc(1, sizeof(Symbol));
+    
+    if (newEntry)
+    {
+        // set the name and add it to the front of the symbol list
+        newEntry->name = strsave(name);
+        newEntry->next = symtab;
+        symtab = newEntry;
+    }
      
-    return newSymbol;
+    return newEntry;
 }
 
-SymbolID SymLookup(const char *name)
+Symbol *SymLookup(const char *name)
 {
-    SymbolID symbol = SymFind(name);    
-    if (symbol == 0) 
+    Symbol *symbol;
+
+    if ((symbol = SymFind(name)) == NULL)
         symbol = SymCreate(name);
         
     return symbol;
 }
 
-SymbolID SymFind(const char *name)
+struct Symbol *SymFind(const char *name)
 {
+    Symbol *next;
+    
     // search symtab until match of end of symtab chain
-    for (int i = 0; i < SYMTAB_LEN; i++)
-        if (strcmp(symtab[i].name, name) == 0)
-            return i;
+    for (next = symtab; next; next = next->next)
+        if (!strcmp(next->name, name))
+            break;
    
-    return 0;
+    return next;
 }
 
 // end of symtab.c

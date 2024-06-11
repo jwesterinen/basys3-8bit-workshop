@@ -26,8 +26,9 @@
 *   
 *   "print"                     return PRINT
 *   "let"                       return LET
-*   {letter}{letter_or_digit}*  return Identifier
-*   {digit}+                    return Number
+*   {letter}{letter_or_digit}*$ return Strvar
+*   {letter}{letter_or_digit}*  return Intvar
+*   [-]{digit}+                    return Number
 *   \"{.}*\"                    return String
 *   {other}                     return .
 */
@@ -38,21 +39,23 @@ struct KeywordTableEntry {
 } keywordTab[] = {
 //       lexeme     token
         {"print",   PRINT   },
-        {"let",     LET     },
-        {"if",      IF      },
-        {"then",    THEN    },
-        {"goto",    GOTO    },
         {"for",     FOR     },
         {"to",      TO      },
         {"step",    STEP    },
-        {"next",    NEXT    }
+        {"next",    NEXT    },
+        
+        {"goto",    GOTO    },
+        {"if",      IF      },
+        {"then",    THEN    },
+        {"gosub",   GOSUB   },
+        {"return",  RETURN  }
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 
 char *nextChar;
 int token;
 char lexeme[STRING_LEN];
-SymbolID lexsym;
+Symbol *lexsym;
 
 // return the next token in the instruction
 void GetNextToken(char *codeStr)
@@ -74,6 +77,7 @@ void GetNextToken(char *codeStr)
         switch (state)
         {
             case 0:
+                token = 0;
                 // remove whitespace
                 //printf("\t\tstate 0, remove whitespace\n");
                 if (isspace(*nextChar))
@@ -87,9 +91,9 @@ void GetNextToken(char *codeStr)
                 break;
                 
             case 1:
-                // direct the lexer to parse a number, Identifier, or single char
+                // direct the lexer to parse a number, variable name, string, or single char
                 //printf("\t\tstate 1, direct lexer\n");
-                if (isdigit(*nextChar))
+                if (*nextChar == '-' || isdigit(*nextChar))
                 {
                     lexeme[i++] = *nextChar++;
                     state = 2;
@@ -101,7 +105,7 @@ void GetNextToken(char *codeStr)
                 }
                 else if (*nextChar == '"')
                 {
-                    lexeme[i++] = *nextChar++;
+                    nextChar++;
                     state = 10;
                 }
                 else if (*nextChar != '\0')
@@ -129,8 +133,8 @@ void GetNextToken(char *codeStr)
                 break;
                 
             case 3:
-                // parse an Identifier or keyword
-                //printf("\t\tstate 4, parse in Identifier\n");
+                // parse variable name or keyword
+                //printf("\t\tstate 4, parse in variable name or keyword\n");
                 if (isalnum(*nextChar))
                 {
                     lexeme[i++] = *nextChar++;
@@ -150,6 +154,7 @@ void GetNextToken(char *codeStr)
                 }
                 else
                 {
+                    nextChar++;
                     state = 11;
                 }
                 break;
@@ -173,9 +178,15 @@ void GetNextToken(char *codeStr)
                 return;
                 
             case 5:
-                // return Identifier or keyword token
+                // check for string var name
+                if (*nextChar == '$')
+                {
+                    lexeme[i++] = *nextChar++;
+                    token = Strvar;
+                }
+                    
+                // terminate the lexeme and prepare for the next lexer state
                 lexeme[i] = '\0';
-                //printf("\t\tstate 6, token = Identifier %s\n", lexeme);
                 i = 0;
                 state = 0;
                 
@@ -189,8 +200,11 @@ void GetNextToken(char *codeStr)
                     }
                 }
                 
-                // if the lexeme isn't a keyword, lookup a symbol and return Identifier
-                token = Identifier;
+                // if the lexeme isn't a keyword or a string var name return Intvar
+                if (token == 0)
+                    token = Intvar;
+                    
+                // set the symbol reference of the variable name
                 lexsym = SymLookup(lexeme);
                 return;
                 
