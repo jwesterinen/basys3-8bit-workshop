@@ -1,6 +1,6 @@
 SHELL=/bin/sh
 
-APP=vga
+APP=cursor
 
 SYNTH_DIR = ../../..
 TB_DIR = ../../../avr_b3_tb

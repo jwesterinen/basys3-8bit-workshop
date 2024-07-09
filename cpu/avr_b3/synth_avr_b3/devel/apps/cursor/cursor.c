@@ -1,5 +1,11 @@
 /*
-*   vga.c
+*   cursor_test.c
+*
+*   This is a canonical cursor test of the VGA system.
+*
+*   The cursor starts in the middle of the VGA display. The buttons move the
+*   cursor, BUTTON_U up, BUTTON_D down, etc.
+*
 */
 
 #include "../../include/avr_b3.h"

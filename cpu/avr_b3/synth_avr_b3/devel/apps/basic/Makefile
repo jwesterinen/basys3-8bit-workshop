@@ -8,7 +8,7 @@ LIB_DIR = ../../lib
 INC_DIR = ../../include
 MISC_DIR = ../../misc
 
-HEADERS=symtab.h lexer.h parser.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_console.h
+HEADERS=main.h symtab.h lexer.h parser.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_console.h
 OBJECTS=main.o symtab.o lexer.o parser.o runtime.o $(LIB_DIR)/avr_b3_stdio.o
 
 CC=avr-gcc

@@ -11,7 +11,7 @@
 #include "runtime.h"
 
 // default is PS2 keyboard
-#define USE_CONSOLE_KB
+//#define USE_CONSOLE_KB
 
 #ifdef USE_CONSOLE_KB
     #define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
@@ -49,67 +49,53 @@ ISR(_VECTOR(2))
 }
 #endif
 
+char message[80];
+char *versionStr = "v0.1";
+char *promptStr = "> ";
+    
 extern bool ready;
 
-#define TABSIZE 4
-
-void PrintResult(void)
+// print a message to the console device
+void Console(const char *string)
 {
-    if (resultStr[0] != '\0')
-    {
-        VgaPrintStr(resultStr);
-        VgaNewline();
-        resultStr[0] = '\0';
-    }
+    stdout = &mystdout;
+    printf(string);
 }
 
-int main(void)
+// print out messages during runtime
+void Message(const char *message)
 {
-    // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    VgaPrintStr(message);
+}
 
-    char commandBuf[80];
+void PutString(char *string)
+{
+    VgaPrintStr(string);
+}
+
+// returns the next CR-terminated string from the input device
+char *GetString(char *buffer)
+{
     unsigned i = 0;
-    
-    // enable UART receiver interrupts
-    UCSRB0 |= (1<<RXCIE);
-
-    // enable global interrupts
-    sei();
-
-    // prompt string
-    char *promptStr = "> ";
-    
-    stdout = &mystdout;
-    printf("starting basic interpreter...\r\n");
-    
-    //VgaReset();
-    VgaPrintStr("AVR_B3 Basic Interpreter (dynamic symtab and node version)\n\n");
-    VgaPrintStr("ready\n");
-    VgaPrintStr(promptStr);    
+        
     while (1)
     {
         if (GetKey())
         {
-            // Enter
+            //sprintf(message, "keycode = %d\r\n", keycode);
+            //Console(message);
+            
+            // Enter - terminate the command string and return
             if (keycode == CR)
             {
-                commandBuf[i] = (uint8_t)'\0';
-                i = 0;
+                buffer[i++] = keycode;
+                buffer[i] = (uint8_t)'\0';
                 VgaNewline();
-                if (!ProcessCommand(commandBuf))
-                {
-                    VgaPrintStr(errorStr);
-                    VgaNewline();
-                }
-                if (ready)
-                {
-                    VgaPrintStr("ready\n");
-                }
-                VgaPrintStr(promptStr);        
+                keycode = 0x00;
+                return buffer;
             }
 
-            // Backspace
+            // Backspace - move the cursor back on place stopping at the prompt
             else if (keycode == BS)
             {
                 if (VGA_CUR_COL > VGA_COL_MIN + strlen(promptStr))
@@ -124,19 +110,57 @@ int main(void)
             // display only printable characters
             else if (0x20 <= keycode && keycode <= 0x7f)
             {
-                commandBuf[i++] = keycode;
+                buffer[i++] = keycode;
                 VGA_CHAR = keycode;
             }
             
             // clear the old keycode -- really only necessary for the console
             keycode = 0x00;
         }
-        
-#ifdef USE_CONSOLE_KB
-        // required when using the console KB
         msleep(50);
-#endif        
     }
 }
 
+void InitDisplay(void)
+{
+    VgaReset();
+    PutString("AVR_B3 Basic Interpreter ");
+    PutString(versionStr);
+    PutString("\n\n");
+}
+
+int main(void)
+{
+    // set UART baud rate to 115200
+    UBRR0 = 13-1;
+
+    // enable UART receiver interrupts
+    UCSRB0 |= (1<<RXCIE);
+
+    // enable global interrupts
+    sei();
+
+    Console("starting basic interpreter...\r\n");
+    
+    char command[80];
+    
+    InitDisplay();
+    while (1)
+    {
+        if (ready)
+        {
+            PutString("ready\n");
+        }
+        PutString(promptStr);        
+        GetString(command);
+        command[strlen(command)-1] = '\0';
+        if (!ProcessCommand(command))
+        {
+            PutString(errorStr);
+            PutString("\n");
+        }
+    }
+}
+
+// end of main.c
 

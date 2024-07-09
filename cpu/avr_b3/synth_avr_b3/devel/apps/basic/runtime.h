@@ -6,6 +6,6 @@
 extern char errorStr[];
 extern char resultStr[];
     
-bool ProcessCommand(char *exprStr);
+bool ProcessCommand(char *cmdStr);
 
 

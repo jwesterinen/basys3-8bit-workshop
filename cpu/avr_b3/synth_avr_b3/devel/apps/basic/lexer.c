@@ -26,51 +26,64 @@
 *   
 *   "print"                     return PRINT
 *   "let"                       return LET
+
+*   "!="                        return NE_OP
+
 *   {letter}{letter_or_digit}*$ return Strvar
 *   {letter}{letter_or_digit}*  return Intvar
-*   [-]{digit}+                    return Number
+*   [-]{digit}+                 return Number
 *   \"{.}*\"                    return String
 *   {other}                     return .
 */
 
+// TODO: make keywords case insensitive
 struct KeywordTableEntry {
     char *keyword;
     int token;
 } keywordTab[] = {
-//       lexeme     token
+//       tokenStr   token
         {"print",   PRINT   },
         {"for",     FOR     },
         {"to",      TO      },
         {"step",    STEP    },
         {"next",    NEXT    },
-        
         {"goto",    GOTO    },
         {"if",      IF      },
         {"then",    THEN    },
         {"gosub",   GOSUB   },
-        {"return",  RETURN  }
+        {"return",  RETURN  },
+        {"end",     END     },
+        {"input",   INPUT   },
+        {"let",     LET     },
+        {"and",     AND_OP  },
+        {"not",     NOT_OP  },
+        {"or",      OR_OP   },
+        {"xor",     XOR_OP  },
+        {"mod",     MOD_OP  }
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 
+char gCommandStr[STRING_LEN];
 char *nextChar;
+LEXTYPE lexval;
+char tokenStr[STRING_LEN];
 int token;
-char lexeme[STRING_LEN];
-Symbol *lexsym;
 
 // return the next token in the instruction
-void GetNextToken(char *codeStr)
+bool GetNextToken(char *commandStr)
 {
     static int state = 0;
     int i = 0;
-    
-    //printf("\tGetNextToken: \n");
+    char tokenStrLc[80];
     
     // init the lexer on a new input string
-    if (codeStr != NULL)
+    if (commandStr != NULL)
     {
-        nextChar = codeStr;
+        strcpy(gCommandStr, commandStr);
+        nextChar = commandStr;
     }
     
+    // TODO: clean up case values to be in sequence
     // lexer state machine
     while (1)
     {
@@ -79,7 +92,6 @@ void GetNextToken(char *codeStr)
             case 0:
                 token = 0;
                 // remove whitespace
-                //printf("\t\tstate 0, remove whitespace\n");
                 if (isspace(*nextChar))
                 {
                     nextChar++;
@@ -91,16 +103,15 @@ void GetNextToken(char *codeStr)
                 break;
                 
             case 1:
-                // direct the lexer to parse a number, variable name, string, or single char
-                //printf("\t\tstate 1, direct lexer\n");
-                if (*nextChar == '-' || isdigit(*nextChar))
+                // direct the lexer to parse a number, variable name, string, or operator
+                if (isdigit(*nextChar))
                 {
-                    lexeme[i++] = *nextChar++;
+                    tokenStr[i++] = *nextChar++;
                     state = 2;
                 }
                 else if (isalpha(*nextChar))
                 {
-                    lexeme[i++] = *nextChar++;
+                    tokenStr[i++] = *nextChar++;
                     state = 3;
                 }
                 else if (*nextChar == '"')
@@ -110,7 +121,7 @@ void GetNextToken(char *codeStr)
                 }
                 else if (*nextChar != '\0')
                 {
-                    lexeme[0] = *nextChar++;
+                    tokenStr[0] = *nextChar++;
                     state = 6;
                 }
                 else
@@ -121,10 +132,9 @@ void GetNextToken(char *codeStr)
                 
             case 2:
                 // parse a number
-                //printf("\t\tstate 3, parse a number\n");
                 if (isdigit(*nextChar))
                 {
-                    lexeme[i++] = *nextChar++;
+                    tokenStr[i++] = *nextChar++;
                 }
                 else
                 {
@@ -134,10 +144,9 @@ void GetNextToken(char *codeStr)
                 
             case 3:
                 // parse variable name or keyword
-                //printf("\t\tstate 4, parse in variable name or keyword\n");
                 if (isalnum(*nextChar))
                 {
-                    lexeme[i++] = *nextChar++;
+                    tokenStr[i++] = *nextChar++;
                 }
                 else
                 {
@@ -146,11 +155,14 @@ void GetNextToken(char *codeStr)
                 break;
                 
             case 10:
-                // parse a string
-                //printf("\t\tstate 10, parse string\n");
-                if (*nextChar != '"')
+                // parse a string ensuring the string is correctly terminated
+               if (*nextChar != '"')
                 {
-                    lexeme[i++] = *nextChar++;
+                    if (*nextChar == '\0')
+                    {
+                        return false;
+                    }
+                    tokenStr[i++] = *nextChar++;
                 }
                 else
                 {
@@ -161,71 +173,113 @@ void GetNextToken(char *codeStr)
                 
             case 11:
                 // return String token
-                lexeme[i] = '\0';
-                //printf("\t\tstate 11, token = String %s\n", lexeme);
-                i = 0;
-                state = 0;
+                tokenStr[i] = '\0';
                 token = String;
-                return;
+                if (SymLookup(token))
+                {
+                    i = 0;
+                    state = 0;
+                    return true;
+                }
+                return false;
                 
             case 4:
                 // return Constant token
-                lexeme[i] = '\0';
-                //printf("\t\tstate 5, token = Constant %s\n", lexeme);
-                i = 0;
-                state = 0;
+                tokenStr[i] = '\0';
                 token = Constant;
-                return;
+                if (SymLookup(token))
+                {
+                    i = 0;
+                    state = 0;
+                    return true;
+                }
+                return false;
                 
             case 5:
                 // check for string var name
                 if (*nextChar == '$')
                 {
-                    lexeme[i++] = *nextChar++;
-                    token = Strvar;
+                    tokenStr[i++] = *nextChar++;
+                    token = StrvarName;
                 }
                     
-                // terminate the lexeme and prepare for the next lexer state
-                lexeme[i] = '\0';
+                // terminate the tokenStr and prepare for the next lexer state
+                tokenStr[i] = '\0';
                 i = 0;
                 state = 0;
                 
-                // if the lexeme is a keyword, return its corresponding token
+                // if the tokenStr is a keyword, normalize it to lower case and return its corresponding token
+                for (int j = 0; j < strlen(tokenStr)+1; j++)
+                {
+                    tokenStrLc[j] = tolower(tokenStr[j]);
+                }
                 for (int j = 0; j < keywordTableSize; j++)
                 {
-                    if (!strcmp(keywordTab[j].keyword, lexeme))
+                    if (!strcmp(keywordTab[j].keyword, tokenStrLc))
                     {
                         token = keywordTab[j].token;
-                        return;
+                        return true;
                     }
                 }
                 
-                // if the lexeme isn't a keyword or a string var name return Intvar
+                // if the tokenStr isn't a keyword or a string var name return int var name
                 if (token == 0)
-                    token = Intvar;
+                    token = IntvarName;
                     
                 // set the symbol reference of the variable name
-                lexsym = SymLookup(lexeme);
-                return;
+                return SymLookup(token);
                 
             case 6:
-                // return single char token
-                lexeme[1] = '\0';
-                //printf("\t\tstate 7, token = single char token %c\n", lexeme[0]);
+                // return double- or single-char operator token
+                if (tokenStr[0] == '!' && *nextChar == '=')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = NE_OP;
+                }
+                else if (tokenStr[0] == '<' && *nextChar == '>')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = NE_OP;
+                }
+                else if (tokenStr[0] == '<' && *nextChar == '=')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = LE_OP;
+                }
+                else if (tokenStr[0] == '>' && *nextChar == '=')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = GE_OP;
+                }
+                else if (tokenStr[0] == '<' && *nextChar == '<')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = SL_OP;
+                }
+                else if (tokenStr[0] == '>' && *nextChar == '>')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    token = SR_OP;
+                }
+                else
+                {
+                    token = tokenStr[0];
+                }
+                tokenStr[i] = '\0';
                 i = 0;
                 state = 0;
-                token = lexeme[0];
-                return;
+                return true;
                 
             case 7:
                 // return EOL
-                //printf("\t\tstate 8, token = EOL\n");
                 i = 0;
                 state = 0;
                 token = 0;
-                return;
+                return true;
         }
     }
+    
+    return true;
 }
 
 // end of lexer.c

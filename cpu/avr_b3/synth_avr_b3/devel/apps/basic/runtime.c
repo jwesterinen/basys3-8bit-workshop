@@ -4,10 +4,10 @@
 *   Basic interpreter parser.
 *
 *   Todo items:
-*    - reclaim dynamic memory
-*    - don't allocate nodes before checking syntax
-*    - change all strings to dynamic allocation, i.e. Program, Strings
-*    - syntax check for program lines before adding to Program
+*    - implement logical operators
+*    - call InitUI() from REBOOT command
+*    - fix IF command predicate (neg numbers, arithmetic, etc)
+*    - implement line removal, i.e. line number with no command removes that line in the program (replace with NOP??)
 */
 
 #include <time.h>
@@ -20,66 +20,58 @@
 #include "symtab.h"
 #include "lexer.h"
 #include "parser.h"
+#include "main.h"
 
 #define STRING_LEN 80
-#define INSTR_TAB_LEN 100
-
-extern void PrintResult(void);
+#define TABLE_LEN 100
+#define STACK_SIZE 100
+#define MAX_PROGRAM_LEN 100
 
 bool RunProgram(void);
 bool ListProgram(void);
-bool IsCommand(void);
-bool IsPrint(void);
-bool IsExprList(void);
-bool IsAssign(void);
-bool IsFor(void);
-bool IsNext(void);
-bool IsGoto(void);
-bool ExecCommand(void);
+bool ExecCommand(Command *command);
+bool ExecPrint(PrintCommand *cmd);
+bool ExecAssign(AssignCommand *cmd);
+bool ExecFor(ForCommand *cmd);
+bool ExecNext(NextCommand *cmd);
+bool ExecGoto(GotoCommand *cmd);
+bool ExecIf(IfCommand *cmd);
+bool ExecGosub(GosubCommand *cmd);
+bool ExecReturn(void);
+bool ExecEnd(void);
+bool ExecInput(InputCommand *cmd);
+bool EvaluateExpr(Node *exprTreeRoot, int *pValue);
+bool TraverseTree(Node *node);
+int EvalStackPush(int a);
+int EvalStackPop(void);
+int EvalStackTop(void);
+int EvalStackPut(int a);
 
+// runtime strings and flags
 bool ready = true;
 char errorStr[STRING_LEN];
 char resultStr[STRING_LEN];
+int nodeCount = 0;
 
-typedef struct ForInstruction {
-    int lineNum;
-    Symbol *symbol;
-    int to;
-    int step;
-} ForInstruction;
-ForInstruction fortab[INSTR_TAB_LEN];
-int fortabIdx = 0;
 
-#define MAX_PROGRAM_LEN 100
-typedef struct CodeLine {
-    int lineNum;
-    char command[STRING_LEN]; 
-} CodeLine;
-CodeLine Program[MAX_PROGRAM_LEN];
+// ***stacks and queues***
+
+// command queue aka "the program"
+Command Program[MAX_PROGRAM_LEN];
 int programIdx = 0;     // program index used to add commands to the program
 int ip = 0;             // instruction pointer used to point to the current command in the program
 
-/*
-    BASIC grammar:
-    
-    command         : directive | deferred-cmd | immediate-cmd
-    directive       : RUN | LIST | NEW | BYE
-    deferred-cmd    : [Constant] executable-cmd
-    executable-cmd  : immediate-cmd | for | next | goto
-    immediate-cmd   : print | assignment
-    print           : PRINT print-list
-    print-list      : printable  [';' | ','] print-list | printable
-    printable       : expr | String
-    assignment      : (Intvar '=' expr) | (Strvar '=' String)
-    for             : FOR Identifier '=' expr TO expr [STEP expr]
-    next            : NEXT [Identifier]
-    
-    goto            : GOTO Constant
-    if              : IF expr THEN immediate-cmd | IF expr THEN [GOTO] Constant | IF expr [THEN] GOTO Constant
-    gosub           :
-    return          :
-    
-*/
+// for command stack needed by the next command
+ForCommand *fortab[TABLE_LEN];
+int fortabIdx = 0;
+
+// call stack used for subroutines/returns
+int cs[STACK_SIZE];
+unsigned csp = 0;
+
+// eval stack and its index, i.e. eval stack pointer
+int es[STACK_SIZE];
+unsigned esp = 0;
 
 // convert a command line number to an index to the program
 int LineNum2Ip(int lineNum)
@@ -100,19 +92,10 @@ int Idx2lineNum(int idx)
 
 void SwapProgLines(int progIdxA, int progIdxB) 
 { 
-    CodeLine temp;
-    
-    // copy a to temp
-    temp.lineNum = Program[progIdxA].lineNum; 
-    strcpy(temp.command, Program[progIdxA].command);
-    
-    // copy b to a
-    Program[progIdxA].lineNum = Program[progIdxB].lineNum; 
-    strcpy(Program[progIdxA].command, Program[progIdxB].command);
-    
-    // copy temp to b
-    Program[progIdxB].lineNum = temp.lineNum; 
-    strcpy(Program[progIdxB].command, temp.command);
+    // copy a to temp, b to a, then temp to b
+    Command temp = Program[progIdxA]; 
+    Program[progIdxA] = Program[progIdxB]; 
+    Program[progIdxB] = temp; 
 } 
 
 void SortProgramByLineNum(void) 
@@ -133,90 +116,135 @@ void SortProgramByLineNum(void)
     } 
 } 
 
+void PrintResult(void)
+{
+    if (resultStr[0] != '\0')
+    {
+        PutString(resultStr);
+        PutString("\n");
+        resultStr[0] = '\0';
+    }
+}
+
 // command : directive | statement
-bool ProcessCommand(char *command)
+bool ProcessCommand(char *commandStr)
 {
     // init the parser and error sting
-    InitParser();
-    errorStr[0] = '\0';
+    Command command = {0};
+    bool isImmediate;
+    int lineIdx;
+    char tempStr[80];
+    
+    // default parser error
+    strcpy(errorStr, "syntax error");
     
     // execute any directive
-    if (!strcmp(command, "run"))
+    if (!strcmp(commandStr, "run"))
     {
         return RunProgram();
     }
-    else if (!strcmp(command, "list"))
+    else if (!strcmp(commandStr, "list"))
     {
         return ListProgram();
     }
-    else if (!strcmp(command, "new"))
+    else if (!strcmp(commandStr, "new"))
     {
-        return (programIdx = 0);
+        fortabIdx = 0;
+        programIdx = 0;
+        csp = 0;
+        esp = 0;
+        FreeExprTrees();
+        sprintf(message, "node qty: %d\n", nodeCount);
+        MESSAGE(message);
+        return true;
     }
-    else if (!strcmp(command, "bye"))
+    else if (!strcmp(commandStr, "reboot"))
     {
-        exit(0);
+        fortabIdx = 0;
+        programIdx = 0;
+        csp = 0;
+        esp = 0;
+        FreeExprTrees();
+        FreeSymtab();
+        InitDisplay();
+        return true;
     }
-    
-    // determine deferred or immediate command
-    GetNextToken(command);
-    if (token == Constant)
+
+    // init the lexer and parse the command to create the IR
+    if (GetNextToken(commandStr))
     {
-        // deferred - add to program
-        int lineNum = atoi(lexeme);
-        int lineIdx;
-        
-        // check to see if this is a replacement of an existing line by number
-        for (lineIdx = 0; lineIdx < programIdx; lineIdx++)
+        if (IsCommand(&command, &isImmediate))
         {
-            if (Program[lineIdx].lineNum == lineNum)
+            if (isImmediate)
             {
-                break;
-            }
-        }
-        strcpy(Program[lineIdx].command, command);
-        if (lineIdx == programIdx)
-        {
-            Program[lineIdx].lineNum = lineNum;
-            if (programIdx < MAX_PROGRAM_LEN-1)
-            {
-                programIdx++;
+                // the command has no line number so execute it immediatelys
+                return ExecCommand(&command);
             }
             else
             {
-                sprintf(errorStr, "no more program space");
-                return false;
+                // check to see if this is a replacement of an existing line by number
+                for (lineIdx = 0; lineIdx < programIdx; lineIdx++)
+                {
+                    if (command.lineNum == Idx2lineNum(lineIdx))
+                    {
+                        break;
+                    }
+                }
+                Program[lineIdx] = command;
+                if (lineIdx == programIdx)
+                {
+                    Program[lineIdx].lineNum = command.lineNum;
+                    if (programIdx < MAX_PROGRAM_LEN-1)
+                    {
+                        programIdx++;
+                    }
+                    else
+                    {
+                        sprintf(errorStr, "no more program space");
+                        return false;
+                    }
+                }
+                SortProgramByLineNum();
+                ready = false;
+                return true;
             }
         }
-        SortProgramByLineNum();
-        ready = false;
-    }
-    else
-    {
-        // immediate - execute the command directly
-        if (!ExecCommand())
-            return false;
-        ready = true;
+        else
+        {
+            sprintf(tempStr, ": %s", commandStr);
+            strcat(errorStr, tempStr);
+        }
     }
     
-    return true;
+    return false;
 }
 
+// execute commands in the program based on the Instruction Pointer (IP)
+// which will simply increment unless a next or goto command is executed
+// which will explicitly change the IP
 bool RunProgram(void)
 {
-    for (ip = 0; ip < programIdx; ip++)
+    char tempStr[STRING_LEN];
+    
+    // default error string
+    strcpy(errorStr, "execution error");
+    
+    // ready for more commands whether or not the program executes correctly
+    ready = true;    
+      
+    ip = 0;
+    while (ip < programIdx)
     {
         // execute the command
-        GetNextToken(Program[ip].command);
-        if (!ExecCommand())
+        if (!ExecCommand(&Program[ip]))
         {
-            ip = 0;
+            //strcpy(errorStr, "execution error");
+            sprintf(tempStr, " at line %d", Program[ip].lineNum);
+            strcat(errorStr, tempStr);
             return false;
         }
     }
-    ip = 0;
-    ready = true;      
-      
+          
     return true;
 }
 
@@ -224,225 +252,216 @@ bool ListProgram(void)
 {
     for (int i = 0; i < programIdx; i++)
     {
-        sprintf(resultStr, "%s", Program[i].command);
+        strcpy(resultStr, Program[i].commandStr);
         PrintResult();
     }
-    ready = true;
-    
+    ready = true;      
+      
     return true;
 }
 
-bool ExecCommand()
+bool ExecCommand(Command *command)
 {
-    if (!IsCommand())
+    switch (command->type)
     {
-        strcpy(errorStr, "syntax error");
-        return false;
-    }
+        case CT_PRINT: 
+            if (!ExecPrint(&command->cmd.printCmd))
+                return false;
+            break;
+                
+        case CT_ASSIGN: 
+            if (!ExecAssign(&command->cmd.assignCmd))
+                return false;
+            break;
+                
+        case CT_FOR: 
+            if (!ExecFor(&command->cmd.forCmd))
+                return false;
+            break;
+                
+        case CT_NEXT: 
+            if (!ExecNext(&command->cmd.nextCmd))
+                return false;
+            break;
+                
+        case CT_GOTO: 
+            if (!ExecGoto(&command->cmd.gotoCmd))
+                return false;
+            break;                
+                
+        case CT_IF: 
+            if (!ExecIf(&command->cmd.ifCmd))
+                return false;
+            break;                
+                
+        case CT_GOSUB: 
+            if (!ExecGosub(&command->cmd.gosubCmd))
+                return false;
+            break;                
+                
+        case CT_RETURN: 
+            if (!ExecReturn())
+                return false;
+            break;                
+                
+        case CT_END: 
+            if (!ExecEnd())
+                return false;
+            break;                
+                
+        case CT_INPUT: 
+            if (!ExecInput(&command->cmd.inputCmd))
+                return false;
+            break;                
+    }    
     PrintResult();
     
     return true;
 }
 
-// command : print | assignment | for | next | if
-bool IsCommand()
+bool ExecPrint(PrintCommand *cmd)
 {
-    if (token == Constant)
-    {
-        GetNextToken(NULL);
-    }
+    char exprStr[80];
+    int exprVal;
     
-    // print | assignment
-    if (IsPrint() || IsAssign() || IsFor() || IsNext() || IsGoto())
+    for (int i = 0; i < cmd->printListIdx; i++)
     {
-        return true;
-    }
-    
-    return false;
-}
-
-// print : PRINT expr-list
-bool IsPrint()
-{
-    if (token == PRINT)
-    {
-        //puts("IsPrint");
-        GetNextToken(NULL);
-        if (IsExprList())
+        if (cmd->printList[i].separator == ',')
         {
-            return true;
+            strcat(resultStr, "    ");
+        }
+        switch (cmd->printList[i].type)
+        {
+            case PT_STRSYM:
+                // string var so use its contents
+                if (SYM_STRVAL(cmd->printList[i].value.symbol))
+                    strcat(resultStr, SYM_STRVAL(cmd->printList[i].value.symbol));
+                else
+                    strcat(resultStr, "");
+                break;
+                
+            case PT_EXPR:
+                // expression so evaluate it and use the result
+                if (EvaluateExpr(cmd->printList[i].value.expr, &exprVal))
+                {
+                    sprintf(exprStr, "%d", exprVal);
+                    strcat(resultStr, exprStr);
+                }
+                else
+                {
+                    strcpy(errorStr, "invalid print expression");
+                    return false;
+                }
+                break;
+                
+            case PT_STRING:
+                // string literal so use it directly
+                strcat(resultStr, cmd->printList[i].value.string);
+                break;
+            
+            default:
+                strcpy(errorStr, "unknown printlist type");
+                return false;
         }
     }
+    ip++;
     
-    return false;
+    return true;
 }
-    
-// expr-list : (Identifier '$' | expr | String) [';' | ','] expr-list | (Identifier '$' | expr | String)
-// create a result string to be printed
-bool IsExprList()
+  
+// assignment : Intvar '=' expr | Strvar = String
+bool ExecAssign(AssignCommand *cmd)
 {
     int exprVal;
-    char exprStr[80];
     
-    //puts("IsExprList");
-    if (token == Strvar)
+    switch (cmd->type)
     {
-        strcat(resultStr, SYM_STRVAL(lexsym));
-        GetNextToken(NULL);
-    }
-    else if (GetExprValue(&exprVal))
-    {
-        // convert expr value to ascii and cat to existing result string
-        sprintf(exprStr, "%d", exprVal);              
-        strcat(resultStr, exprStr);
-    }
-    else if (token == String)
-    {
-        // cat the string to the result string
-        strcat(resultStr, lexeme);
-        GetNextToken(NULL);
-    }
-    else
-    {
-        return false;
-    }
-    
-    if (token == ';' || token == ',')
-    {
-        if (token == ',')
-        {
-            // cat intervening tab
-            strcat(resultStr, "\t");                
-        }
-        GetNextToken(NULL);
-        if (IsExprList())
-        {
-            return true;
-        }
-    }
-    else
-        return true;
-    
-    return false;
-}
-    
-// assignment : Intvar '=' expr | Strvar = String
-bool IsAssign()
-{
-    if (token == Intvar)
-    {
-        //puts("IsAssign");
-        GetNextToken(NULL);
-        if (token == '=')
-        {
-            GetNextToken(NULL);
-            if (GetExprValue(&(SYM_INTVAL(lexsym))))
+        case AT_EXPR:
+            if (EvaluateExpr(cmd->value.expr, &exprVal))
             {
-                SYM_TYPE(lexsym) = ST_INTVAR;
-                return true;
+                SYM_INTVAL(cmd->varsym) = exprVal;
             }
-        }
-    }
-    else if (token == Strvar)
-    {
-        GetNextToken(NULL);
-        if (token == '=')
-        {
-            GetNextToken(NULL);
-            if (token == String)
+            else
             {
-                // copy the string to the symbol's string value
-                SYM_STRVAL(lexsym) = calloc(strlen(lexeme)+1, 1);
-                if (SYM_STRVAL(lexsym))
-                {
-                    strcpy(SYM_STRVAL(lexsym), lexeme);
-                    SYM_TYPE(lexsym) = ST_STRVAR;
-                    return true;
-                }
+                strcpy(errorStr, "invalid assignment expression");
+                return false;
             }
-        }
+            break;
+        
+        case AT_STRING:
+            SYM_STRVAL(cmd->varsym) = cmd->value.string;
+            break;
+        
+        default:
+            strcpy(errorStr, "unknown assign type");
+            return false;
     }
-    
-    return false;
+    ip++;
+
+    return true;
 }
 
-// for : FOR Intvar '=' expr TO expr STEP expr
-bool IsFor()
+// for : FOR Intvar '=' init TO to [STEP step]
+bool ExecFor(ForCommand *cmd)
 {
-    int to, step = 1;
-    
-    if (token == FOR)
+    // perform initial variable assignment then push for command onto FOR stack
+    if (EvaluateExpr(cmd->init, &SYM_INTVAL(cmd->symbol)))
     {
-        //puts("IsFor");
-        GetNextToken(NULL);
-        if (token == Intvar)
-        {
-            GetNextToken(NULL);
-            if (token == '=')
-            {
-                GetNextToken(NULL);
-                if (GetExprValue(&(SYM_INTVAL(lexsym))))
-                {
-                    //GetNextToken(NULL);
-                    if (token == TO)
-                    {
-                        GetNextToken(NULL);
-                        if (GetExprValue(&to))
-                        {
-                            //GetNextToken(NULL);
-                            if (token == STEP)
-                            {
-                                if (!GetExprValue(&step))
-                                {
-                                    return false;
-                                }
-                            }
-                            fortab[fortabIdx].lineNum = Program[ip].lineNum;
-                            fortab[fortabIdx].symbol = lexsym;
-                            fortab[fortabIdx].to = to;
-                            fortab[fortabIdx].step = step;
-                            fortabIdx++;
-                            return true;
-                        }
-                    }
-                }
-            }
-        } 
+        fortab[fortabIdx++] = cmd;
+        ip++;
+        
+        return true;
     }
     
-    return false;       
+    return false;
 }
 
 // next : NEXT [Intvar]
-bool IsNext()
+bool ExecNext(NextCommand *cmd)
 {
-    if (token == NEXT)
+    ForCommand *forInstr = NULL;
+    int to, step = 1;
+    
+    // associate the next instruction with its matching for command
+    if (cmd->symbol)
     {
-        //puts("IsNext");
-        // default associated for instruction to the top of the for instruction stack
-        ForInstruction forInstr = fortab[fortabIdx - 1];
-        
-        GetNextToken(NULL);
-        if (token == Intvar)
+        // find the explicit for instruction associated with the next instruction's var name
+        for (int i = 0; i < fortabIdx; i++)
         {
-            // find the explicit for instruction associated with the next instruction's var name
-            for (int i = 0; i < fortabIdx; i++)
+            if (fortab[i]->symbol == cmd->symbol)
             {
-                if (!strcmp(SYM_NAME(fortab[i].symbol), lexeme))
-                {
-                    forInstr = fortab[i];
-                }
+                forInstr = fortab[i];
             }
         }
+    }
+    else
+    {
+        // use the for instruction on the top of the for stack for annonymous next
+        forInstr = fortab[fortabIdx - 1];
+    }
         
-        // change the variable value based on the for instruction's step value
-        SYM_INTVAL(forInstr.symbol) += forInstr.step;
-        
-        // check that the variable's value is in the range of the for instruction
-        if (SYM_INTVAL(forInstr.symbol) <= forInstr.to)
+    // modify the associated variable and perform a goto if needed        
+    if (forInstr->step)
+    {
+        if (!EvaluateExpr(forInstr->step, &step))
         {
-            // goto command at code line number following the for command
-            ip = LineNum2Ip(forInstr.lineNum);
+            return false;
+        }
+    }
+    SYM_INTVAL(forInstr->symbol) += step;
+    
+    // check that the variable's value is in the range of the for instruction
+    if (EvaluateExpr(forInstr->to, &to))
+    {
+        if (SYM_INTVAL(forInstr->symbol) <= to)
+        {
+            // goto command at line number following the for command
+            ip = LineNum2Ip(forInstr->lineNum) + 1;
+        }
+        else
+        {
+            // continue program execution with the following command
+            ip++;
         }
         return true;
     }
@@ -451,26 +470,372 @@ bool IsNext()
 }
 
 // goto : GOTO Constant
-bool IsGoto()
+bool ExecGoto(GotoCommand *cmd)
 {
-    int destination;
+    int dest;
     
-    if (token == GOTO)
+    if (EvaluateExpr(cmd->dest, &dest))
     {
-        GetNextToken(NULL);
-        if (GetExprValue(&destination))
+        if (dest > 0)
         {
-            if (destination > 0)
-            {
-                ip = LineNum2Ip(destination);
-                return true;
-            }
+            ip = LineNum2Ip(dest);
+            return true;
         }
-    }        
+    }
 
     return false;
 }
 
+// if : IF expr THEN [assign | print | goto]
+bool ExecIf(IfCommand *cmd)
+{
+    int predicate;
+    
+    if (EvaluateExpr(cmd->expr, &predicate))
+    {
+        // duh, but... if the predicate expr is true then perform 
+        // the associated commands, else go on to the following command
+        if (predicate)
+        {
+            switch (cmd->type)
+            {
+                case IT_PRINT:
+                    return ExecPrint(&cmd->cmd.printCmd);
+                case IT_ASSIGN:
+                    return ExecAssign(&cmd->cmd.assignCmd);
+                case IT_GOTO:
+                    return ExecGoto(&cmd->cmd.gotoCmd);
+                default:
+                    strcpy(errorStr, "unknown sub-command in IF");
+                    break;
+            }
+        }
+        else
+        {
+            ip++;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// gosub : GOSUB Constant
+bool ExecGosub(GosubCommand *cmd)
+{
+    int dest;
+    
+    if (EvaluateExpr(cmd->dest, &dest))
+    {
+        if (dest > 0)
+        {
+            // push return address, i.e. current IP + 1, onto call stack then go to the subroutine
+            cs[csp++] = ip + 1;
+            ip = LineNum2Ip(dest);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// return : RETURN
+bool ExecReturn(void)
+{
+    // check for return without gosub error
+    if (csp == 0)
+    {
+        strcpy(errorStr, "return without gosub");
+        return false;
+    }
+    // pop the return address from the call stack and set the IP to it
+    ip = cs[--csp];
+
+    return true;
+}
+
+// end : END
+bool ExecEnd(void)
+{
+    // end the program by setting IP to one past the last command in the program
+    ip = programIdx;
+
+    return true;
+}
+
+// TODO: change SymLookup to accept both a token value and an explicit token string, not the global "tokenStr"
+// input : INPUT IntVarName
+bool ExecInput(InputCommand *cmd)
+{
+    char buffer[80];
+    
+    //prompt with symbol name, space, question mark
+    sprintf(buffer, "%s ?", SYM_NAME(cmd->varsym));
+    PutString(buffer);
+    
+    // read input text and mask off the newline
+    GetString(buffer);
+    buffer[strlen(buffer)-1] = '\0';
+    
+    // set the variable value based on type
+    if (cmd->type == IPT_EXPR)
+    {
+        SYM_INTVAL(cmd->varsym) = atoi(buffer);
+        ip++;
+        return true;
+    }
+    else if (cmd->type == IPT_STRING)
+    {
+        // setup for a call to the symbol table
+        strcpy(tokenStr, buffer);
+        if (SymLookup(String))
+        {
+            SYM_STRVAL(cmd->varsym) = lexval.lexeme;
+            ip++;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// return the value of an expression based on its expr tree
+bool EvaluateExpr(Node *exprTreeRoot, int *pValue)
+{
+    if (TraverseTree(exprTreeRoot))
+    {
+        *pValue = EvalStackPop();
+        return true;
+    }
+    
+    return false;
+}
+
+// tree traversal is guided by the grammar rule
+bool TraverseTree(Node *node)
+{
+    bool retval = true;
+    
+    if (node != NULL)
+    {
+        switch (NODE_TYPE(node))
+        {
+            case NT_LOGIC_EXPR:
+            case NT_REL_EXPR:
+            case NT_SHIFT_EXPR:
+            case NT_ADD_EXPR:
+            case NT_MULT_EXPR:
+                //  expr
+	            //    : expr expr'
+                retval &= TraverseTree(SON(node));
+                retval &= TraverseTree(BRO(SON(node)));            
+                break;
+                
+            case NT_LOGIC_EXPR_PRIME:
+            case NT_REL_EXPR_PRIME:
+            case NT_SHIFT_EXPR_PRIME:
+            case NT_ADD_EXPR_PRIME:
+            case NT_MULT_EXPR_PRIME:
+                // binary expressions
+                // expr'
+	            //    : op expr expr'
+	            //    ...
+	            //    | $
+                retval &= TraverseTree(BRO(SON(node)));         // left opnd
+                retval &= TraverseTree(BRO(BRO(SON(node))));    // right opnd
+                retval &= TraverseTree(SON(node));              // binop
+                break;
+                
+            case NT_UNARY_EXPR:
+                // unaryExpr
+                //   ['+' | '-' | NOT_OP] factor    
+                retval &= TraverseTree(BRO(SON(node)));         // opnd
+                retval &= TraverseTree(SON(node));              // unop
+                break;
+
+            case NT_PRIMARY_EXPR:
+                // factor
+                //   expr | Constant | Identifier
+                retval &= TraverseTree(SON(node));
+                break;
+            
+            case NT_BINOP:
+                switch (NODE_VAL_OP(node))
+                {
+    
+                    case AND_OP:
+                        // put the logical AND of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() && EvalStackTop());
+                        break;
+                        
+    
+                    case OR_OP:
+                        // put the logical OR of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() || EvalStackTop());
+                        break;
+                        
+    
+                    case XOR_OP:
+                        // put the exclusive OR of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() ^ EvalStackTop());
+                        break;
+                                                
+                    case '=':
+                        // put the equality relation of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() == EvalStackTop());
+                        break;                        
+                        
+                    case NE_OP:
+                        // put the non-equality relation of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() != EvalStackTop());
+                        break;     
+                                           
+                    case '>':
+                    {
+                        // put the > relation of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() > b);
+                    }
+                        break;
+                            
+                    case GE_OP:
+                    {
+                        // put the >= relation of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() >= b);
+                    }
+                        break;
+                        
+                    case '<':
+                    {
+                        // put the < relation of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() < b);
+                    }
+                        break;
+                        
+    
+                    case LE_OP:
+                    {
+                        // put the <= relation of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() <= b);
+                    }
+                        break;
+                        
+                    case '+':
+                        // put the sum of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() + EvalStackTop());
+                        break;
+                        
+                    case '-':
+                    {
+                        // put the difference of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() - b);
+                    }
+                        break;
+                        
+                    case '*':
+                        // put the product of the top 2 expr stack entries onto the top of the stack
+                        EvalStackPut(EvalStackPop() * EvalStackTop());
+                        break;
+                        
+                    case '/':
+                    {
+                        // put the quotient of the top 2 expr stack entries onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() / b);
+                    }
+                        break;
+                        
+                    case '%':
+                    case MOD_OP:
+                    {
+                        // put the modulus of the next to top of stack value by the top of stack value onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() % b);
+                    }
+                        break;
+                        
+                    case SL_OP:
+                    {
+                        // put the left shift of the next to top of stack value by the top of stack onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() << b);
+                    }
+                        break;
+                        
+                    case SR_OP:
+                    {
+                        // put the right shift of the next to top of stack value by the top of stack onto the top of the stack
+                        int b = EvalStackPop();
+                        EvalStackPut(EvalStackTop() >> b);
+                    }
+                        break;
+                }
+                break;
+                
+            case NT_UNOP:
+                switch (NODE_VAL_OP(node))
+                {
+                    case '+':
+                        // do nothing to make something positive
+                        break;
+                        
+                    case '-':
+                        // negate the top of the expression
+                        EvalStackPut(-EvalStackTop());
+                        break;
+                        
+                    case NOT_OP:
+                        // logically invert the top of the expression stack
+                        EvalStackPut(!EvalStackTop());
+                        break;
+                }
+                break;
+                
+            case NT_CONSTANT:
+                EvalStackPush(NODE_VAL_CONST(node));
+                break;
+                
+            case NT_INTVAR:
+                EvalStackPush(SYM_INTVAL(NODE_VAL_SYMBOL(node)));
+                break;
+
+            default:
+                puts("unknown node type");
+                retval = false;
+                break;
+        }
+    }
+    
+    return retval;
+}
+
+// eval stack functions
+int EvalStackPush(int a)
+{
+    if (esp < STACK_SIZE)
+    {
+        es[esp++] = a;
+        return a;
+    }
+    return -1;
+}
+int EvalStackPop(void)
+{
+    return es[--esp];
+} 
+int EvalStackTop(void)
+{
+    return es[esp-1];
+} 
+int EvalStackPut(int a)
+{
+    es[esp-1] = a;
+    return a;
+}
 
 // end of runtime.c
 

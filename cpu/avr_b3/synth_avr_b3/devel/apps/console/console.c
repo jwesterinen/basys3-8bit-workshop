@@ -1,5 +1,8 @@
 /*
 *   console.c
+*   
+*   This describes the canonical way to communicate from the console device to 
+*   the VGA display.
 */
 
 #include <time.h>

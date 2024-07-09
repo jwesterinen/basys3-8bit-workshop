@@ -2,9 +2,6 @@
  * symtab.h -- definitions for symbol table
  */
 
-#include <stdbool.h>
-#include <inttypes.h>
-
 #define SYM_NAME(symbol) symbol->name
 #define SYM_TYPE(symbol)  symbol->type
 #define SYM_INTVAL(symbol)  symbol->value.intval
@@ -23,6 +20,7 @@ typedef struct Symbol
     struct Symbol *next;
 } Symbol;
 
-Symbol *SymLookup(const char *name);
+bool SymLookup(int token);
 Symbol *SymFind(const char *name);
+void FreeSymtab(void);
 
