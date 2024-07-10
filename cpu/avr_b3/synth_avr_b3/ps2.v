@@ -101,7 +101,7 @@ module ps2(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,IRQ_O,clocks,p
     wire   [5:0] rxaddr;     // Rx RAM address lines
     wire   rxin;             // Rx RAM input lines
     wire   rxwen;            // Rx RAM write enable
-    ps2ram44x1 ps2rx(rxout,rxaddr,rxin,CLK_I,wen);
+    ps2ram44x1 ps2rx(rxout,rxaddr,rxin,CLK_I,rxwen);
 
     initial
     begin
@@ -175,7 +175,7 @@ module ps2(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,IRQ_O,clocks,p
     assign rxaddr = (TGA_I && myaddr) ? ADR_I[5:0] : bitidx[5:0] ;
     assign rxin = (TGA_I && myaddr && WE_I && (bitidx == 0)) ? DAT_I[0] : ps2din;
     // latch data if receiving PS/2 data or if getting a command byte from the host
-    assign wen  = (ps2clockedge & (xmitstate == `PS2_XMITIDLE)) | (TGA_I & myaddr & WE_I);
+    assign rxwen = (ps2clockedge & (xmitstate == `PS2_XMITIDLE)) | (TGA_I & myaddr & WE_I);
 
     // Assign the outputs.
     assign myaddr = (STB_I) && (ADR_I[7:5] == 0);

@@ -7,10 +7,6 @@
  *
  */
 
-`ifdef SYNTHESIS
- `include "lfsr.v"
-`endif
-
 module SN76477(clk, reset,
                vco1_freq, vco2_freq, noise_freq, lfo_freq,
                vco1_select, vco2_select, noise_select, 

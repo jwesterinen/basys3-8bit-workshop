@@ -91,14 +91,10 @@ module display_b3(
     end
 
     // display clock derivation
-    wire display_clk;
-`ifdef SYNTHESIS        
     // scale the input clock to ~500Hz (~2ms period)
+    wire display_clk;
     prescaler #(.N(16)) ps16(clk, display_clk);
-`else
-    // no scaling for simulator
-    assign display_clk = clk;
-`endif 
+
     // display selection   
     reg [1:0] display_index = 0;
     always @(posedge display_clk)

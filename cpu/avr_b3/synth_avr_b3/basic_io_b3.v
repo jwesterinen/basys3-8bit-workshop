@@ -1,7 +1,3 @@
-`ifdef SYNTHESIS
- `include "display_b3.v"
-`endif
-
 /*
  *  basic_io_b3.v
  *
@@ -64,13 +60,8 @@ module basic_io_b3(
     end
     
     wire debounce_clk;
-`ifdef SYNTHESIS    
     // scale the input clock to ~50Hz (~20ms period)
     prescaler #(.N(21)) ps20(clk, debounce_clk);
-`else
-    // no scaling for simulator
-    assign debounce_clk = clk;
-`endif    
     
     // debounce the buttons and switches
     always @(posedge debounce_clk) begin

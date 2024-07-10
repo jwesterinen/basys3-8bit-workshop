@@ -6,6 +6,8 @@ module prescaler #(
 );
     //-- divisor register
     reg [N-1:0] divcounter;
+    initial
+        divcounter = 0;
 
     //-- N bit counter
     always @(posedge clk_in)

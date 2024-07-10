@@ -18,6 +18,7 @@ compile:
 # Run simulation
 run: compile
 	vvp $(NAME_TOP).vvp
+	mv dump.vcd $(NAME_TOP).vcd
 
 # Start viewer
 view: run

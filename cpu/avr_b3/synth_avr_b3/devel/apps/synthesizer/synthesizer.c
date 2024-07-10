@@ -49,7 +49,7 @@ int main(void)
     stdout = &mystdout;
 
     // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    UBRR0 = 54-1;
 
     // init displays
     DISPLAY0 = 0;
@@ -146,7 +146,7 @@ int main(void)
 #ifdef VERBOSE        
         // display reg values on the console
         printf("vco1 freq = %x, vco2 freq = %x, noise freq = %x, lfo freq = %x\r\n", VCO1_FREQ, VCO2_FREQ, NOISE_FREQ, LFO_FREQ);
-        msleep(500);
+        msleep(50);
 #endif        
     }
         

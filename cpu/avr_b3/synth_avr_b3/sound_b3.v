@@ -19,10 +19,6 @@
  *      0x0a: mixer: {LFO, noise, VCO2, VCO1}
  */
  
-`ifdef SYNTHESIS
- `include "SN76477.v"
-`endif
-
 module sound_b3(
     input clk,              // system clock
     input reset,            // active-high reset

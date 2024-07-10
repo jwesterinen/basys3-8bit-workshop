@@ -8,22 +8,18 @@
  *      0x00: keypad data
  */
 
-`ifdef SYNTHESIS
- `include "PmodKYPD.v"
-`endif
-
 module keypad_b3(
-    input clk,                  // 100MHz clock
+    input system_clk,           // 50MHz clock
     output [7:0] data_out,      // keypad data output
     input re,                   // read enable
-    input [3:0] row,            // Rows on KYPD
-    output [3:0] col            // Columns on KYPD
+    output [3:0] col,           // Columns on KYPD
+    input [3:0] row            // Rows on KYPD
 );
 	// output buffer
 	wire [4:0] keypad_buf;
 
 	// keypad controller module
-	keypad kpd(clk, row, col, keypad_buf);
+	keypad kpd(system_clk, row, col, keypad_buf);
     
     // register decoding for reading from IO devices (note: there is only 1 register)
     assign data_out = (re) ? keypad_buf : 0;   // keypad keycodes

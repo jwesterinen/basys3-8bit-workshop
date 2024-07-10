@@ -130,7 +130,7 @@ void DisplayBuf(PIXEL_BUFFER buffer)
 void setup() 
 {
     // set console baud rate to 115200
-    UBRR0 = 13-1;
+    UBRR0 = 54-1;
 
     // seed the random number generator
     srand(time(NULL));

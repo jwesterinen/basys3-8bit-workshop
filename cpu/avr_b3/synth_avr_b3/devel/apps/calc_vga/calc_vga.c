@@ -97,7 +97,7 @@ int main(void)
     char *promptStr = "> ";
 
     // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    UBRR0 = 54-1;
 
     stdout = &mystdout;
     printf("starting VGA calculator\r\n");

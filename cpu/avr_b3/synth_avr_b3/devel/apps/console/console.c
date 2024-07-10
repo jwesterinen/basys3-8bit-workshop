@@ -37,7 +37,7 @@ ISR(_VECTOR(3))
 int main(void)
 {
     // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    UBRR0 = 54-1;
 
     char lineBuf[80];
     unsigned i = 0;

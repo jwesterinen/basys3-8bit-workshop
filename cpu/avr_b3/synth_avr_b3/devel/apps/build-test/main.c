@@ -161,7 +161,7 @@ void test_heap(void)
 int main(void)
 {
     // set UART baud rate to 115200
-    //UBRR0 = 13-1;
+    //UBRR0 = 54-1;
 
     //test_printf();
     //test_interrupt();

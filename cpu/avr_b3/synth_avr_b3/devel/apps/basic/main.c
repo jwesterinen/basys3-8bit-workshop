@@ -11,7 +11,7 @@
 #include "runtime.h"
 
 // default is PS2 keyboard
-//#define USE_CONSOLE_KB
+#define USE_CONSOLE_KB
 
 #ifdef USE_CONSOLE_KB
     #define CR      '\r'    // newlines are returned as carriage return (CR) by terminal emulators
@@ -132,7 +132,8 @@ void InitDisplay(void)
 int main(void)
 {
     // set UART baud rate to 115200
-    UBRR0 = 13-1;
+    //UBRR0 = 13-1;
+    UBRR0 = 54-1;
 
     // enable UART receiver interrupts
     UCSRB0 |= (1<<RXCIE);

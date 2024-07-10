@@ -13,16 +13,6 @@
  *      ps2:        reg addrs 0x400-0x4ff
  */
  
-`ifdef SYNTHESIS
- `include "basic_io_b3.v"
- `include "keypad_b3.v"
- `include "sound_b3.v"
- `include "sysdefs.h"
- `include "clocks.v"
- `include "vgaterm.v"
- `include "ps2.v"
-`endif
-
 `define BASIC_IO_SELECT 4'h0
 `define KEYPAD_SELECT   4'h1
 `define SOUND_SELECT    4'h2
@@ -32,6 +22,7 @@
 module mmio
 (  
     input    clk,           // 100 MHz clock
+    input    system_clk,    // CPU clock
     input    re,
     input    we,
     input    [11:0] addr,
@@ -44,9 +35,8 @@ module mmio
     output  [6:0] seg,      // display segments
     output  dp,             // display decimal point
     output  [3:0] an,       // display select
-`ifdef SYNTHESIS // (simulator doesn't like inout ports)
-    inout [7:0] JB,         // PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
-`endif 	
+    output [3:0] JBU,         // PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
+    input  [3:0] JBL,         // PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
     output JA7,             // Pmod-Audio, JA7 is left input (IL)
     output [3:0] vgaBlue,   // VGA signals
     output [3:0] vgaGreen,
@@ -66,22 +56,12 @@ module mmio
     wire [7:0] vgaterm_dout;
 
     wire clk_50MHz;
-`ifdef SYNTHESIS    
     // scale the input clock to 50MHz
     prescaler #(.N(1)) ps50(clk, clk_50MHz);
-`else
-    // no scaling for simulator
-    assign clk_50MHz = clk;
-`endif    
     
     wire clk_12MHz;
-`ifdef SYNTHESIS    
     // scale the input clock to ~12.5MHz
     prescaler #(.N(3)) ps12(clk, clk_12MHz);
-`else
-    // no scaling for simulator
-    assign clk_12MHz = clk;
-`endif    
     
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
     wire basic_io_select = (addr[11:8] == `BASIC_IO_SELECT);
@@ -89,22 +69,20 @@ module mmio
     wire basic_io_we = basic_io_select & we;
     basic_io_b3 basic_io
     (
-        clk, 
+        system_clk, 
         addr[7:0], basic_io_dout, data_write, basic_io_re, basic_io_we, 
         sw, btn, led, seg, dp, an
     );
 
-`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
     // Pmod keypad
     wire keypad_select = (addr[11:8] == `KEYPAD_SELECT);
     wire keypad_re = keypad_select & re;
 	keypad_b3 keypad
 	(
-	    clk, 
+	    system_clk, 
 	    keypad_dout, keypad_re, 
-	    JB[7:4], JB[3:0]
+	    JBU, JBL
 	);
-`endif    
 
     // sound generator w/Pmod amp/speaker
     wire sound_select = (addr[11:8] == `SOUND_SELECT);
@@ -112,7 +90,7 @@ module mmio
     wire sound_we = sound_select & we;
     sound_b3 sound
     (
-        clk_50MHz, 
+        system_clk, 
         1'b0, addr[7:0], sound_dout, data_write, sound_re, sound_we, 
         JA7
     );
@@ -132,7 +110,7 @@ module mmio
     wire vgaterm_ack;
     vgaterm vga
     (
-        clk_12MHz, 
+        system_clk,
         vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, peri_clks, 
         {vgaBlue[1], vgaGreen[1], vgaRed[1], vgaBlue[2], vgaGreen[2], vgaRed[2], Vsync, Hsync}
     );
@@ -153,9 +131,7 @@ module mmio
     // latch peripheral output
     always @(posedge clk) begin
         out_buf <= (basic_io_select && re)  ? basic_io_dout :
-`ifdef SYNTHESIS
                    (keypad_select && re)    ? keypad_dout   :
-`endif                    
                    (sound_select && re)     ? sound_dout    :
                    (vgaterm_select && re)   ? vgaterm_dout  :
                    (ps2_select && re)       ? ps2_dout :

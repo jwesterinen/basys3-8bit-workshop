@@ -21,14 +21,6 @@
 *       MMIO space:     0xf000-0xffff in data memory
 */
  
-`ifdef SYNTHESIS
- `include "prescaler.v"
- `include "flash.v"
- `include "ram.v"
- `include "mmio.v"
- `include "avr_core.v"
- `include "avr_io_uart.v"
-`endif
 
 `define MMIO_BASE 4'hf
 
@@ -54,9 +46,8 @@ module avr_b3(
     output [6:0] seg,   // display segments
     output dp,          // decimal point
     output [3:0] an,    // display anode
-`ifdef SYNTHESIS        // (simulator doesn't like inout ports)
-    inout [7:0] JB,     // Port JB on Basys3, on PmodKYPD, JB[7:4] is rows, JB[3:0] is Columns
-`endif 	
+    output [3:0] JBU,   // Port JB on Basys3, on PmodKYPD
+    input  [3:0] JBL,   // Port JB on Basys3, on PmodKYPD
     output JA7,         // Port JA on Basys3, on Pmod-Audio JA7 is left input (IL)
     output JC0,         // Port JC0-3 used for out4 peripheral
     output JC1,
@@ -87,15 +78,9 @@ module avr_b3(
     wire [7:0] keypad_io_dout;
     wire [7:0] sound_io_dout;
     
-// TODO: this should really be done with a PLL
     wire system_clk;
-`ifdef SYNTHESIS    
-    // scale the input clock to ~12.5MHz
-    prescaler #(.N(3)) ps12(clk, system_clk);
-`else
-    // no scaling for simulator
-    assign system_clk = clk;
-`endif    
+    // scale the input clock to ~50 MHz
+    prescaler #(.N(1)) ps12(clk, system_clk);
     
     // ROM
     parameter pmem_width = 15;      // 15-bit width = 32K program space, BUT the AVR pmem works in _words_, so it's actually 64K _bytes_
@@ -133,14 +118,9 @@ module avr_b3(
     assign mmio_we = dmem_we & (dmem_a[15:12] == `MMIO_BASE);
     mmio core0_mmio
     (
-        clk, mmio_re, mmio_we, rio_a[11:0], mmio_di, dmem_do, 
-`ifdef SYNTHESIS
-        sw, btn, led, seg, dp, an, JB, JA7, vgaBlue, vgaGreen, vgaRed,
+        clk, system_clk, mmio_re, mmio_we, rio_a[11:0], mmio_di, dmem_do, 
+        sw, btn, led, seg, dp, an, JBU, JBL, JA7, vgaBlue, vgaGreen, vgaRed,
         Vsync, Hsync, PS2Clk, PS2Data, PS2irq
-`else
-        sw, btn, led, seg, dp, an, JA7, vgaBlue, vgaGreen, vgaRed,
-        Vsync, Hsync, PS2Clk, PS2Data, PS2irq
-`endif        
     );
 
     // Select between RAM and MMIO and latch value on read of either

@@ -8,10 +8,6 @@
  *      0x0: keypad data
  */
 
-`ifdef SYNTHESIS
- `include "PmodKYPD.v"
-`endif
-
 module keypad_io_b3(
     input clk,                  // 100MHz clock
     output [7:0] data_out,      // keypad data output

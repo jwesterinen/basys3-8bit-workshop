@@ -5,7 +5,7 @@
 *
 */
 
-#define F_CPU 12500000UL
+#define F_CPU 50000000UL
 #include <stdbool.h>
 #include <util/delay.h>
 #include "../include/avr_b3.h"
