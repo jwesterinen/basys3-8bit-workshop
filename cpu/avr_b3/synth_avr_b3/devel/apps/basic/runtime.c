@@ -40,6 +40,9 @@ bool ExecGosub(GosubCommand *cmd);
 bool ExecReturn(void);
 bool ExecEnd(void);
 bool ExecInput(InputCommand *cmd);
+bool ExecPoke(PokeCommand *cmd);
+bool Peek(uint16_t addr);
+bool ExecBuiltinFct(const char *name);
 bool EvaluateExpr(Node *exprTreeRoot, int *pValue);
 bool TraverseTree(Node *node);
 int EvalStackPush(int a);
@@ -72,6 +75,12 @@ unsigned csp = 0;
 // eval stack and its index, i.e. eval stack pointer
 int es[STACK_SIZE];
 unsigned esp = 0;
+
+// built-in function list
+typedef struct FctList {
+    char *name;
+    int arity;
+} FctList;
 
 // convert a command line number to an index to the program
 int LineNum2Ip(int lineNum)
@@ -313,6 +322,11 @@ bool ExecCommand(Command *command)
             if (!ExecInput(&command->cmd.inputCmd))
                 return false;
             break;                
+                
+        case CT_POKE: 
+            if (!ExecPoke(&command->cmd.pokeCmd))
+                return false;
+            break;                
     }    
     PrintResult();
     
@@ -332,7 +346,7 @@ bool ExecPrint(PrintCommand *cmd)
         }
         switch (cmd->printList[i].type)
         {
-            case PT_STRSYM:
+            case VT_STRSYM:
                 // string var so use its contents
                 if (SYM_STRVAL(cmd->printList[i].value.symbol))
                     strcat(resultStr, SYM_STRVAL(cmd->printList[i].value.symbol));
@@ -340,7 +354,7 @@ bool ExecPrint(PrintCommand *cmd)
                     strcat(resultStr, "");
                 break;
                 
-            case PT_EXPR:
+            case VT_EXPR:
                 // expression so evaluate it and use the result
                 if (EvaluateExpr(cmd->printList[i].value.expr, &exprVal))
                 {
@@ -354,7 +368,7 @@ bool ExecPrint(PrintCommand *cmd)
                 }
                 break;
                 
-            case PT_STRING:
+            case VT_STRING:
                 // string literal so use it directly
                 strcat(resultStr, cmd->printList[i].value.string);
                 break;
@@ -376,7 +390,7 @@ bool ExecAssign(AssignCommand *cmd)
     
     switch (cmd->type)
     {
-        case AT_EXPR:
+        case VT_EXPR:
             if (EvaluateExpr(cmd->value.expr, &exprVal))
             {
                 SYM_INTVAL(cmd->varsym) = exprVal;
@@ -388,7 +402,7 @@ bool ExecAssign(AssignCommand *cmd)
             }
             break;
         
-        case AT_STRING:
+        case VT_STRING:
             SYM_STRVAL(cmd->varsym) = cmd->value.string;
             break;
         
@@ -578,13 +592,13 @@ bool ExecInput(InputCommand *cmd)
     buffer[strlen(buffer)-1] = '\0';
     
     // set the variable value based on type
-    if (cmd->type == IPT_EXPR)
+    if (cmd->type == VT_EXPR)
     {
         SYM_INTVAL(cmd->varsym) = atoi(buffer);
         ip++;
         return true;
     }
-    else if (cmd->type == IPT_STRING)
+    else if (cmd->type == VT_STRING)
     {
         // setup for a call to the symbol table
         strcpy(tokenStr, buffer);
@@ -597,6 +611,38 @@ bool ExecInput(InputCommand *cmd)
     }
 
     return false;
+}
+
+bool ExecPoke(PokeCommand *cmd)
+{
+    int addr, data;
+    
+    if (EvaluateExpr(cmd->addr, &addr))
+    {
+        if (EvaluateExpr(cmd->data, (int *)&data))
+        {
+            MemWrite((uint16_t)addr, (uint8_t)data);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool Peek(uint16_t addr)
+{
+    return EvalStackPush(MemRead(addr));
+}
+
+bool ExecBuiltinFct(const char *name)
+{
+    // peek(addr)
+    if (!strcmp(name, "peek"))
+    {
+        return Peek((uint16_t)EvalStackPop());
+    } 
+    
+    return false;       
 }
 
 // return the value of an expression based on its expr tree
@@ -653,16 +699,35 @@ bool TraverseTree(Node *node)
                 retval &= TraverseTree(SON(node));              // unop
                 break;
 
+            case NT_POSTFIX_EXPR:
+                // postfixExpr
+                //   primaryExpr postfixExpr'                
+                retval &= TraverseTree(BRO(SON(node)));         // push indeces or args, or nothing for intvar
+                retval &= TraverseTree(SON(node));              // intvar, array, or fct ID
+                break;
+            
+            case NT_POSTFIX_EXPR_PRIME:
+                // postfixExprPrime
+	            //  | argExprList
+                //  | $
+                retval &= TraverseTree(SON(node));
+                break;
+            
+            case NT_ARG_EXPR_LIST:
+                // argExprList
+	            //   | addExpr [',' argExprList]
+                retval &= TraverseTree(SON(node));
+                break;
+            
             case NT_PRIMARY_EXPR:
-                // factor
+                // primaryExpr
                 //   expr | Constant | Identifier
                 retval &= TraverseTree(SON(node));
                 break;
             
             case NT_BINOP:
                 switch (NODE_VAL_OP(node))
-                {
-    
+                {    
                     case AND_OP:
                         // put the logical AND of the top 2 expr stack entries onto the top of the stack
                         EvalStackPut(EvalStackPop() && EvalStackTop());
@@ -800,7 +865,15 @@ bool TraverseTree(Node *node)
                 break;
                 
             case NT_INTVAR:
-                EvalStackPush(SYM_INTVAL(NODE_VAL_SYMBOL(node)));
+                EvalStackPush(SYM_INTVAL(NODE_VAL_ID(node)));
+                break;
+
+            case NT_ARRAY:
+                break;
+                
+            case NT_FCT:
+                // exec the builtin fct which will put the result on the stack
+                ExecBuiltinFct(SYM_NAME(NODE_VAL_ID((node))));
                 break;
 
             default:

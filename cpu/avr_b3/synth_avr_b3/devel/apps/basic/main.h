@@ -2,6 +2,8 @@
     main.h
 */
 
+#include <inttypes.h>
+
 //#define VERBOSE
 #ifdef VERBOSE
 #define MESSAGE(s) Message(s)
@@ -14,6 +16,8 @@ void Console(const char *string);
 void Message(const char *message);
 char *GetString(char *buffer);
 void PutString(char *string);
+uint8_t MemRead(uint16_t addr);
+void MemWrite(uint16_t addr, uint8_t data);
 void InitDisplay(void);
 
 

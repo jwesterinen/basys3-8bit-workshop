@@ -30,6 +30,7 @@ bool IsGosub(Command *command);
 bool IsReturn(Command *command);
 bool IsEnd(Command *command);
 bool IsInput(Command *command);
+bool IsPoke(Command *command);
 bool IsExpr(Node **ppNode);
 bool IsLogicExpr(Node **ppNode);
 bool IsLogicExprPrime(Node **ppNode);
@@ -42,6 +43,9 @@ bool IsAddExprPrime(Node **ppNode);
 bool IsMultExpr(Node **ppNode);
 bool IsMultExprPrime(Node **ppNode);
 bool IsUnaryExpr(Node **ppNode);
+bool IsPostfixExpr(Node **ppNode);
+bool IsPostfixExprPrime(Node **ppNode);
+bool IsArgExprList(Node **ppNode);
 bool IsPrimaryExpr(Node **ppNode);
 
 // expression root node list used to free expression trees
@@ -67,22 +71,27 @@ extern int nodeCount;
     if              : IF expr THEN [immediate-cmd | goto]
     gosub           : GOSUB Constant
     return          : RETURN
+    stop            : END
     end             : END
     input           : INPUT Identifier
+    poke            : POKE expr ',' expr
 
     expr
-        : logicExpr
+        :  logicExpr
         
     logicExpr
 	    : relExpr logicExpr'
+	    ;
     logicExpr'
 	    : AND_OP relExpr logicExpr'
 	    | OR_OP  relExpr logicExpr'
 	    | XOR_OP relExpr logicExpr'
 	    | $
+	    ;
 	
     relExpr
 	    : shiftExpr relExpr'
+	    ;
     relExpr'
 	    : '='   shiftExpr relExpr'
 	    | NE_OP shiftExpr relExpr'
@@ -91,9 +100,11 @@ extern int nodeCount;
 	    | '<'   shiftExpr relExpr'
 	    | LE_OP shiftExpr relExpr'
 	    | $
+	    ;
 	
     shiftExpr
 	    : addExpr shiftExpr'
+	    ;
     shiftExpr'
 	    : '='   addExpr shiftExpr'
 	    | NE_OP addExpr shiftExpr'
@@ -102,6 +113,7 @@ extern int nodeCount;
 	    | '<'   addExpr shiftExpr'
 	    | LE_OP addExpr shiftExpr'
 	    | $
+	    ;
 	
     addExpr        
         : multExpr addExpr'    
@@ -109,6 +121,7 @@ extern int nodeCount;
         : '+' multExpr addExpr' 
         | '-' multExpr addExpr'
         | $
+        ;
                     
     multExpr
         : unaryExpr multExpr'
@@ -118,14 +131,30 @@ extern int nodeCount;
         | '%'    unaryExpr multExpr'
         | MOD_OP unaryExpr multExpr'
         | $
+        ;
 
     unaryExpr
-        : ['+' | '-' | '!'] factor         
-        
+	    : postfixExpr
+	    | ['+' | '-' | '~' | NOT_OP] unaryExpr
+	    ;
+
+    postfixExpr
+	    : primaryExpr postfixExpr'
+	postfixExpr'
+	    | '(' argExprList ')'
+        | $
+	    ;
+
+    argExprList
+	    : addExpr [',' argExprList]
+	    ;
+
     primaryExpr
         : Constant 
-        | IntvarName
+        | Identifier
         | '(' expr ')'
+        
+        
 */
 
 
@@ -156,7 +185,8 @@ bool IsCommand(Command *command, bool *isImmediate)
         IsGosub(command)    ||
         IsReturn(command)   ||
         IsEnd(command)      ||
-        IsInput(command)
+        IsInput(command)    ||
+        IsPoke(command)
     )
     {
         sprintf(message, "node count = %d\n", nodeCount);
@@ -200,7 +230,7 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
     if (token == StrvarName)
     {
         // list element is a string var so use its contents
-        cmd->printList[*listIdx].type = PT_STRSYM;
+        cmd->printList[*listIdx].type = VT_STRSYM;
         cmd->printList[*listIdx].value.symbol = lexval.lexsym;
         if (!GetNextToken(NULL))
             return false;
@@ -210,7 +240,7 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
     else if (IsExpr(&expr))
     {
         // list element is an expression so stash the expr tree for later evaluation
-        cmd->printList[*listIdx].type = PT_EXPR;
+        cmd->printList[*listIdx].type = VT_EXPR;
         cmd->printList[*listIdx].value.expr = expr;
     }
     
@@ -218,7 +248,7 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
     else if (token == String)
     {
         // list element is a literal string to simply copy it
-        cmd->printList[*listIdx].type = PT_STRING;
+        cmd->printList[*listIdx].type = VT_STRING;
         cmd->printList[*listIdx].value.string = lexval.lexeme;
         if (!GetNextToken(NULL))
             return false;
@@ -262,17 +292,19 @@ bool IsAssign(Command *command)
             return false;
     }
             
-    // [let] IntvarName '=' expr
-    if (token == IntvarName)
+    // [let] Identifier '=' expr
+    if (token == Identifier)
     {
+        // the LHS is a symbol that represents only an integer variable for now
         symbol = lexval.lexsym;
         if (GetNextToken(NULL) && (token == '='))
         {
             if (GetNextToken(NULL) && IsExpr(&exprTree))
             {
+                // the RHS is an expression, e.g. const, var value, array member, or function return value
                 command->type = CT_ASSIGN;
                 command->cmd.assignCmd.varsym = symbol;
-                command->cmd.assignCmd.type = AT_EXPR;
+                command->cmd.assignCmd.type = VT_EXPR;
                 command->cmd.assignCmd.value.expr = exprTree;
                 return true;
             }
@@ -289,7 +321,7 @@ bool IsAssign(Command *command)
             {
                 command->type = CT_ASSIGN;
                 command->cmd.assignCmd.varsym = symbol;
-                command->cmd.assignCmd.type = AT_STRING;
+                command->cmd.assignCmd.type = VT_STRING;
                 command->cmd.assignCmd.value.string = lexval.lexeme;
                 return true;
             }
@@ -307,7 +339,7 @@ bool IsFor(Command *command)
     // FOR IntvarName '=' expr TO expr [STEP expr]
     if (token == FOR)
     {
-        if (GetNextToken(NULL) && (token == IntvarName))
+        if (GetNextToken(NULL) && (token == Identifier))
         {
             cmd.symbol = lexval.lexsym;
             if (GetNextToken(NULL) && (token == '='))
@@ -344,7 +376,7 @@ bool IsNext(Command *command)
 {
     if (token == NEXT)
     {
-        if (GetNextToken(NULL) && (token == IntvarName))
+        if (GetNextToken(NULL) && (token == Identifier))
         {
             command->cmd.nextCmd.symbol = lexval.lexsym;
         }
@@ -457,7 +489,7 @@ bool IsReturn(Command *command)
 // end : END
 bool IsEnd(Command *command)
 {
-    if (token == END)
+    if (token == END || token == STOP)
     {
         command->type = CT_END;
         return true;
@@ -479,16 +511,41 @@ bool IsInput(Command *command)
         {
             symbol = lexval.lexsym;
             command->cmd.inputCmd.varsym = symbol;
-            if (token == IntvarName)
+            if (token == Identifier)
             {
-                command->cmd.inputCmd.type = IPT_EXPR;
+                command->cmd.inputCmd.type = VT_EXPR;
                 return true;
             }
             else if (token == StrvarName)
             {
-                command->cmd.inputCmd.type = IPT_STRING;
+                command->cmd.inputCmd.type = VT_STRING;
                 return true;
             }                
+        }
+    }
+    
+    return false;
+}
+
+bool IsPoke(Command *command)
+{
+    Node *addr, *data;
+    
+    // poke : POKE expr ',' expr
+    if (token == POKE)
+    {
+        if (GetNextToken(NULL) && IsExpr(&addr))
+        {
+            if (token == ',')
+            {
+                if (GetNextToken(NULL) && IsExpr(&data))
+                {
+                    command->type = CT_POKE;
+                    command->cmd.pokeCmd.addr = addr;
+                    command->cmd.pokeCmd.data = data;
+                    return true;
+                }
+            }
         }
     }
     
@@ -544,6 +601,7 @@ Node *AddSon(Node *parent, Node *node)
 }
 
 // expression -- this is the top-level query for an expression
+// expr : logicExpr
 bool IsExpr(Node **ppNode)
 {
     MESSAGE("IsExpr...");
@@ -860,12 +918,12 @@ bool IsUnaryExpr(Node **ppNode)
     MESSAGE("IsUnaryExpr...");
     *ppNode = NewNode(NT_UNARY_EXPR, (union NodeValue)0);
     
-    // default the unary op to be '+'
+    // always have a unop node and default it to be '+'
     son = NewNode(NT_UNOP, (union NodeValue)'+');
     AddSon(*ppNode, son);
     
-    // ['+' | '-' | NOT_OP] primaryExpr
-    if (token == '+' || token == '-' || token == NOT_OP)
+	// ['+' | '-' | '~' | NOT_OP] unaryExpr
+    if (token == '+' || token == '-' || token == '~' || token == NOT_OP)
     {
         // change the unary operator if there is an explicit op
         NODE_VAL_OP(son) = token;
@@ -875,11 +933,84 @@ bool IsUnaryExpr(Node **ppNode)
             return false;
         }
     }    
-    if (IsPrimaryExpr(&son))
+    if (IsPostfixExpr(&son))
     {
         AddSon(*ppNode, son);
         MESSAGE("...IsUnaryExpr");
         return true;
+    }
+    
+    FreeNode(*ppNode);
+    return false;
+}
+
+// postfix expression
+bool IsPostfixExpr(Node **ppNode)
+{
+    Node *id, *son;
+    
+    MESSAGE("IsPostfixExpr...");
+    *ppNode = NewNode(NT_POSTFIX_EXPR, (union NodeValue)0);  
+      
+    // primaryExpr postfixExpr'
+    if (IsPrimaryExpr(&son))
+    {
+        AddSon(*ppNode, son);
+        if (token == '(')
+        {  
+            // TODO: this could also be an array so need some way to disambiguate
+            if ((id = SON(son)) != NULL)
+            {
+                // id is the identifier node which needs to have its type changed from the default
+                NODE_TYPE(id) = NT_FCT;
+            }
+            // TODO: deal with index or arg lists later
+            //if (GetNextToken(NULL) && IsArgExprList(&son))
+            if (GetNextToken(NULL) && IsExpr(&son))
+            {      
+                
+                AddSon(*ppNode, son);
+                if (token == ')')
+                {      
+                    return true;
+                }
+            }
+        }
+        else
+        {
+            return true;
+        }
+    }
+    
+    FreeNode(*ppNode);
+    return false;
+}
+
+// function arg expression list
+bool IsArgExprList(Node **ppNode)
+{
+    Node *son;
+
+    MESSAGE("IsArgExprList...");
+    *ppNode = NewNode(NT_ARG_EXPR_LIST, (union NodeValue)0);    
+    
+    // addExpr [',' argExprList]
+    if (IsAddExpr(&son))
+    {
+        AddSon(*ppNode, son);
+        if (GetNextToken(NULL) && (token == ','))
+        {
+            if (GetNextToken(NULL) && IsArgExprList(&son))
+            {
+                AddSon(*ppNode, son);
+                MESSAGE("...IsArgExprList");
+                return true;
+            }
+        }
+        else
+        {
+            return true;
+        }
     }
     
     FreeNode(*ppNode);
@@ -906,8 +1037,9 @@ bool IsPrimaryExpr(Node **ppNode)
     }
     
     // IntvarName
-    else if (token == IntvarName)
+    else if (token == Identifier)
     {
+        // assume node is an int variable but can be changed to array or fct
         AddSon(*ppNode, NewNode(NT_INTVAR, (union NodeValue)lexval.lexsym));
         if (GetNextToken(NULL))
         {

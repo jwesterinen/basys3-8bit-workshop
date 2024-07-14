@@ -43,6 +43,7 @@ struct KeywordTableEntry {
 } keywordTab[] = {
 //       tokenStr   token
         {"print",   PRINT   },
+        {"let",     LET     },
         {"for",     FOR     },
         {"to",      TO      },
         {"step",    STEP    },
@@ -52,9 +53,10 @@ struct KeywordTableEntry {
         {"then",    THEN    },
         {"gosub",   GOSUB   },
         {"return",  RETURN  },
+        {"stop",    STOP    },
         {"end",     END     },
         {"input",   INPUT   },
-        {"let",     LET     },
+        {"poke",    POKE    },
         {"and",     AND_OP  },
         {"not",     NOT_OP  },
         {"or",      OR_OP   },
@@ -222,9 +224,9 @@ bool GetNextToken(char *commandStr)
                     }
                 }
                 
-                // if the tokenStr isn't a keyword or a string var name return int var name
+                // if the tokenStr isn't a keyword or a string var name return identifier
                 if (token == 0)
-                    token = IntvarName;
+                    token = Identifier;
                     
                 // set the symbol reference of the variable name
                 return SymLookup(token);

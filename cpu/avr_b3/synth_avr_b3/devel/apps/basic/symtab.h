@@ -2,10 +2,10 @@
  * symtab.h -- definitions for symbol table
  */
 
-#define SYM_NAME(symbol) symbol->name
-#define SYM_TYPE(symbol)  symbol->type
-#define SYM_INTVAL(symbol)  symbol->value.intval
-#define SYM_STRVAL(symbol)  symbol->value.strval
+#define SYM_NAME(symbol)    (symbol)->name
+#define SYM_TYPE(symbol)    (symbol)->type
+#define SYM_INTVAL(symbol)  (symbol)->value.intval
+#define SYM_STRVAL(symbol)  (symbol)->value.strval
 
 enum SYMTYPE {ST_INTVAR, ST_STRVAR};
 typedef struct Symbol

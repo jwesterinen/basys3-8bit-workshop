@@ -121,6 +121,16 @@ char *GetString(char *buffer)
     }
 }
 
+uint8_t MemRead(uint8_t *addr)
+{
+    return (*(volatile uint8_t *)(addr));
+}
+
+void MemWrite(uint8_t *addr, uint8_t data)
+{
+    (*(volatile uint8_t *)(addr)) = data;
+}
+
 void InitDisplay(void)
 {
     VgaReset();
