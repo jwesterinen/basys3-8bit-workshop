@@ -2,38 +2,42 @@
 *
 *   lexer.h
 *
+*   Basic interpreter lexer interface.
+*
 */
 
 // token values, single char tokens use their ASCII values
-#define Constant    300
-#define Identifier  301
-#define StrvarName  302
-#define String      303
-#define PRINT       304
-#define LET         305
-#define FOR         306
-#define TO          307
-#define STEP        308
-#define NEXT        309
-#define IF          310
-#define THEN        311
-#define GOTO        312
-#define GOSUB       313
-#define RETURN      314
-#define STOP        315
-#define END         316
-#define INPUT       317
-#define AND_OP      318
-#define NOT_OP      319
-#define OR_OP       320
-#define XOR_OP      321
-#define NE_OP       322
-#define GE_OP       323
-#define LE_OP       324
-#define MOD_OP      325
-#define SL_OP       326
-#define SR_OP       327
-#define POKE        328
+#define Intvar      300
+#define Strvar      301
+#define Function    332
+#define Constant    303
+#define String      304
+#define PRINT       305
+#define LET         306
+#define FOR         307
+#define TO          308
+#define STEP        309
+#define NEXT        310
+#define IF          311
+#define THEN        312
+#define GOTO        313
+#define GOSUB       314
+#define RETURN      315
+#define STOP        316
+#define END         317
+#define INPUT       318
+#define AND_OP      319
+#define NOT_OP      320
+#define OR_OP       321
+#define XOR_OP      322
+#define NE_OP       323
+#define GE_OP       324
+#define LE_OP       325
+#define MOD_OP      326
+#define SL_OP       327
+#define SR_OP       328
+#define POKE        329
+#define DIM         330
 
 union LEXTYPE {
     Symbol *lexsym;  // Identifier

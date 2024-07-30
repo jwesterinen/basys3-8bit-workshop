@@ -4,6 +4,7 @@
 */
 
 #define TABLE_LEN 100
+#define DIM_MAX 4
 
 // command data structures are loaded by the parser and used by the runtime
 
@@ -16,14 +17,19 @@ enum NodeType {
     NT_ADD_EXPR, NT_ADD_EXPR_PRIME, 
     NT_MULT_EXPR, NT_MULT_EXPR_PRIME, 
     NT_UNARY_EXPR, 
-    NT_POSTFIX_EXPR, NT_POSTFIX_EXPR_PRIME, NT_ARG_EXPR_LIST, 
+    NT_POSTFIX_EXPR, NT_POSTFIX_EXPR_PRIME, NT_SUB_EXPR_LIST, 
     NT_PRIMARY_EXPR,
-    NT_CONSTANT, NT_INTVAR, NT_STRVAR, NT_ARRAY, NT_FCT, NT_STRING, NT_BINOP, NT_UNOP
+    
+    // operator types
+    NT_BINOP, NT_UNOP,
+    
+    // primary expression types
+    NT_CONSTANT, NT_INTVAR, NT_STRVAR, NT_FCT, NT_STRING
 };
 
 union NodeValue {
     int constant;
-    Symbol *id;
+    Symbol *varsym;
     char *string;
     int op;
 };
@@ -36,7 +42,7 @@ typedef struct Node {
 
 #define NODE_TYPE(node)         (node)->type
 #define NODE_VAL_CONST(node)    (node)->value.constant
-#define NODE_VAL_ID(node)       (node)->value.id
+#define NODE_VAL_VARSYM(node)   (node)->value.varsym
 #define NODE_VAL_STRING(node)   (node)->value.string
 #define NODE_VAL_OP(node)       (node)->value.op
 #define BRO(node)               (node)->bro
@@ -45,19 +51,11 @@ typedef struct Node {
 extern Node *ExprList[TABLE_LEN];
 extern int exprListIdx;
 
-// general value types
-enum VALUE_TYPE {VT_STRSYM, VT_EXPR, VT_STRING, VT_FCT};
-
 typedef struct Printable {
+    Symbol *varsym;
+    Node *expr;
     char separator;
-    enum VALUE_TYPE type;
-    union {
-        Symbol *symbol;
-        Node *expr;
-        char *string;
-    } value;
 } Printable;
-
 typedef struct PrintCommand {
     Printable printList[20];
     int printListIdx;
@@ -65,11 +63,8 @@ typedef struct PrintCommand {
 
 typedef struct AssignCommand {
     Symbol *varsym;             // LHS symbol
-    enum VALUE_TYPE type;
-    union {
-        Node *expr;
-        char *string;
-    } value;                    // RHS value, either expr or string
+    Node *indexNodes[DIM_MAX];  // possible array index nodes
+    Node *expr;                 // RHS
 } AssignCommand;
 
 typedef struct ForCommand {
@@ -106,11 +101,7 @@ typedef struct GosubCommand {
 
 typedef struct InputCommand {
     Symbol *varsym;
-    enum VALUE_TYPE type;
-    union {
-        Node *expr;
-        char string[80];
-    } value; 
+    Node *indexNodes[DIM_MAX];
 } InputCommand;
 
 typedef struct PokeCommand {
@@ -118,7 +109,12 @@ typedef struct PokeCommand {
     Node *data;
 } PokeCommand;
 
-enum COMMAND_TYPE {CT_PRINT, CT_ASSIGN, CT_FOR, CT_NEXT, CT_GOTO, CT_IF, CT_GOSUB, CT_RETURN, CT_END, CT_INPUT, CT_POKE};
+typedef struct DimCommand {
+    Symbol *varsym;                 // contains the linear data array
+    Node *dimSizeNodes[DIM_MAX];    // the expression of each dimension
+} DimCommand;
+
+enum COMMAND_TYPE {CT_PRINT, CT_ASSIGN, CT_FOR, CT_NEXT, CT_GOTO, CT_IF, CT_GOSUB, CT_RETURN, CT_END, CT_INPUT, CT_POKE, CT_DIM};
 typedef struct Command {
     char commandStr[80];
     int lineNum;
@@ -133,9 +129,11 @@ typedef struct Command {
         GosubCommand    gosubCmd;
         InputCommand    inputCmd;
         PokeCommand     pokeCmd;
+        DimCommand      dimCmd;
     } cmd;
 } Command;
 
 bool IsCommand(Command *command, bool *isImmediate);
+bool IsExpr(Node **ppNode);
 void FreeExprTrees(void);
 

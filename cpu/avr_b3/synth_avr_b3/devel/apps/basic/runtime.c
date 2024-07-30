@@ -41,9 +41,11 @@ bool ExecReturn(void);
 bool ExecEnd(void);
 bool ExecInput(InputCommand *cmd);
 bool ExecPoke(PokeCommand *cmd);
+bool ExecDim(DimCommand *cmd);
 bool Peek(uint16_t addr);
 bool ExecBuiltinFct(const char *name);
 bool EvaluateExpr(Node *exprTreeRoot, int *pValue);
+bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue);
 bool TraverseTree(Node *node);
 int EvalStackPush(int a);
 int EvalStackPop(void);
@@ -75,6 +77,9 @@ unsigned csp = 0;
 // eval stack and its index, i.e. eval stack pointer
 int es[STACK_SIZE];
 unsigned esp = 0;
+
+// global string buffer for string arrays
+char *gStrBuf = NULL;
 
 // built-in function list
 typedef struct FctList {
@@ -327,88 +332,102 @@ bool ExecCommand(Command *command)
             if (!ExecPoke(&command->cmd.pokeCmd))
                 return false;
             break;                
+                
+        case CT_DIM: 
+            if (!ExecDim(&command->cmd.dimCmd))
+                return false;
+            break;                
     }    
     PrintResult();
     
     return true;
 }
 
+// expr-list : expr  [{';' | ','} expr-list]
 bool ExecPrint(PrintCommand *cmd)
 {
     char exprStr[80];
-    int exprVal;
+    //int exprVal;
+    int intval;
+    char *strval;
     
     for (int i = 0; i < cmd->printListIdx; i++)
     {
+        strcat(resultStr, "");
+        
         if (cmd->printList[i].separator == ',')
         {
             strcat(resultStr, "    ");
         }
-        switch (cmd->printList[i].type)
+        switch (SYM_TYPE(cmd->printList[i].varsym))
         {
-            case VT_STRSYM:
-                // string var so use its contents
-                if (SYM_STRVAL(cmd->printList[i].value.symbol))
-                    strcat(resultStr, SYM_STRVAL(cmd->printList[i].value.symbol));
-                else
-                    strcat(resultStr, "");
-                break;
-                
-            case VT_EXPR:
-                // expression so evaluate it and use the result
-                if (EvaluateExpr(cmd->printList[i].value.expr, &exprVal))
+            case ST_INTVAR:
+            case ST_FCT:
+            case ST_CONSTANT:
+                if (!EvaluateExpr(cmd->printList[i].expr, &intval))
                 {
-                    sprintf(exprStr, "%d", exprVal);
-                    strcat(resultStr, exprStr);
-                }
-                else
-                {
-                    strcpy(errorStr, "invalid print expression");
                     return false;
                 }
+                sprintf(exprStr, "%d", intval);
+                strcat(resultStr, exprStr);
                 break;
                 
-            case VT_STRING:
-                // string literal so use it directly
-                strcat(resultStr, cmd->printList[i].value.string);
+            case ST_STRVAR:
+            case ST_STRING:
+                if (!EvaluateStrExpr(cmd->printList[i].expr, &strval))
+                {
+                    return false;
+                }
+                strcat(resultStr, strval);
                 break;
-            
-            default:
-                strcpy(errorStr, "unknown printlist type");
-                return false;
         }
     }
     ip++;
     
     return true;
 }
-  
-// assignment : Intvar '=' expr | Strvar = String
+
+// assignment : {Intvar | Strvar} ['(' expr [',' expr]* ')'] '=' {expr | string}
+// [let] Intvar ['(' expr [',' expr]* ')'] '=' expr
+// [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
 bool ExecAssign(AssignCommand *cmd)
 {
-    int exprVal;
+    int indeces[4] = {0};
+    int intRhs;
+    char *strRhs;
     
-    switch (cmd->type)
+    // evaluate the LHS index values from their nodes if any
+    for (int i = 0; i < SYM_DIM(cmd->varsym); i++)
     {
-        case VT_EXPR:
-            if (EvaluateExpr(cmd->value.expr, &exprVal))
+        if (!EvaluateExpr(cmd->indexNodes[i], &indeces[i]))
+        {
+            strcpy(errorStr, "invalid array index expression");
+            return false;
+        }
+    }
+            
+    // perform the assignment
+    if (SYM_TYPE(cmd->varsym) == ST_INTVAR)
+    {
+        // RHS is an expression that must be evaluated
+        if (EvaluateExpr(cmd->expr, &intRhs))
+        {
+            if (!SymWriteIntvar(cmd->varsym, indeces, intRhs))
             {
-                SYM_INTVAL(cmd->varsym) = exprVal;
-            }
-            else
-            {
-                strcpy(errorStr, "invalid assignment expression");
                 return false;
             }
-            break;
-        
-        case VT_STRING:
-            SYM_STRVAL(cmd->varsym) = cmd->value.string;
-            break;
-        
-        default:
-            strcpy(errorStr, "unknown assign type");
-            return false;
+        }
+    }        
+    else if (SYM_TYPE(cmd->varsym) == ST_STRVAR)
+    {
+        // RHS is a string expr (e.g. array ref) that must be evaluated
+        if (EvaluateStrExpr(cmd->expr, &strRhs))
+        {
+            if (!SymWriteStrvar(cmd->varsym, indeces, strRhs))
+            {
+                return false;
+            }
+        }
     }
     ip++;
 
@@ -418,9 +437,12 @@ bool ExecAssign(AssignCommand *cmd)
 // for : FOR Intvar '=' init TO to [STEP step]
 bool ExecFor(ForCommand *cmd)
 {
+    int value;
+    
     // perform initial variable assignment then push for command onto FOR stack
-    if (EvaluateExpr(cmd->init, &SYM_INTVAL(cmd->symbol)))
+    if (EvaluateExpr(cmd->init, &value))
     {
+        SYM_INTVAL(cmd->symbol) = value;
         fortab[fortabIdx++] = cmd;
         ip++;
         
@@ -578,39 +600,68 @@ bool ExecEnd(void)
 }
 
 // TODO: change SymLookup to accept both a token value and an explicit token string, not the global "tokenStr"
-// input : INPUT IntVarName
+// input : INPUT {Intvar | Strvar} ['(' expr [',' expr]* ')']
 bool ExecInput(InputCommand *cmd)
 {
     char buffer[80];
+    int indeces[4];
+    int intval;
     
     //prompt with symbol name, space, question mark
-    sprintf(buffer, "%s ?", SYM_NAME(cmd->varsym));
+    sprintf(buffer, "? ");
     PutString(buffer);
     
     // read input text and mask off the newline
     GetString(buffer);
     buffer[strlen(buffer)-1] = '\0';
     
-    // set the variable value based on type
-    if (cmd->type == VT_EXPR)
+    // evaluate index values from their nodes if any
+    for (int i = 0; i < SYM_DIM(cmd->varsym); i++)
     {
-        SYM_INTVAL(cmd->varsym) = atoi(buffer);
-        ip++;
-        return true;
+        if (!EvaluateExpr(cmd->indexNodes[i], &indeces[i]))
+        {
+            strcpy(errorStr, "invalid array index expression");
+            return false;
+        }
     }
-    else if (cmd->type == VT_STRING)
+            
+    // perform the input
+    if (SYM_TYPE(cmd->varsym) == ST_INTVAR)
+    {
+        if ((intval = (int)strtol(buffer, NULL, 0)))
+        {
+            if (!SymWriteIntvar(cmd->varsym, indeces, intval))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            strcpy(errorStr, "invalid input expression");
+            return false;
+        }
+    }        
+    else if (SYM_TYPE(cmd->varsym) == ST_STRVAR)
     {
         // setup for a call to the symbol table
         strcpy(tokenStr, buffer);
         if (SymLookup(String))
         {
-            SYM_STRVAL(cmd->varsym) = lexval.lexeme;
-            ip++;
-            return true;
+            // the symbol lookup puts the input string into the lexeme member of lexval
+            if (!SymWriteStrvar(cmd->varsym, indeces, lexval.lexeme))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            strcpy(errorStr, "invalid input string");
+            return false;
         }
     }
+    ip++;
 
-    return false;
+    return true;
 }
 
 bool ExecPoke(PokeCommand *cmd)
@@ -627,6 +678,57 @@ bool ExecPoke(PokeCommand *cmd)
     }
     
     return false;
+}
+
+// dim : DIM {Intvar | Strvar} '(' expr ')'
+bool ExecDim(DimCommand *cmd)
+{
+    if (SYM_DIM(cmd->varsym) > 0)
+    {
+        if (EvaluateExpr(cmd->dimSizeNodes[0], &SYM_DIMSIZES(cmd->varsym, 0)))
+        {
+            SYM_SIZE(cmd->varsym) = SYM_DIMSIZES(cmd->varsym, 0);
+        }
+        else
+        {
+            strcpy(errorStr, "invalid dim expression");
+            return false;
+        }
+    }
+    // evaluate the dim sizes
+    for (int i = 1; i < SYM_DIM(cmd->varsym); i++)
+    {
+        if (EvaluateExpr(cmd->dimSizeNodes[i], &SYM_DIMSIZES(cmd->varsym, i)))
+        {
+            SYM_SIZE(cmd->varsym) *= SYM_DIMSIZES(cmd->varsym, i);
+        }
+        else
+        {
+            strcpy(errorStr, "invalid dim expression");
+            return false;
+        }
+    }
+
+    /* TODO: might need dynamic allocation for multi-dim arrays    
+    // allocate memory for the array
+    switch (cmd->type)
+    {
+        case VT_EXPR:
+            
+            break;
+        
+        case VT_STRING:
+            break;
+        
+        default:
+            strcpy(errorStr, "unknown variable type");
+            return false;
+    }
+    */    
+    
+    ip++;
+
+    return true;
 }
 
 bool Peek(uint16_t addr)
@@ -650,10 +752,35 @@ bool EvaluateExpr(Node *exprTreeRoot, int *pValue)
 {
     if (TraverseTree(exprTreeRoot))
     {
-        *pValue = EvalStackPop();
-        return true;
+        if (esp > 0)
+        {
+            *pValue = EvalStackPop();
+            return true;
+        }
     }
     
+    gStrBuf = NULL;
+    strcpy(errorStr, "incompatible type");
+    return false;
+}
+
+// return the value of an expression based on its expr tree
+bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue)
+{
+    int oldEsp = esp;
+    
+    if (TraverseTree(exprTreeRoot))
+    {
+        if (gStrBuf != NULL)
+        {
+            *pValue = gStrBuf;
+            gStrBuf = NULL;
+            return true;
+        }
+    }
+    
+    esp = oldEsp;
+    strcpy(errorStr, "incompatible type");
     return false;
 }
 
@@ -701,22 +828,16 @@ bool TraverseTree(Node *node)
 
             case NT_POSTFIX_EXPR:
                 // postfixExpr
-                //   primaryExpr postfixExpr'                
+                //   primaryExpr subExprList
                 retval &= TraverseTree(BRO(SON(node)));         // push indeces or args, or nothing for intvar
-                retval &= TraverseTree(SON(node));              // intvar, array, or fct ID
+                retval &= TraverseTree(SON(node));              // intvar, strvar, or fct
                 break;
             
-            case NT_POSTFIX_EXPR_PRIME:
-                // postfixExprPrime
-	            //  | argExprList
-                //  | $
-                retval &= TraverseTree(SON(node));
-                break;
-            
-            case NT_ARG_EXPR_LIST:
-                // argExprList
-	            //   | addExpr [',' argExprList]
-                retval &= TraverseTree(SON(node));
+            case NT_SUB_EXPR_LIST:
+                // subExprList
+                //   addExpr ',' subExprList
+                retval &= TraverseTree(SON(node));              // subscript
+                retval &= TraverseTree(BRO(SON(node)));         // another subscript list
                 break;
             
             case NT_PRIMARY_EXPR:
@@ -865,15 +986,48 @@ bool TraverseTree(Node *node)
                 break;
                 
             case NT_INTVAR:
-                EvalStackPush(SYM_INTVAL(NODE_VAL_ID(node)));
+            {
+                // for an array pop the indeces into an index array then read the value
+                // note: the popped values will be the reverse of the needed indeces so reverse them in the indeces array
+                int indeces[4], value;
+                for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
+                {
+                    indeces[SYM_DIM(NODE_VAL_VARSYM(node)) - i - 1] = EvalStackPop();
+                }
+                
+                // push the read value onto the eval stack
+                if ((retval = SymReadIntvar(NODE_VAL_VARSYM(node), indeces, &value)))
+                {
+                    EvalStackPush(value);
+                }
+            }
                 break;
 
-            case NT_ARRAY:
-                break;
-                
             case NT_FCT:
                 // exec the builtin fct which will put the result on the stack
-                ExecBuiltinFct(SYM_NAME(NODE_VAL_ID((node))));
+                ExecBuiltinFct(SYM_NAME(NODE_VAL_VARSYM((node))));
+                break;
+
+            case NT_STRVAR:
+            {
+                // for an array pop the indeces into an index array then read the value
+                // note: the popped values will be the reverse of the needed indeces so reverse them in the indeces array
+                int indeces[4];
+                for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
+                {
+                    indeces[SYM_DIM(NODE_VAL_VARSYM(node)) - i - 1] = EvalStackPop();
+                }
+                
+                // load the read value into the global string buffer
+                retval = SymReadStrvar(NODE_VAL_VARSYM(node), indeces, &gStrBuf);
+            }
+                break;
+
+            case NT_STRING:
+            {
+                // load the node's string value into the global string buffer
+                gStrBuf = NODE_VAL_STRING(node);
+            }
                 break;
 
             default:

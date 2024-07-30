@@ -23,20 +23,42 @@
 *   letter          [a-zA-Z_]
 *   digit           [0-9]
 *   letter_or_digit [a-zA-Z_0-9]
+*   hextet          [a-fA-F0-9]
+*   hex_prefix      0[xX]
+*   other           return .
 *   
+*   {letter}{letter_or_digit}*$ return Strvar
+*   {letter}{letter_or_digit}*  return Identifier
+*   {digit}+                    return Constant
+*   {hex_prefix}{hextet}+       return Constant;
+*   "{.}*"                      return String
+*
 *   "print"                     return PRINT
 *   "let"                       return LET
-
+*   "for"                       return FOR
+*   "to"                        return TO
+*   "step"                      return STEP
+*   "next"                      return NEXT
+*   "goto"                      return GOTO
+*   "if"                        return IF
+*   "then"                      return THEN
+*   "gosub"                     return GOSUB
+*   "return"                    return RETURN
+*   "stop"                      return STOP
+*   "end"                       return END
+*   "input"                     return INPUT
+*   "poke"                      return POKE
+*   "dim"                       return DIM
+*
 *   "!="                        return NE_OP
-
-*   {letter}{letter_or_digit}*$ return Strvar
-*   {letter}{letter_or_digit}*  return Intvar
-*   [-]{digit}+                 return Number
-*   \"{.}*\"                    return String
-*   {other}                     return .
+*   "<>"                        return NE_OP
+*   "<="                        return LE_OP
+*   ">="                        return GE_OP
+*   "<<"                        return SL_OP
+*   ">>"                        return SR_OP
+*
 */
 
-// TODO: make keywords case insensitive
 struct KeywordTableEntry {
     char *keyword;
     int token;
@@ -57,6 +79,7 @@ struct KeywordTableEntry {
         {"end",     END     },
         {"input",   INPUT   },
         {"poke",    POKE    },
+        {"dim",     DIM     },
         {"and",     AND_OP  },
         {"not",     NOT_OP  },
         {"or",      OR_OP   },
@@ -64,6 +87,11 @@ struct KeywordTableEntry {
         {"mod",     MOD_OP  }
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
+
+char *builtinFctTab[] = {
+    "peek",
+};
+int builtinFctTableSize = sizeof builtinFctTab / sizeof(char *);
 
 char gCommandStr[STRING_LEN];
 char *nextChar;
@@ -105,7 +133,7 @@ bool GetNextToken(char *commandStr)
                 break;
                 
             case 1:
-                // direct the lexer to parse a number, variable name, string, or operator
+                // direct the lexer to scan an Identifier, Constant, String, or operator
                 if (isdigit(*nextChar))
                 {
                     tokenStr[i++] = *nextChar++;
@@ -133,11 +161,16 @@ bool GetNextToken(char *commandStr)
                 break;
                 
             case 2:
-                // parse a number
-                if (isdigit(*nextChar))
+                // attemtp to scan a Hex Constant
+                if ((tokenStr[0] == '0') && (*nextChar == 'x' || *nextChar == 'X'))
                 {
                     tokenStr[i++] = *nextChar++;
                 }
+                if (isdigit(*nextChar) || isxdigit(*nextChar))
+                {
+                    tokenStr[i++] = *nextChar++;
+                }
+                
                 else
                 {
                     state = 4;
@@ -145,7 +178,7 @@ bool GetNextToken(char *commandStr)
                 break;
                 
             case 3:
-                // parse variable name or keyword
+                // scan variable name or keyword
                 if (isalnum(*nextChar))
                 {
                     tokenStr[i++] = *nextChar++;
@@ -157,7 +190,7 @@ bool GetNextToken(char *commandStr)
                 break;
                 
             case 10:
-                // parse a string ensuring the string is correctly terminated
+                // scan a string ensuring the string is correctly terminated
                if (*nextChar != '"')
                 {
                     if (*nextChar == '\0')
@@ -202,7 +235,7 @@ bool GetNextToken(char *commandStr)
                 if (*nextChar == '$')
                 {
                     tokenStr[i++] = *nextChar++;
-                    token = StrvarName;
+                    token = Strvar;
                 }
                     
                 // terminate the tokenStr and prepare for the next lexer state
@@ -210,11 +243,13 @@ bool GetNextToken(char *commandStr)
                 i = 0;
                 state = 0;
                 
-                // if the tokenStr is a keyword, normalize it to lower case and return its corresponding token
+                // normalize the token string to lower case
                 for (int j = 0; j < strlen(tokenStr)+1; j++)
                 {
                     tokenStrLc[j] = tolower(tokenStr[j]);
                 }
+                
+                // if the token string is a keyword return its corresponding token
                 for (int j = 0; j < keywordTableSize; j++)
                 {
                     if (!strcmp(keywordTab[j].keyword, tokenStrLc))
@@ -224,9 +259,20 @@ bool GetNextToken(char *commandStr)
                     }
                 }
                 
-                // if the tokenStr isn't a keyword or a string var name return identifier
+                // if the token string is a builtin fct id set the token type to Function
+                for (int j = 0; j < builtinFctTableSize; j++)
+                {
+                    if (!strcmp(builtinFctTab[j], tokenStrLc))
+                    {
+                        token = Function;
+                    }
+                }
+                
+                // if the tokenStr isn't a keyword or a string var name return Intvar (int variable)
                 if (token == 0)
-                    token = Identifier;
+                {
+                    token = Intvar;
+                }
                     
                 // set the symbol reference of the variable name
                 return SymLookup(token);
