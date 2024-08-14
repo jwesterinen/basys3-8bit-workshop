@@ -1,7 +1,10 @@
 /*
 *   lexer.c
 *
-*   Basic interpreter lexical analyzer.
+*   A Basic grammar lexical analyzer for a Basic language interpreter.
+*
+*   This module scans the characters typed into the user interface of 
+*   the interpreter and returns token types, lexemes, and symbol references.
 */
 
 #include <time.h>
@@ -18,7 +21,7 @@
 #define STRING_LEN 80
 
 /*
-*   lexical grammar
+*   Basic language lexical grammar
 *
 *   letter          [a-zA-Z_]
 *   digit           [0-9]
@@ -27,10 +30,10 @@
 *   hex_prefix      0[xX]
 *   other           return .
 *   
+*   {letter}{letter_or_digit}*  return Numvar
 *   {letter}{letter_or_digit}*$ return Strvar
-*   {letter}{letter_or_digit}*  return Identifier
-*   {digit}+                    return Constant
-*   {hex_prefix}{hextet}+       return Constant;
+*   {digit}+[.{digit}+]         return Constant
+*   {hex_prefix}{hextet}+       return HexConstant;
 *   "{.}*"                      return String
 *
 *   "print"                     return PRINT
@@ -161,22 +164,55 @@ bool GetNextToken(char *commandStr)
                 break;
                 
             case 2:
-                // attemtp to scan a Hex Constant
+                // attemtp to scan a hex number
+                state = 333;
                 if ((tokenStr[0] == '0') && (*nextChar == 'x' || *nextChar == 'X'))
                 {
                     tokenStr[i++] = *nextChar++;
+                    state = 222;
                 }
+                break;
+                
+            case 222:
+                // continue to scan a hex number
                 if (isdigit(*nextChar) || isxdigit(*nextChar))
                 {
                     tokenStr[i++] = *nextChar++;
                 }
-                
+                else
+                {
+                    state = 4;
+                }
+                break;
+
+            case 333:
+                // scan a decimal number
+                if (isdigit(*nextChar))
+                {
+                    tokenStr[i++] = *nextChar++;
+                }
+                else if (*nextChar == '.')
+                {
+                    tokenStr[i++] = *nextChar++;
+                    state = 20;
+                }
                 else
                 {
                     state = 4;
                 }
                 break;
                 
+            case 20:
+                if (isdigit(*nextChar))
+                {
+                    tokenStr[i++] = *nextChar++;
+                }
+                else
+                {
+                    state = 4;
+                }
+                break;
+                                
             case 3:
                 // scan variable name or keyword
                 if (isalnum(*nextChar))
@@ -268,10 +304,10 @@ bool GetNextToken(char *commandStr)
                     }
                 }
                 
-                // if the tokenStr isn't a keyword or a string var name return Intvar (int variable)
+                // if the tokenStr isn't a keyword or a string var name, return Numvar (floating pt. variable)
                 if (token == 0)
                 {
-                    token = Intvar;
+                    token = Numvar;
                 }
                     
                 // set the symbol reference of the variable name

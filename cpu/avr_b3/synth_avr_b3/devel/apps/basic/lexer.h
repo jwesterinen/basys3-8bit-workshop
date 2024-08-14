@@ -7,41 +7,41 @@
 */
 
 // token values, single char tokens use their ASCII values
-#define Intvar      300
-#define Strvar      301
-#define Function    332
-#define Constant    303
-#define String      304
-#define PRINT       305
-#define LET         306
-#define FOR         307
-#define TO          308
-#define STEP        309
-#define NEXT        310
-#define IF          311
-#define THEN        312
-#define GOTO        313
-#define GOSUB       314
-#define RETURN      315
-#define STOP        316
-#define END         317
-#define INPUT       318
-#define AND_OP      319
-#define NOT_OP      320
-#define OR_OP       321
-#define XOR_OP      322
-#define NE_OP       323
-#define GE_OP       324
-#define LE_OP       325
-#define MOD_OP      326
-#define SL_OP       327
-#define SR_OP       328
-#define POKE        329
-#define DIM         330
+#define Numvar      300
+#define Strvar      302
+#define Function    333
+#define Constant    304
+#define String      305
+#define PRINT       306
+#define LET         307
+#define FOR         308
+#define TO          309
+#define STEP        310
+#define NEXT        311
+#define IF          312
+#define THEN        313
+#define GOTO        314
+#define GOSUB       315
+#define RETURN      316
+#define STOP        317
+#define END         318
+#define INPUT       319
+#define AND_OP      320
+#define NOT_OP      321
+#define OR_OP       322
+#define XOR_OP      323
+#define NE_OP       324
+#define GE_OP       325
+#define LE_OP       326
+#define MOD_OP      327
+#define SL_OP       328
+#define SR_OP       329
+#define POKE        330
+#define DIM         331
 
 union LEXTYPE {
-    Symbol *lexsym;  // Identifier
-    char *lexeme;    // Constant or String 
+    Symbol *lexsym;  // the symbol created from a token
+    char *lexeme;    // the literal text string of the token 
 };
 typedef union LEXTYPE LEXTYPE;
 extern LEXTYPE lexval;

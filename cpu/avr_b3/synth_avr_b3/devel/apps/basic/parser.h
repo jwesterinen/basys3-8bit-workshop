@@ -24,12 +24,12 @@ enum NodeType {
     NT_BINOP, NT_UNOP,
     
     // primary expression types
-    NT_CONSTANT, NT_INTVAR, NT_STRVAR, NT_FCT, NT_STRING
+    NT_CONSTANT, NT_NUMVAR, NT_STRVAR, NT_FCT, NT_STRING
 };
 
 union NodeValue {
-    int constant;
     Symbol *varsym;
+    float constant;
     char *string;
     int op;
 };
@@ -41,8 +41,8 @@ typedef struct Node {
 } Node;
 
 #define NODE_TYPE(node)         (node)->type
-#define NODE_VAL_CONST(node)    (node)->value.constant
 #define NODE_VAL_VARSYM(node)   (node)->value.varsym
+#define NODE_VAL_CONST(node)    (node)->value.constant
 #define NODE_VAL_STRING(node)   (node)->value.string
 #define NODE_VAL_OP(node)       (node)->value.op
 #define BRO(node)               (node)->bro
@@ -52,7 +52,6 @@ extern Node *ExprList[TABLE_LEN];
 extern int exprListIdx;
 
 typedef struct Printable {
-    Symbol *varsym;
     Node *expr;
     char separator;
 } Printable;
@@ -62,7 +61,7 @@ typedef struct PrintCommand {
 } PrintCommand;
 
 typedef struct AssignCommand {
-    Symbol *varsym;             // LHS symbol
+    Symbol *varsym;             // LHS symbol to which to assign a RHS value
     Node *indexNodes[DIM_MAX];  // possible array index nodes
     Node *expr;                 // RHS
 } AssignCommand;
@@ -100,7 +99,7 @@ typedef struct GosubCommand {
 } GosubCommand;
 
 typedef struct InputCommand {
-    Symbol *varsym;
+    Symbol *varsym;                 // LHS symbol to which to assign an input value
     Node *indexNodes[DIM_MAX];
 } InputCommand;
 

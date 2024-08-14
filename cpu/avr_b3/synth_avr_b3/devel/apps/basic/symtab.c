@@ -8,6 +8,11 @@
 #include "symtab.h"
 #include "lexer.h"
 
+#define SYM_NUMVAL(symbol)              ((symbol)->value.numval[0])
+#define SYM_NUMVAL_IDX(symbol, index)   ((symbol)->value.numval[(index)])
+#define SYM_STRVAL(symbol)              ((symbol)->value.strval[0])
+#define SYM_STRVAL_IDX(symbol, index)   ((symbol)->value.strval[(index)])
+
 extern char errorStr[];
 
 // symbol table
@@ -19,9 +24,10 @@ static char* strsave(const char* s)
     if (cp)
     {
         strcpy(cp, s);
+        return cp;
     }
-    
-    return cp;
+
+    return (char*)NULL;    
 }
   
 static Symbol *SymCreate(const char *name)
@@ -55,39 +61,34 @@ struct Symbol *SymFind(const char *name)
     return next;
 }
 
+// if the symbol doesn't exist create one and fail if it can't
+// variables default to scalers (dim=0)
 bool SymLookup(int token)
 {
-    // if the symbol doesn't exist create one and fail if it can't
-    // variables default to scalers (dim=0)
-    if ((lexval.lexsym = SymFind(tokenStr)) == NULL)
-    {
-        lexval.lexsym = SymCreate(tokenStr);
-    }
-    if (!lexval.lexsym)
-    {
-        strcpy(errorStr, "memory allocation error");
-        return false;
-    }
-
     // set the symbol type and for constants or literal strings assign the symbol's name as the lexeme
     switch (token)
     {  
-        case Intvar:
-            lexval.lexsym->type = ST_INTVAR;
+        case Numvar:
+            if ((lexval.lexsym = SymFind(tokenStr)))
+                break;
+            lexval.lexsym = SymCreate(tokenStr);
+            lexval.lexsym->type = ST_NUMVAR;
             break;
         case Strvar:
+            if ((lexval.lexsym = SymFind(tokenStr)))
+                break;
+            lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_STRVAR;
             break;
         case Function:
+            if ((lexval.lexsym = SymFind(tokenStr)))
+                break;
+            lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_FCT;
             break;
         case Constant:
-            lexval.lexsym->type = ST_CONSTANT;
-            lexval.lexeme = lexval.lexsym->name;
-            break;
         case String:
-            lexval.lexsym->type = ST_STRING;
-            lexval.lexeme = lexval.lexsym->name;
+            lexval.lexeme = strsave(tokenStr);
             break;
     }
     
@@ -108,7 +109,7 @@ void FreeSymtab(void)
     symtab = NULL;
 }
 
-int CalcVarIndex(Symbol *varsym, int indeces[4])
+int CalcVarIndex(Symbol *varsym, float indeces[4])
 {
     int index = 0;
     
@@ -140,7 +141,7 @@ int CalcVarIndex(Symbol *varsym, int indeces[4])
     return index;
 }
 
-bool SymReadIntvar(Symbol *varsym, int indeces[4], int *value)
+bool SymReadNumvar(Symbol *varsym, float indeces[4], float *value)
 {
     int index = CalcVarIndex(varsym, indeces);
     
@@ -149,12 +150,12 @@ bool SymReadIntvar(Symbol *varsym, int indeces[4], int *value)
         return false;
     }
     
-    *value = SYM_INTVAL_IDX(varsym, index);
+    *value = SYM_NUMVAL_IDX(varsym, index);
     
     return true;
 }
 
-bool SymWriteIntvar(Symbol *varsym, int indeces[4], int value)
+bool SymWriteNumvar(Symbol *varsym, float indeces[4], float value)
 {
     int index = CalcVarIndex(varsym, indeces);
     
@@ -163,12 +164,12 @@ bool SymWriteIntvar(Symbol *varsym, int indeces[4], int value)
         return false;
     }
     
-    SYM_INTVAL_IDX(varsym, index) = value;
+    SYM_NUMVAL_IDX(varsym, index) = value;
     
     return true;
 }
 
-bool SymReadStrvar(Symbol *varsym, int indeces[4], char **value)
+bool SymReadStrvar(Symbol *varsym, float indeces[4], char **value)
 {
     int index = CalcVarIndex(varsym, indeces);
     
@@ -182,7 +183,7 @@ bool SymReadStrvar(Symbol *varsym, int indeces[4], char **value)
     return true;
 }
 
-bool SymWriteStrvar(Symbol *varsym, int indeces[4], char *value)
+bool SymWriteStrvar(Symbol *varsym, float indeces[4], char *value)
 {
     int index = CalcVarIndex(varsym, indeces);
     

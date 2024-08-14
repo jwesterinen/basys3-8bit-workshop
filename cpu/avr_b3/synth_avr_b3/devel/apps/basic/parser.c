@@ -1,84 +1,91 @@
 /*
 *   parser.c
 *
-*   Basic interpreter parser.
-*/
-
-#include <time.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdbool.h>
-#include "symtab.h"
-#include "lexer.h"
-#include "runtime.h"
-#include "parser.h"
-#include "main.h"
-
-char *Type2Name(enum NodeType type);
-Node *NewNode(enum NodeType type, union NodeValue value);
-Node *AddSon(Node *parent, Node *node);
-bool IsPrint(Command *command);
-bool IsExprList(PrintCommand *cmd, int *listIdx);
-bool IsAssign(Command *command);
-bool IsFor(Command *command);
-bool IsNext(Command *command);
-bool IsGoto(Command *command);
-bool IsIf(Command *command);
-bool IsGosub(Command *command);
-bool IsReturn(Command *command);
-bool IsEnd(Command *command);
-bool IsInput(Command *command);
-bool IsPoke(Command *command);
-bool IsDim(Command *command);
-bool IsExpr(Node **ppNode);
-bool IsLogicExpr(Node **ppNode);
-bool IsLogicExprPrime(Node **ppNode);
-bool IsRelExpr(Node **ppNode);
-bool IsRelExprPrime(Node **ppNode);
-bool IsShiftExpr(Node **ppNode);
-bool IsShiftExprPrime(Node **ppNode);
-bool IsAddExpr(Node **ppNode);
-bool IsAddExprPrime(Node **ppNode);
-bool IsMultExpr(Node **ppNode);
-bool IsMultExprPrime(Node **ppNode);
-bool IsUnaryExpr(Node **ppNode);
-bool IsPostfixExpr(Node **ppNode);
-bool IsSubExprList(Node **ppNode);
-bool IsPrimaryExpr(Node **ppNode);
-
-// expression root node list used to free expression trees
-Node *ExprList[TABLE_LEN];
-int exprListIdx;
-extern int nodeCount;
-
-/*
+*   A Basic grammar parser for a Basic language interpreter.
+*
+*   This module will parse a Basic language command into its internal 
+*   representation for later execution.
+*
     BASIC grammar:
     
-    command         : directive | deferred-cmd | immediate-cmd
-    directive       : RUN | LIST | NEW
-    deferred-cmd    : [Constant] executable-cmd
-    executable-cmd  : immediate-cmd | for | next | goto | if | gosub | return | stop | end | input| poke | dim
-    immediate-cmd   : print | assign
-    print           : {PRINT | '?'} expr-list
-    expr-list       : expr  [{';' | ','} expr-list]
-    assign          : [let] Intvar ['(' expr [',' expr]* ')'] '=' expr 
-                    | [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
-    for             : FOR Intvar '=' expr TO expr [STEP expr]
-    next            : NEXT [Intvar]
-    goto            : GOTO Constant
-    if              : IF expr THEN [immediate-cmd | goto]
-    gosub           : GOSUB Constant
-    return          : RETURN
-    stop            : END
-    end             : END
-    input           : INPUT {Intvar | Strvar} ['(' expr [',' expr]* ')']
-    poke            : POKE expr ',' expr
-    dim             : DIM {Intvar | Strvar} '(' expr [',' expr]+ ')'
+    command
+        : directive
+        | deferred-cmd
+        | immediate-cmd
+        ;
+    directive
+        : RUN
+        | LIST
+        | NEW
+        ;
+    deferred-cmd
+        : [Constant] executable-cmd
+        ;
+    executable-cmd  
+        : immediate-cmd
+        | for
+        | next
+        | goto
+        | gosub
+        | return
+        | stop
+        | end
+        ;
+    immediate-cmd
+        : print
+        | assign
+        | if
+        | input
+        | poke
+        | dim
+        ;
+    print
+        : {PRINT | '?'} expr-list
+        ;
+    expr-list
+        : expr  [{';' | ','} expr-list]
+        ;
+    assign
+        : [let] Numvar ['(' expr [',' expr]* ')'] '=' expr 
+        | [let] Strvar ['(' expr [',' expr]* ')'] '=' {String | postfixExpr}
+        ;
+    for
+        : FOR Numvar '=' expr TO expr [STEP expr]
+        ;
+    next
+        : NEXT [Numvar]
+        ;
+    goto
+        : GOTO Constant
+        ;
+    if
+        : IF expr THEN [immediate-cmd | goto]
+        ;
+    gosub   
+        : GOSUB Constant
+        ;
+    return
+        : RETURN
+        ;
+    stop
+        : END
+        ;
+    end
+        : END
+        ;
+    input
+        : INPUT {Numvar | Strvar} ['(' expr [',' expr]* ')']
+        ;
+    poke    
+        : POKE expr ',' expr
+        ;
+    dim 
+        : DIM {Numvar | Strvar} '(' expr [',' expr]+ ')'
+        ;
 
     expr
         :  logicExpr
+        ;
         
     logicExpr
 	    : relExpr logicExpr'
@@ -150,15 +157,63 @@ extern int nodeCount;
 
     primaryExpr
         : Constant 
-        | Intvar
-        | Strvar
+        | Numvar
         | Function
+        | Strvar
         | String
         | '(' expr ')'
-        
-        
+        ;
+
 */
 
+#include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+#include <stdbool.h>
+#include "symtab.h"
+#include "lexer.h"
+#include "runtime.h"
+#include "parser.h"
+#include "main.h"
+
+char *Type2Name(enum NodeType type);
+Node *NewNode(enum NodeType type, union NodeValue value);
+Node *AddSon(Node *parent, Node *node);
+bool IsPrint(Command *command);
+bool IsExprList(PrintCommand *cmd, int *listIdx);
+bool IsAssign(Command *command);
+bool IsFor(Command *command);
+bool IsNext(Command *command);
+bool IsGoto(Command *command);
+bool IsIf(Command *command);
+bool IsGosub(Command *command);
+bool IsReturn(Command *command);
+bool IsEnd(Command *command);
+bool IsInput(Command *command);
+bool IsPoke(Command *command);
+bool IsDim(Command *command);
+bool IsExpr(Node **ppNode);
+bool IsLogicExpr(Node **ppNode);
+bool IsLogicExprPrime(Node **ppNode);
+bool IsRelExpr(Node **ppNode);
+bool IsRelExprPrime(Node **ppNode);
+bool IsShiftExpr(Node **ppNode);
+bool IsShiftExprPrime(Node **ppNode);
+bool IsAddExpr(Node **ppNode);
+bool IsAddExprPrime(Node **ppNode);
+bool IsMultExpr(Node **ppNode);
+bool IsMultExprPrime(Node **ppNode);
+bool IsUnaryExpr(Node **ppNode);
+bool IsPostfixExpr(Node **ppNode);
+bool IsSubExprList(Node **ppNode);
+bool IsPrimaryExpr(Node **ppNode);
+
+// expression root node list used to free expression trees
+Node *ExprList[TABLE_LEN];
+int exprListIdx;
+extern int nodeCount;
 
 // command : print | assignment | for | next | goto | if | gosub | return
 bool IsCommand(Command *command, bool *isImmediate)
@@ -171,7 +226,9 @@ bool IsCommand(Command *command, bool *isImmediate)
         command->lineNum = atoi(lexval.lexeme);
         strcpy(command->commandStr, gCommandStr);
         if (!GetNextToken(NULL))
+        {
             return false;
+        }
     }
     else
     {
@@ -224,7 +281,6 @@ bool IsPrint(Command *command)
 // expr-list : expr  [{';' | ','} expr-list]
 bool IsExprList(PrintCommand *cmd, int *listIdx)
 {
-    cmd->printList[*listIdx].varsym = lexval.lexsym;
     if (!IsExpr(&cmd->printList[*listIdx].expr))
     {
         return false;
@@ -247,37 +303,38 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
     return true;
 }
 
-// parse the possible indeces of an array variable
-bool ParseIndeces(Node *indexNodes[], Symbol *varsym)   
+// parse the indeces of an array variable
+bool ParseIndeces(Node *indexNodes[], int mod)   
 {
-    if (token == '(')
+    int nodeIdx = 0;
+    
+    if (mod > 0)
     {
-        // this is an array reference so get the first index node
-        if (GetNextToken(NULL) && IsExpr(&indexNodes[0]))
+        if (token == '(')
         {
-            // get the rest of the index nodes if any
-            for (int i = 1; i < SYM_DIM(varsym); i++)
+            // this is an array reference so get the first index node
+            if (GetNextToken(NULL) && IsExpr(&indexNodes[nodeIdx++]))
             {
-                if (token == ',')
+                // get the rest of the index nodes if any
+                for (int i = 1; i < mod; i++)
                 {
-                    if (!GetNextToken(NULL) || !IsExpr(&indexNodes[i]))
+                    if (token == ',')
                     {
-                        return false;
+                        if (!GetNextToken(NULL) || !IsExpr(&indexNodes[nodeIdx++]))
+                        {
+                            return false;
+                        }
                     }
                 }
-                else
+                if (token != ')')
                 {
                     return false;
                 }
             }
-            if ((token != ')') || !GetNextToken(NULL))
+            else
             {
                 return false;
             }
-        }
-        else
-        {
-            return false;
         }
     }
     
@@ -300,54 +357,40 @@ bool IsAssign(Command *command)
     command->type = CT_ASSIGN;
     command->cmd.assignCmd.varsym = lexval.lexsym;
         
-    // [let] Intvar ['(' expr [',' expr]* ')'] '=' expr
+    // [let] Numvar ['(' expr [',' expr]* ')'] '=' expr
     // [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
-    if (token == Intvar || token == Strvar)
+    if (token == Numvar || token == Strvar)
     {
+        // parse the index nodes for arrays
+        if (SYM_DIM(command->cmd.assignCmd.varsym) > 0)
+        {
+            if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
+            {
+                return false;
+            }
+        }
+        
+        // perform the assignment
         if (GetNextToken(NULL))
         {
-            // parse the index nodes for arrays if any
-            if (ParseIndeces(command->cmd.assignCmd.indexNodes, command->cmd.assignCmd.varsym))
+            if (token == '=')
             {
-                if (token == '=')
+                // perform the assignment based on the LHS
+                if (SYM_TYPE(command->cmd.assignCmd.varsym) == ST_NUMVAR)
                 {
-// TODO: prevent general expressions with string vars or constants
-#define EFFICIENT                
-#ifndef EFFICIENT
+                    // the RHS is a const, scaler or vector number variable or function return value
                     if (GetNextToken(NULL) && IsExpr(&command->cmd.assignCmd.expr))
                     {
                         return true;
                     }
-#else                
-                    switch (command->cmd.assignCmd.varsym->type)
+                }                        
+                else if (SYM_TYPE(command->cmd.assignCmd.varsym) == ST_STRVAR)
+                {
+                    // the RHS is a string or scaler or vector string variable
+                    if (GetNextToken(NULL) && IsPostfixExpr(&command->cmd.assignCmd.expr))
                     {
-                        case ST_INTVAR:
-                        case ST_FCT:
-                        case ST_CONSTANT:
-                            // the RHS is an expression, e.g. const, var value, array member, or function return value
-                            if (GetNextToken(NULL) && IsExpr(&command->cmd.assignCmd.expr))
-                            {
-                                return true;
-                            }
-                            break;
-                            
-                        case ST_STRVAR:
-                            // the RHS is a string or a string variable either scaler or vector
-                            if (GetNextToken(NULL) && IsPostfixExpr(&command->cmd.assignCmd.expr))
-                            {
-                                return true;
-                            }
-                            break;
-                            
-                        case ST_STRING:
-                            // the RHS is a function, constant, or a string
-                            if (GetNextToken(NULL) && IsPrimaryExpr(&command->cmd.assignCmd.expr))
-                            {
-                                return true;
-                            }
-                            break;
+                        return true;
                     }
-#endif                    
                 }
             }
         }
@@ -364,7 +407,7 @@ bool IsFor(Command *command)
     // FOR IntvarName '=' expr TO expr [STEP expr]
     if (token == FOR)
     {
-        if (GetNextToken(NULL) && (token == Intvar))
+        if (GetNextToken(NULL) && (token == Numvar))
         {
             cmd.symbol = lexval.lexsym;
             if (GetNextToken(NULL) && (token == '='))
@@ -401,7 +444,8 @@ bool IsNext(Command *command)
 {
     if (token == NEXT)
     {
-        if (GetNextToken(NULL) && (token == Intvar))
+        command->cmd.nextCmd.symbol = NULL;
+        if (GetNextToken(NULL) && (token == Numvar))
         {
             command->cmd.nextCmd.symbol = lexval.lexsym;
         }
@@ -526,23 +570,21 @@ bool IsEnd(Command *command)
 // input
 bool IsInput(Command *command)
 {
-    // INPUT {Intvar | Strvar} ['(' expr [',' expr]* ')']
+    // INPUT {Numvar | Strvar} ['(' expr [',' expr]* ')']
     if (token == INPUT)
     {
         command->type = CT_INPUT;
         if (GetNextToken(NULL))
         {
             command->cmd.inputCmd.varsym = lexval.lexsym;
-            if (token == Intvar || token == Strvar)
+            if (token == Numvar || token == Strvar)
             {
-               if (GetNextToken(NULL))
+                // parse the index nodes for arrays
+                if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
                 {
-                    // parse the index nodes for arrays if any
-                    if (ParseIndeces(command->cmd.inputCmd.indexNodes, command->cmd.inputCmd.varsym))
-                    {
-                        return true;
-                    }
+                    return false;
                 }
+                return true;
             }
         }
     }
@@ -579,11 +621,11 @@ bool IsDim(Command *command)
 {
     int dim = 0;
     
-    // DIM {Intvar | Strvar} '(' expr [',' expr]* ')'
+    // DIM {Numvar | Strvar} '(' expr [',' expr]* ')'
     if (token == DIM)
     {
         command->type = CT_DIM;
-        if (GetNextToken(NULL) && (token == Intvar || token == Strvar))
+        if (GetNextToken(NULL) && (token == Numvar || token == Strvar))
         {
             command->cmd.dimCmd.varsym = lexval.lexsym;
             if (GetNextToken(NULL) && (token == '('))
@@ -625,9 +667,13 @@ Node *NewNode(enum NodeType type, union NodeValue value)
 void FreeNode(Node *node)
 {
     if (node->son)
+    {
         FreeNode(node->son);
+    }
     if (node->bro)
+    {
         FreeNode(node->bro);
+    }
     free(node);
     nodeCount--;
     MESSAGE("...free node");
@@ -636,7 +682,9 @@ void FreeNode(Node *node)
 void FreeExprTrees(void)
 {
     for (int i = 0; i < exprListIdx; i++)
+    {
         FreeNode(ExprList[i]);
+    }
     exprListIdx = 0;
 }
 
@@ -1067,11 +1115,11 @@ bool IsSubExprList(Node **ppNode)
     return false;
 }
 
-// TODO: this should not get the next token
 // primary expression
 bool IsPrimaryExpr(Node **ppNode)
 {
     Node *son;
+    float value;
 
     MESSAGE("IsPrimaryExpr...");
     *ppNode = NewNode(NT_PRIMARY_EXPR, (union NodeValue)0);    
@@ -1079,7 +1127,15 @@ bool IsPrimaryExpr(Node **ppNode)
     switch (token)
     {
         case Constant:
-            AddSon(*ppNode, NewNode(NT_CONSTANT, (union NodeValue)((int)strtol(lexval.lexeme, NULL, 0))));
+            if (lexval.lexeme[1] == 'x' || lexval.lexeme[1] == 'X')
+            {
+                value = (float)strtol(lexval.lexeme, NULL, 16);
+            }
+            else
+            {
+                value = strtod(lexval.lexeme, NULL);
+            }
+            AddSon(*ppNode, NewNode(NT_CONSTANT, (union NodeValue)((float)value)));
             if (GetNextToken(NULL))
             {
                 MESSAGE("...IsPrimaryExpr Constant");
@@ -1087,11 +1143,11 @@ bool IsPrimaryExpr(Node **ppNode)
             }
             break;
         
-        case Intvar:
-            AddSon(*ppNode, NewNode(NT_INTVAR, (union NodeValue)lexval.lexsym));
+        case Numvar:
+            AddSon(*ppNode, NewNode(NT_NUMVAR, (union NodeValue)lexval.lexsym));
             if (GetNextToken(NULL))
             {
-                MESSAGE("...IsPrimaryExpr Intvar");
+                MESSAGE("...IsPrimaryExpr Numvar");
                 return true;
             }
             break;
@@ -1109,7 +1165,7 @@ bool IsPrimaryExpr(Node **ppNode)
             AddSon(*ppNode, NewNode(NT_STRVAR, (union NodeValue)lexval.lexsym));
             if (GetNextToken(NULL))
             {
-                MESSAGE("...IsPrimaryExpr Intvar");
+                MESSAGE("...IsPrimaryExpr Strvar");
                 return true;
             }
             break;
@@ -1118,7 +1174,7 @@ bool IsPrimaryExpr(Node **ppNode)
             AddSon(*ppNode, NewNode(NT_STRING, (union NodeValue)lexval.lexeme));
             if (GetNextToken(NULL))
             {
-                MESSAGE("...IsPrimaryExpr Intvar");
+                MESSAGE("...IsPrimaryExpr String");
                 return true;
             }
             break;
