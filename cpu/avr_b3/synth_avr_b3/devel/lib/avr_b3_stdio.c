@@ -38,8 +38,11 @@ void KeyBeep(uint8_t tone, uint16_t durationMs)
 {
     MIXER = VCO1;
     VCO1_FREQ = tone;
-    msleep(durationMs);
-    VCO1_FREQ = 0;
+    if (durationMs != 0)
+    {
+        msleep(durationMs);
+        VCO1_FREQ = 0;
+    }
 }
 
 uint8_t ReadKeypad(bool beep, uint8_t tone, uint16_t durationMs)

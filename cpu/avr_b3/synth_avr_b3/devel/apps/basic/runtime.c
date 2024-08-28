@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <inttypes.h>
+#include <math.h>
 #include "symtab.h"
 #include "lexer.h"
 #include "parser.h"
@@ -27,9 +28,14 @@
 #define STACK_SIZE 20
 #define MAX_PROGRAM_LEN 100
 
+#define BEEP_TONE 440
+#define BEEP_DURATION 300
+
+#define ALL_COMMANDS false
+
 bool RunProgram(void);
 bool ListProgram(void);
-bool ExecCommand(Command *command);
+bool ExecCommand(Command *command, bool cmdLineOnly);
 bool ExecPrint(PrintCommand *cmd);
 bool ExecAssign(AssignCommand *cmd);
 bool ExecFor(ForCommand *cmd);
@@ -40,9 +46,15 @@ bool ExecGosub(GosubCommand *cmd);
 bool ExecReturn(void);
 bool ExecEnd(void);
 bool ExecInput(InputCommand *cmd);
-bool ExecPoke(PokeCommand *cmd);
+bool ExecPoke(PlatformCommand *cmd);
+bool ExecTone(PlatformCommand *cmd);
+bool ExecBeep(PlatformCommand *cmd);
+bool ExecDisplay(PlatformCommand *cmd);
+bool ExecOutchar(PlatformCommand *cmd);
+bool ExecRseed(PlatformCommand *cmd);
+bool ExecDelay(PlatformCommand *cmd);
 bool ExecDim(DimCommand *cmd);
-bool Peek(uint16_t addr);
+
 bool ExecBuiltinFct(const char *name);
 bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue);
 bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue);
@@ -66,17 +78,19 @@ int nodeCount = 0;
 // ***stacks and queues***
 
 // command queue aka "the program"
-Command Program[MAX_PROGRAM_LEN];
+CommandLine Program[MAX_PROGRAM_LEN]; // list of command lines all of which share the same line number
 int programIdx = 0;     // program index used to add commands to the program
-int ip = 0;             // instruction pointer used to point to the current command in the program
+int cmdLineIdx = 0;     // command line index used to point to the current command line in the program
+//int ip = 0;             // instruction pointer used to point to the current command in the program
+Command *cmdPtr = 0;         // command index used to point to the next command to be executed
 
 // for command stack needed by the next command
 ForCommand *fortab[TABLE_LEN];
 int fortabIdx = 0;
 
 // call stack used for subroutines/returns
-int cs[STACK_SIZE];
-unsigned csp = 0;
+Command *callStack[STACK_SIZE];
+unsigned callSP = 0;
 
 // floating point stack and its index, i.e. real stack pointer
 float numStack[STACK_SIZE];
@@ -92,27 +106,73 @@ typedef struct FctList {
     int arity;
 } FctList;
 
-// convert a command line number to an index to the program
-int LineNum2Ip(int lineNum)
+// free all commands in a command line past the first
+void FreeCommandLines(void)
+{
+    Command *cmd;
+    
+    for (int i = 0; i < programIdx; i++)
+    {
+        while (Program[i].cmd.next)
+        {
+            cmd = Program[i].cmd.next;
+            Program[i].cmd.next = cmd->next;
+            free(cmd);
+        }
+    }
+}
+
+Command *FindNextCommand(bool cmdLineOnly)
+{
+    if (cmdPtr->next)
+    {
+        // next command in the command line
+        return cmdPtr->next;
+    }
+    else if ((!cmdLineOnly) && (cmdLineIdx < programIdx))
+    {
+        // first command in the next command line
+        return &Program[++cmdLineIdx].cmd;
+    }
+    
+    return NULL;
+}
+
+// convert the command pointer to a program line number
+int CmdPtr2LineNum(void)
 {
     for (int i = 0; i < programIdx; i++)
-        if (Program[i].lineNum == lineNum)
-            return i;            
+    {
+        for (Command *command = &Program[i].cmd; command; command = command->next)
+        {
+            if (command == cmdPtr)
+            {
+                return Program[i].lineNum;            
+            }
+        }
+    }
     return 0;
 }
 
-// convert an index to the program to a command line number
-int Idx2lineNum(int idx)
+// convert a line number to a program index
+bool LineNum2CmdLineIdx(int lineNum)
 {
-    if (idx < programIdx)
-        return Program[idx].lineNum;
-    return 0;
+    for (int i = 0; i < programIdx; i++)
+    {
+        if (Program[i].lineNum == lineNum)
+        {
+            cmdLineIdx = i;
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 void SwapProgLines(int progIdxA, int progIdxB) 
 { 
     // copy a to temp, b to a, then temp to b
-    Command temp = Program[progIdxA]; 
+    CommandLine temp = Program[progIdxA]; 
     Program[progIdxA] = Program[progIdxB]; 
     Program[progIdxB] = temp; 
 } 
@@ -145,13 +205,14 @@ void PrintResult(void)
     }
 }
 
-// command : directive | statement
+// this is the entry point from the main UI into the interpreter
+// command : directive | commandList
 bool ProcessCommand(char *commandStr)
 {
-    // init the parser and error sting
-    Command command = {0};
+    // init the parser and error string
+    CommandLine commandLine = {0};
     bool isImmediate;
-    int lineIdx;
+    int i;
     char tempStr[80];
     
     // default parser error
@@ -174,11 +235,13 @@ bool ProcessCommand(char *commandStr)
     {
         fortabIdx = 0;
         programIdx = 0;
-        csp = 0;
+        cmdLineIdx = 0;
+        callSP = 0;
         numSP = 0;
         strSP = 0;
         FreeExprTrees();
         FreeSymtab();
+        FreeCommandLines();
         sprintf(message, "node qty: %d\n", nodeCount);
         MESSAGE(message);
         return true;
@@ -187,11 +250,13 @@ bool ProcessCommand(char *commandStr)
     {
         fortabIdx = 0;
         programIdx = 0;
-        csp = 0;
+        cmdLineIdx = 0;
+        callSP = 0;
         numSP = 0;
         strSP = 0;
         FreeExprTrees();
         FreeSymtab();
+        FreeCommandLines();
         InitDisplay();
         return true;
     }
@@ -199,27 +264,35 @@ bool ProcessCommand(char *commandStr)
     // init the lexer and parse the command to create the IR
     if (GetNextToken(commandStr))
     {
-        if (IsCommand(&command, &isImmediate))
+        if (IsCommandLine(&commandLine, &isImmediate))
         {
             if (isImmediate)
             {
-                // the command has no line number so execute it immediately
-                return ExecCommand(&command);
+                // the command line has no line number so execute it immediately
+                cmdPtr = &commandLine.cmd;
+                while (cmdPtr)
+                {
+                    if (!ExecCommand(cmdPtr, isImmediate))
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
             else
             {
                 // check to see if this is a replacement of an existing line by number
-                for (lineIdx = 0; lineIdx < programIdx; lineIdx++)
+                for (i = 0; i < programIdx; i++)
                 {
-                    if (command.lineNum == Idx2lineNum(lineIdx))
+                    if (commandLine.lineNum == Program[i].lineNum)
                     {
                         break;
                     }
                 }
-                Program[lineIdx] = command;
-                if (lineIdx == programIdx)
+                Program[i] = commandLine;
+                if (i == programIdx)
                 {
-                    Program[lineIdx].lineNum = command.lineNum;
+                    //Program[i].lineNum = command.lineNum;
                     if (programIdx < MAX_PROGRAM_LEN-1)
                     {
                         programIdx++;
@@ -258,14 +331,14 @@ bool RunProgram(void)
     // ready for more commands whether or not the program executes correctly
     ready = true;    
       
-    ip = 0;
-    while (ip < programIdx)
+    // init the command pointer to the first command in the first command line
+    cmdPtr = &Program[0].cmd;
+    while (cmdPtr != NULL)
     {
         // execute the command
-        if (!ExecCommand(&Program[ip]))
+        if (!ExecCommand(cmdPtr, ALL_COMMANDS))
         {
-            //strcpy(errorStr, "execution error");
-            sprintf(tempStr, " at line %d", Program[ip].lineNum);
+            sprintf(tempStr, " at line %d", CmdPtr2LineNum());
             strcat(errorStr, tempStr);
             return false;
         }
@@ -278,18 +351,27 @@ bool ListProgram(void)
 {
     for (int i = 0; i < programIdx; i++)
     {
-        strcpy(resultStr, Program[i].commandStr);
-        PrintResult();
+        if (Program[i].cmd.type != CT_NOP || strstr(Program[i].commandStr, "rem"))
+        {
+            strcpy(resultStr, Program[i].commandStr);
+            PrintResult();
+        }
     }
     ready = true;      
       
     return true;
 }
 
-bool ExecCommand(Command *command)
+// execute a possible list of commands
+bool ExecCommand(Command *command, bool cmdLineOnly)
 {
+    Command *lastCmdPtr = cmdPtr;
+    
     switch (command->type)
     {
+        case CT_NOP: 
+            break;
+                
         case CT_PRINT: 
             if (!ExecPrint(&command->cmd.printCmd))
                 return false;
@@ -341,7 +423,37 @@ bool ExecCommand(Command *command)
             break;                
                 
         case CT_POKE: 
-            if (!ExecPoke(&command->cmd.pokeCmd))
+            if (!ExecPoke(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_TONE: 
+            if (!ExecTone(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_BEEP: 
+            if (!ExecBeep(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_DISPLAY: 
+            if (!ExecDisplay(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_OUTCHAR: 
+            if (!ExecOutchar(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_RSEED: 
+            if (!ExecRseed(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_DELAY: 
+            if (!ExecDelay(&command->cmd.platformCmd))
                 return false;
             break;                
                 
@@ -349,8 +461,13 @@ bool ExecCommand(Command *command)
             if (!ExecDim(&command->cmd.dimCmd))
                 return false;
             break;                
-    }    
+    }
     PrintResult();
+    if (cmdPtr == lastCmdPtr)
+    {
+        // if a command didn't change the command pointer, logically increment it
+        cmdPtr = FindNextCommand(cmdLineOnly);                      
+    }
     
     return true;
 }
@@ -398,11 +515,22 @@ bool ExecPrint(PrintCommand *cmd)
                         strcpy(errorStr, "invalid print expression");
                         return false;
                     }
-                    sprintf(exprStr, "%f", numval);
-                    sscanf(exprStr, "%d.%d", &intval, &decval);
-                    if (decval == 0)
+                    switch (cmd->style)
                     {
-                        sprintf(exprStr, "%.f", numval);
+                        case PS_DECIMAL:
+                            sprintf(exprStr, "%f", numval);
+                            sscanf(exprStr, "%d.%d", &intval, &decval);
+                            if (decval == 0)
+                            {
+                                sprintf(exprStr, "%.f", numval);
+                            }
+                            break;
+                        case PS_HEX:
+                            sprintf(exprStr, "0x%x", (unsigned int)numval);
+                            break;
+                        case PS_ASCII:
+                            sprintf(exprStr, "%c", (int)numval);
+                            break;
                     }
                     if (exprStr == NULL)
                     {
@@ -436,7 +564,7 @@ bool ExecPrint(PrintCommand *cmd)
             return false;
         }
     }
-    ip++;
+    //ip++;
     
     return true;
 }
@@ -483,7 +611,7 @@ bool ExecAssign(AssignCommand *cmd)
             }
         }
     }
-    ip++;
+    //ip++;
 
     return true;
 }
@@ -495,14 +623,12 @@ bool ExecFor(ForCommand *cmd)
     
     //Console("ExecFor()\n");
     
-    // perform initial variable assignment then push for command onto FOR stack
+    // perform initial variable assignment then push for-command onto FOR stack
     if (EvaluateNumExpr(cmd->init, &value))
     {
-        //SYM_NUMVAL(cmd->symbol) = value;
         if (SymWriteNumvar(cmd->symbol, NULL, value))
         {
             fortab[fortabIdx++] = cmd;
-            ip++;
             return true;
         }
     }
@@ -529,10 +655,20 @@ bool ExecNext(NextCommand *cmd)
                 forInstr = fortab[i];
             }
         }
+        if (fortabIdx == 0)
+        {
+            strcpy(errorStr, "no matching for");
+            return false;
+        }
     }
     else
     {
         // use the for instruction on the top of the for stack for annonymous next
+        if (fortabIdx == 0)
+        {
+            strcpy(errorStr, "no matching for");
+            return false;
+        }
         forInstr = fortab[fortabIdx - 1];
     }
         
@@ -544,7 +680,6 @@ bool ExecNext(NextCommand *cmd)
             return false;
         }
     }
-    //SYM_NUMVAL(forInstr->symbol) += step;
     if (SymReadNumvar(forInstr->symbol, NULL, &symval))
     {
         symval += step;
@@ -555,13 +690,16 @@ bool ExecNext(NextCommand *cmd)
             {
                 if (symval <= to)
                 {
-                    // goto command at line number following the for command
-                    ip = LineNum2Ip(forInstr->lineNum) + 1;
-                }
-                else
-                {
-                    // continue program execution with the following command
-                    ip++;
+                    // goto the first command in the command line following the for command
+                    if (LineNum2CmdLineIdx(forInstr->lineNum))
+                    {
+                        cmdLineIdx++;
+                        cmdPtr = &Program[cmdLineIdx].cmd;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
                 return true;
             }
@@ -580,8 +718,16 @@ bool ExecGoto(GotoCommand *cmd)
     {
         if (dest > 0)
         {
-            ip = LineNum2Ip(dest);
-            return true;
+            // goto the first command in the command line of the goto destination
+            if (LineNum2CmdLineIdx((int)dest))
+            {
+                cmdPtr = &Program[cmdLineIdx].cmd;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 
@@ -614,7 +760,7 @@ bool ExecIf(IfCommand *cmd)
         }
         else
         {
-            ip++;
+            //ip++;
             return true;
         }
     }
@@ -633,10 +779,20 @@ bool ExecGosub(GosubCommand *cmd)
     {
         if (dest > 0)
         {
+            /*
             // push return address, i.e. current IP + 1, onto call stack then go to the subroutine
-            cs[csp++] = ip + 1;
+            callStack[callSP++] = ip + 1;
             ip = LineNum2Ip(dest);
-            return true;
+            */
+            // push the pointer to the next command to be executed after the subroutine return onto the call stack
+            callStack[callSP++] = FindNextCommand(false);
+            
+            // goto the first command in the command line of the gosub destination
+            if (LineNum2CmdLineIdx((int)dest))
+            {
+                cmdPtr = &Program[cmdLineIdx].cmd;
+                return true;
+            }
         }
     }
 
@@ -649,29 +805,40 @@ bool ExecReturn(void)
     
     //Console("ExecReturn()\n");
     
-    // check for return without gosub error
-    if (csp == 0)
+    // ensure the call stack isn't empty
+    if (callSP == 0)
     {
         strcpy(errorStr, "return without gosub");
         return false;
     }
+    /*
     // pop the return address from the call stack and set the IP to it
-    ip = cs[--csp];
-
-    return true;
+    ip = callStack[--callSP];
+    */
+    // pop the next command to be executed from the call stack
+    cmdPtr = callStack[--callSP];
+    if (LineNum2CmdLineIdx(CmdPtr2LineNum()))
+    {
+        return true;
+    }
+    
+    return false;
 }
 
 // end : END
 bool ExecEnd(void)
 {
+    /*
     // end the program by setting IP to one past the last command in the program
     ip = programIdx;
+    */
+    // end the program by setting the command point to NULL
+    cmdPtr = NULL;
 
     return true;
 }
 
 // TODO: change SymLookup to accept both a token value and an explicit token string, not the global "tokenStr"
-// FIXME: a string input should be enclosed by quotes
 // input : INPUT {Intvar | Strvar} ['(' expr [',' expr]* ')']
 bool ExecInput(InputCommand *cmd)
 {
@@ -739,25 +906,111 @@ bool ExecInput(InputCommand *cmd)
             }
         }
     }
-    ip++;
 
     return true;
 }
 
-bool ExecPoke(PokeCommand *cmd)
+bool ExecPoke(PlatformCommand *cmd)
 {
     float numval;
     int addr, data;
     
-    if (EvaluateNumExpr(cmd->addr, &numval))
+    if (EvaluateNumExpr(cmd->arg1, &numval))
     {
         addr = (int)numval;
-        if (EvaluateNumExpr(cmd->data, &numval))
+        if (EvaluateNumExpr(cmd->arg2, &numval))
         {
             data = (int)numval;
             MemWrite((uint16_t)addr, (uint8_t)data);
             return true;
         }
+    }
+    
+    return false;
+}
+
+bool ExecTone(PlatformCommand *cmd)
+{
+    float numval;
+    int freq, duration;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        freq = (int)numval;
+        if (EvaluateNumExpr(cmd->arg2, &numval))
+        {
+            duration = (int)numval;
+            Tone((uint16_t)freq, (uint16_t)duration);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool ExecBeep(PlatformCommand *cmd)
+{
+    Tone((uint16_t)BEEP_TONE, (uint16_t)BEEP_DURATION);
+    //ip++;
+    return true;
+}
+
+bool ExecDisplay(PlatformCommand *cmd)
+{
+    float numval;
+    int value, displayQty;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        value = (int)numval;
+        if (EvaluateNumExpr(cmd->arg2, &numval))
+        {
+            displayQty = (int)numval;
+            Display((uint16_t)value, (uint8_t)displayQty);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+bool ExecOutchar(PlatformCommand *cmd)
+{
+    float numval;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        sprintf(message, "%c", (int)numval);
+        Console(message);
+        return true;
+    }
+    
+    return false;
+}
+
+bool ExecRseed(PlatformCommand *cmd)
+{
+    float numval;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        srand((unsigned int)numval);
+        return true;
+    }
+    
+    return false;
+}
+
+bool ExecDelay(PlatformCommand *cmd)
+{
+    float numval;
+    int duration;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        duration = (int)numval;
+        Delay((uint16_t)duration);
+        return true;
     }
     
     return false;
@@ -809,21 +1062,24 @@ bool ExecDim(DimCommand *cmd)
     }
     */    
     
-    ip++;
+    //ip++;
 
     return true;
-}
-
-bool Peek(uint16_t addr)
-{
-    return NumStackPush(MemRead(addr));
 }
 
 bool ExecBuiltinFct(const char *name)
 {
     if (!strcmp(name, "peek"))
     {
-        return Peek((uint16_t)NumStackPop());
+        return NumStackPush(MemRead((uint16_t)NumStackPop()));
+    } 
+    else if (!strcmp(name, "rnd"))
+    {
+        return NumStackPush(rand() % ((uint16_t)NumStackPop()));
+    } 
+    else if (!strcmp(name, "abs"))
+    {
+        return NumStackPush(fabsf(NumStackPop()));
     } 
     
     return false;       

@@ -67,32 +67,42 @@ struct KeywordTableEntry {
     int token;
 } keywordTab[] = {
 //       tokenStr   token
-        {"print",   PRINT   },
-        {"let",     LET     },
-        {"for",     FOR     },
-        {"to",      TO      },
-        {"step",    STEP    },
-        {"next",    NEXT    },
-        {"goto",    GOTO    },
-        {"if",      IF      },
-        {"then",    THEN    },
-        {"gosub",   GOSUB   },
-        {"return",  RETURN  },
-        {"stop",    STOP    },
-        {"end",     END     },
-        {"input",   INPUT   },
-        {"poke",    POKE    },
-        {"dim",     DIM     },
-        {"and",     AND_OP  },
-        {"not",     NOT_OP  },
-        {"or",      OR_OP   },
-        {"xor",     XOR_OP  },
-        {"mod",     MOD_OP  }
+    {"print",   PRINT   },
+    {"printx",  PRINTX  },
+    {"printa",  PRINTA  },
+    {"let",     LET     },
+    {"for",     FOR     },
+    {"to",      TO      },
+    {"step",    STEP    },
+    {"next",    NEXT    },
+    {"goto",    GOTO    },
+    {"if",      IF      },
+    {"then",    THEN    },
+    {"gosub",   GOSUB   },
+    {"return",  RETURN  },
+    {"stop",    STOP    },
+    {"end",     END     },
+    {"input",   INPUT   },
+    {"poke",    POKE    },
+    {"dim",     DIM     },
+    {"tone",    TONE    },
+    {"beep",    BEEP    },
+    {"display", DISPLAY },
+    {"outchar", OUTCHAR },
+    {"rseed",   RSEED   },
+    {"delay",   DELAY   },
+    {"and",     AND_OP  },
+    {"not",     NOT_OP  },
+    {"or",      OR_OP   },
+    {"xor",     XOR_OP  },
+    {"mod",     MOD_OP  }
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 
 char *builtinFctTab[] = {
     "peek",
+    "rnd",
+    "abs"
 };
 int builtinFctTableSize = sizeof builtinFctTab / sizeof(char *);
 
@@ -123,8 +133,8 @@ bool GetNextToken(char *commandStr)
         switch (state)
         {
             case 0:
-                token = 0;
                 // remove whitespace
+                token = 0;
                 if (isspace(*nextChar))
                 {
                     nextChar++;
@@ -285,6 +295,14 @@ bool GetNextToken(char *commandStr)
                     tokenStrLc[j] = tolower(tokenStr[j]);
                 }
                 
+                // check for comment keyword, "rem"
+                if (!strcmp("rem", tokenStrLc))
+                {
+                    // discard the rest of the command line by sending EOL
+                    state = 7;
+                    break;
+                }
+                
                 // if the token string is a keyword return its corresponding token
                 for (int j = 0; j < keywordTableSize; j++)
                 {
@@ -358,7 +376,7 @@ bool GetNextToken(char *commandStr)
                 // return EOL
                 i = 0;
                 state = 0;
-                token = 0;
+                token = EOL;
                 return true;
         }
     }

@@ -55,9 +55,11 @@ typedef struct Printable {
     Node *expr;
     char separator;
 } Printable;
+enum PrintStyle {PS_DECIMAL, PS_HEX, PS_ASCII};
 typedef struct PrintCommand {
     Printable printList[20];
     int printListIdx;
+    enum PrintStyle style;
 } PrintCommand;
 
 typedef struct AssignCommand {
@@ -103,19 +105,39 @@ typedef struct InputCommand {
     Node *indexNodes[DIM_MAX];
 } InputCommand;
 
-typedef struct PokeCommand {
-    Node *addr;
-    Node *data;
-} PokeCommand;
+typedef struct PlatformCommand {
+    Node *arg1;
+    Node *arg2;
+} PlatformCommand;
 
 typedef struct DimCommand {
     Symbol *varsym;                 // contains the linear data array
     Node *dimSizeNodes[DIM_MAX];    // the expression of each dimension
 } DimCommand;
 
-enum COMMAND_TYPE {CT_PRINT, CT_ASSIGN, CT_FOR, CT_NEXT, CT_GOTO, CT_IF, CT_GOSUB, CT_RETURN, CT_END, CT_INPUT, CT_POKE, CT_DIM};
+enum COMMAND_TYPE {
+    CT_NOP,
+    CT_PRINT,
+    CT_ASSIGN,
+    CT_FOR,
+    CT_NEXT,
+    CT_GOTO,
+    CT_IF,
+    CT_GOSUB,
+    CT_RETURN,
+    CT_END,
+    CT_INPUT,
+    CT_POKE,
+    CT_DIM,
+    CT_TONE,
+    CT_BEEP,
+    CT_DISPLAY,
+    CT_OUTCHAR,
+    CT_RSEED,
+    CT_DELAY
+};
+
 typedef struct Command {
-    char commandStr[80];
     int lineNum;
     enum COMMAND_TYPE type;
     union {
@@ -127,12 +149,19 @@ typedef struct Command {
         IfCommand       ifCmd;
         GosubCommand    gosubCmd;
         InputCommand    inputCmd;
-        PokeCommand     pokeCmd;
+        PlatformCommand platformCmd;
         DimCommand      dimCmd;
     } cmd;
+    struct Command *next;
 } Command;
 
-bool IsCommand(Command *command, bool *isImmediate);
+typedef struct CommandLine {
+    char commandStr[80];
+    int lineNum;
+    Command cmd;
+} CommandLine;    
+
+bool IsCommandLine(CommandLine *command, bool *isImmediate);
 bool IsExpr(Node **ppNode);
 void FreeExprTrees(void);
 

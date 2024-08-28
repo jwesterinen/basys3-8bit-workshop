@@ -50,7 +50,7 @@ ISR(_VECTOR(2))
 #endif
 
 char message[80];
-char *versionStr = "v0.1";
+char *versionStr = "v0.7";
 char *promptStr = "> ";
     
 extern bool ready;
@@ -121,14 +121,19 @@ char *GetString(char *buffer)
     }
 }
 
-uint8_t MemRead(uint8_t *addr)
+uint8_t MemRead(uint16_t *addr)
 {
     return (*(volatile uint8_t *)(addr));
 }
 
-void MemWrite(uint8_t *addr, uint8_t data)
+void MemWrite(uint16_t *addr, uint8_t data)
 {
     (*(volatile uint8_t *)(addr)) = data;
+}
+
+void Tone(uint16_t freq, uint16_t duration)
+{
+    KeyBeep(freq, duration);
 }
 
 void InitDisplay(void)
@@ -137,6 +142,11 @@ void InitDisplay(void)
     PutString("AVR_B3 Basic Interpreter ");
     PutString(versionStr);
     PutString("\n\n");
+}
+
+void Delay(uint16_t duration)
+{
+    msleep(duration);
 }
 
 int main(void)
