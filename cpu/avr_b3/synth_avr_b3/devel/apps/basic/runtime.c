@@ -81,8 +81,7 @@ int nodeCount = 0;
 CommandLine Program[MAX_PROGRAM_LEN]; // list of command lines all of which share the same line number
 int programIdx = 0;     // program index used to add commands to the program
 int cmdLineIdx = 0;     // command line index used to point to the current command line in the program
-//int ip = 0;             // instruction pointer used to point to the current command in the program
-Command *cmdPtr = 0;         // command index used to point to the next command to be executed
+Command *cmdPtr = NULL; // command pointer is used to point to the next command to be executed
 
 // for command stack needed by the next command
 ForCommand *fortab[TABLE_LEN];
@@ -106,23 +105,32 @@ typedef struct FctList {
     int arity;
 } FctList;
 
-// free all commands in a command line past the first
-void FreeCommandLines(void)
+// free a command list
+void FreeCommand(Command *cmd)
 {
-    Command *cmd;
-    
+    if (cmd->next)
+        FreeCommand(cmd->next);
+    free(cmd);
+}
+
+// free all allocated commands in a command line
+void FreeCommandLine(CommandLine *cmdLine)
+{
+    if (cmdLine->cmd.next)
+        FreeCommand(cmdLine->cmd.next);
+    cmdLine->cmd.next = NULL;
+}
+
+// free all allocated commands in a command line
+void FreeProgram(void)
+{
     for (int i = 0; i < programIdx; i++)
     {
-        while (Program[i].cmd.next)
-        {
-            cmd = Program[i].cmd.next;
-            Program[i].cmd.next = cmd->next;
-            free(cmd);
-        }
+        FreeCommandLine(&Program[i]);
     }
 }
 
-Command *FindNextCommand(bool cmdLineOnly)
+Command *IterateCmdPtr(bool cmdLineOnly)
 {
     if (cmdPtr->next)
     {
@@ -136,22 +144,6 @@ Command *FindNextCommand(bool cmdLineOnly)
     }
     
     return NULL;
-}
-
-// convert the command pointer to a program line number
-int CmdPtr2LineNum(void)
-{
-    for (int i = 0; i < programIdx; i++)
-    {
-        for (Command *command = &Program[i].cmd; command; command = command->next)
-        {
-            if (command == cmdPtr)
-            {
-                return Program[i].lineNum;            
-            }
-        }
-    }
-    return 0;
 }
 
 // convert a line number to a program index
@@ -206,7 +198,7 @@ void PrintResult(void)
 }
 
 // this is the entry point from the main UI into the interpreter
-// command : directive | commandList
+// command : directive | command-line
 bool ProcessCommand(char *commandStr)
 {
     // init the parser and error string
@@ -241,7 +233,7 @@ bool ProcessCommand(char *commandStr)
         strSP = 0;
         FreeExprTrees();
         FreeSymtab();
-        FreeCommandLines();
+        FreeProgram();
         sprintf(message, "node qty: %d\n", nodeCount);
         MESSAGE(message);
         return true;
@@ -256,19 +248,19 @@ bool ProcessCommand(char *commandStr)
         strSP = 0;
         FreeExprTrees();
         FreeSymtab();
-        FreeCommandLines();
+        FreeProgram();
         InitDisplay();
         return true;
     }
 
-    // init the lexer and parse the command to create the IR
+    // init the lexer and parse the command line to create the IR
     if (GetNextToken(commandStr))
     {
         if (IsCommandLine(&commandLine, &isImmediate))
         {
             if (isImmediate)
             {
-                // the command line has no line number so execute it immediately
+                // the command line has no line number so execute it and free any dynamic commands immediately
                 cmdPtr = &commandLine.cmd;
                 while (cmdPtr)
                 {
@@ -277,6 +269,7 @@ bool ProcessCommand(char *commandStr)
                         return false;
                     }
                 }
+                FreeCommandLine(&commandLine);
                 return true;
             }
             else
@@ -318,9 +311,8 @@ bool ProcessCommand(char *commandStr)
     return false;
 }
 
-// execute commands in the program based on the Instruction Pointer (IP)
-// which will simply increment unless a next or goto command is executed
-// which will explicitly change the IP
+// execute commands in the program based on the command pointer, cmdPtr, which 
+// will be iterated unless a command is executed that explicitly changes it
 bool RunProgram(void)
 {
     char tempStr[STRING_LEN];
@@ -332,16 +324,25 @@ bool RunProgram(void)
     ready = true;    
       
     // init the command pointer to the first command in the first command line
-    cmdPtr = &Program[0].cmd;
-    while (cmdPtr != NULL)
+    if (programIdx != 0)
     {
-        // execute the command
-        if (!ExecCommand(cmdPtr, ALL_COMMANDS))
+        cmdPtr = &Program[0].cmd;
+        cmdLineIdx = 0;
+        while (cmdPtr != NULL)
         {
-            sprintf(tempStr, " at line %d", CmdPtr2LineNum());
-            strcat(errorStr, tempStr);
-            return false;
+            // execute the command
+            if (!ExecCommand(cmdPtr, ALL_COMMANDS))
+            {
+                sprintf(tempStr, " at line %d", cmdPtr->lineNum);
+                strcat(errorStr, tempStr);
+                return false;
+            }
         }
+    }
+    else
+    {
+        strcpy(errorStr, "no program present");
+        return false;
     }
           
     return true;
@@ -466,7 +467,7 @@ bool ExecCommand(Command *command, bool cmdLineOnly)
     if (cmdPtr == lastCmdPtr)
     {
         // if a command didn't change the command pointer, logically increment it
-        cmdPtr = FindNextCommand(cmdLineOnly);                      
+        cmdPtr = IterateCmdPtr(cmdLineOnly);                      
     }
     
     return true;
@@ -611,7 +612,6 @@ bool ExecAssign(AssignCommand *cmd)
             }
         }
     }
-    //ip++;
 
     return true;
 }
@@ -760,7 +760,6 @@ bool ExecIf(IfCommand *cmd)
         }
         else
         {
-            //ip++;
             return true;
         }
     }
@@ -779,13 +778,8 @@ bool ExecGosub(GosubCommand *cmd)
     {
         if (dest > 0)
         {
-            /*
-            // push return address, i.e. current IP + 1, onto call stack then go to the subroutine
-            callStack[callSP++] = ip + 1;
-            ip = LineNum2Ip(dest);
-            */
             // push the pointer to the next command to be executed after the subroutine return onto the call stack
-            callStack[callSP++] = FindNextCommand(false);
+            callStack[callSP++] = IterateCmdPtr(false);
             
             // goto the first command in the command line of the gosub destination
             if (LineNum2CmdLineIdx((int)dest))
@@ -811,13 +805,9 @@ bool ExecReturn(void)
         strcpy(errorStr, "return without gosub");
         return false;
     }
-    /*
-    // pop the return address from the call stack and set the IP to it
-    ip = callStack[--callSP];
-    */
     // pop the next command to be executed from the call stack
     cmdPtr = callStack[--callSP];
-    if (LineNum2CmdLineIdx(CmdPtr2LineNum()))
+    if (LineNum2CmdLineIdx(cmdPtr->lineNum))
     {
         return true;
     }
@@ -828,17 +818,11 @@ bool ExecReturn(void)
 // end : END
 bool ExecEnd(void)
 {
-    /*
-    // end the program by setting IP to one past the last command in the program
-    ip = programIdx;
-    */
     // end the program by setting the command point to NULL
     cmdPtr = NULL;
-
     return true;
 }
 
-// TODO: change SymLookup to accept both a token value and an explicit token string, not the global "tokenStr"
 // input : INPUT {Intvar | Strvar} ['(' expr [',' expr]* ')']
 bool ExecInput(InputCommand *cmd)
 {
@@ -951,7 +935,6 @@ bool ExecTone(PlatformCommand *cmd)
 bool ExecBeep(PlatformCommand *cmd)
 {
     Tone((uint16_t)BEEP_TONE, (uint16_t)BEEP_DURATION);
-    //ip++;
     return true;
 }
 
@@ -1016,53 +999,18 @@ bool ExecDelay(PlatformCommand *cmd)
     return false;
 }
 
-// dim : DIM {Intvar | Strvar} '(' expr ')'
+// dim : DIM {Numvar | Strvar} '(' expr [',' expr]+ ')'
 bool ExecDim(DimCommand *cmd)
 {
-    if (SYM_DIM(cmd->varsym) > 0)
-    {
-        if (EvaluateNumExpr(cmd->dimSizeNodes[0], &SYM_DIMSIZES(cmd->varsym, 0)))
-        {
-            SYM_SIZE(cmd->varsym) = SYM_DIMSIZES(cmd->varsym, 0);
-        }
-        else
-        {
-            strcpy(errorStr, "invalid dim expression");
-            return false;
-        }
-    }
     // evaluate the dim sizes
-    for (int i = 1; i < SYM_DIM(cmd->varsym); i++)
+    for (int i = 0; i < SYM_DIM(cmd->varsym); i++)
     {
-        if (EvaluateNumExpr(cmd->dimSizeNodes[i], &SYM_DIMSIZES(cmd->varsym, i)))
-        {
-            SYM_SIZE(cmd->varsym) *= SYM_DIMSIZES(cmd->varsym, i);
-        }
-        else
+        if (!EvaluateNumExpr(cmd->dimSizeNodes[i], &SYM_DIMSIZES(cmd->varsym, i)))
         {
             strcpy(errorStr, "invalid dim expression");
             return false;
         }
     }
-
-    /* TODO: might need dynamic allocation for multi-dim arrays    
-    // allocate memory for the array
-    switch (cmd->type)
-    {
-        case VT_EXPR:
-            
-            break;
-        
-        case VT_STRING:
-            break;
-        
-        default:
-            strcpy(errorStr, "unknown variable type");
-            return false;
-    }
-    */    
-    
-    //ip++;
 
     return true;
 }
@@ -1090,7 +1038,6 @@ bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue)
 {
     int oldStrSP = strSP;
     
-    // TODO: when TraverseTree returns the type of node found, it can direct which type of value to work with
     if (TraverseTree(exprTreeRoot))
     {
         *pValue = NumStackPop();
@@ -1118,7 +1065,6 @@ bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue)
     return false;
 }
 
-// TODO: have this function return the last node type found
 // tree traversal is guided by the grammar rule
 bool TraverseTree(Node *node)
 {
@@ -1361,6 +1307,8 @@ bool TraverseTree(Node *node)
     
     return retval;
 }
+
+// TODO: add call stack push/pop functions
 
 // number stack functions
 float NumStackPush(float a)

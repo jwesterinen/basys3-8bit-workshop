@@ -4,7 +4,6 @@
 */
 
 #define TABLE_LEN 100
-#define DIM_MAX 4
 
 // command data structures are loaded by the parser and used by the runtime
 
