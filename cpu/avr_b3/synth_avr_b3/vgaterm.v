@@ -49,10 +49,6 @@
 //    in time for the display.
 //  - Literal constants are used throughout.  79 is one less
 //    than the line length.  39 is one less than the row length.
-//  - There is a bug in that the cursor is not clock adjusted
-//    for the delay in the font ROM.  This could be fixed by
-//    not using the font ROM and generating the cursor pixels
-//    as they are needed.
 //  - Rowoff allows for scrolling the text.  This needs help
 //    from the host driver.  The Carriage Return and Line
 //    Feed characters do not affect the cursor as you might
@@ -136,35 +132,39 @@ module vgaterm(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,clocks,
         .rd(rddata));        // read data
  
 
+    // Data to and from the display buffer is bg color (6), fg color (6), 
+    // underline (1), blink (1), and character (8).
+    assign wrdata = {bg[5:0], fg[5:0], blink, underline, DAT_I};
+
+
     // wires out to the VGA connector
     assign red = (~enabled) ? 2'h0 :
-                 (rddata[9] && blinkcount[2]) ? 2'h0 :
-                 (showcursor && blinkcount[2]) ? 2'h0 :
-                 ((frow == 4'd10) && (rddata[8])) ? rddata[15:14] :
-                 (bits[fcol]) ? rddata[15:14] : rddata[21:20];
+                 (showcursor && blinkcount[2]) ? 2'h3 :                     // cursor?
+                 (rddata[9] && blinkcount[2]) ? 2'h0 :                      // blink?
+                 ((frow == 4'd10) && (rddata[8])) ? rddata[15:14] :         // underline?
+                 (bits[fcol]) ? rddata[15:14] : rddata[21:20];              // fg/bg color?
     assign green = (~enabled) ? 2'h0 :
+                 (showcursor && blinkcount[2]) ? 2'h3 :
                  (rddata[9] && blinkcount[2]) ? 2'h0 :
-                 (showcursor && blinkcount[2]) ? 2'h0 :
                  ((frow == 4'd10) && (rddata[8])) ? rddata[13:12] :
                  (bits[fcol]) ? rddata[13:12] : rddata[19:18];
     assign blue = (~enabled) ? 2'h0 :
+                 (showcursor && blinkcount[2]) ? 2'h3 :
                  (rddata[9] && blinkcount[2]) ? 2'h0 :
-                 (showcursor && blinkcount[2]) ? 2'h0 :
                  ((frow == 4'd10) && (rddata[8])) ? rddata[11:10] :
                  (bits[fcol]) ? rddata[11:10] : rddata[17:16];
     assign vgaconn = {blue[0], green[0], red[0], blue[1], green[1], red[1], vsync, hsync};
 
 
-    // Data to and from the display buffer is bg color (6), fg color (6), 
-    // underline (1), blink (1), and character (8).
-    assign wrdata = {bg[5:0], fg[5:0], blink, underline, DAT_I};
-
-    // Char to the font is the RAM output or the cursor depending on whether
-    // the cursor is visible and the type of cursor
-    assign showcursor = (curvisible) && (rasterrow == cursorrow) && (rastercol == cursorcol);
-    assign fontchar = ((showcursor) && (curblock)) ? 8'hdb :  // block cursor
-                      ((showcursor) && (~curblock)) ? 8'h5f : // underline cursor
-                      rddata[7:0];
+    // The cursor is visible at cursorrow and cursorcol if visible and if the
+    // font column is not 1.  The font column is not in sync with the cursor 
+    // row and column since the font ROM takes an extra clock cycle.  Using just
+    // cursor row and column interfers with the last column of the previous char.
+    // Hence the (fcol != 1) test
+    assign showcursor = (curvisible) && (rasterrow == cursorrow) && (rastercol == cursorcol)
+                        && (fcol != 1) && (curblock || (frow == 4'd10));
+    // Char to the font ROM is the display buffer RAM output
+    assign fontchar = rddata[7:0];
 
     initial
     begin

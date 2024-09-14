@@ -49,7 +49,12 @@ bool ExecInput(InputCommand *cmd);
 bool ExecPoke(PlatformCommand *cmd);
 bool ExecTone(PlatformCommand *cmd);
 bool ExecBeep(PlatformCommand *cmd);
+bool ExecLeds(PlatformCommand *cmd);
 bool ExecDisplay(PlatformCommand *cmd);
+bool ExecPutchar(PlatformCommand *cmd);
+bool ExecClear(PlatformCommand *cmd);
+bool ExecText(PlatformCommand *cmd);
+bool ExecGr(PlatformCommand *cmd);
 bool ExecOutchar(PlatformCommand *cmd);
 bool ExecRseed(PlatformCommand *cmd);
 bool ExecDelay(PlatformCommand *cmd);
@@ -70,6 +75,7 @@ char *StrStackPut(char *a);
 
 // runtime strings and flags
 bool ready = true;
+bool textMode = true;
 char errorStr[STRING_LEN];
 char resultStr[STRING_LEN];
 int nodeCount = 0;
@@ -79,13 +85,13 @@ int nodeCount = 0;
 
 // command queue aka "the program"
 CommandLine Program[MAX_PROGRAM_LEN]; // list of command lines all of which share the same line number
-int programIdx = 0;     // program index used to add commands to the program
+int programSize = 0;     // program index used to add commands to the program
 int cmdLineIdx = 0;     // command line index used to point to the current command line in the program
 Command *cmdPtr = NULL; // command pointer is used to point to the next command to be executed
 
 // for command stack needed by the next command
 ForCommand *fortab[TABLE_LEN];
-int fortabIdx = 0;
+int fortabSize = 0;
 
 // call stack used for subroutines/returns
 Command *callStack[STACK_SIZE];
@@ -124,7 +130,7 @@ void FreeCommandLine(CommandLine *cmdLine)
 // free all allocated commands in a command line
 void FreeProgram(void)
 {
-    for (int i = 0; i < programIdx; i++)
+    for (int i = 0; i < programSize; i++)
     {
         FreeCommandLine(&Program[i]);
     }
@@ -137,7 +143,7 @@ Command *IterateCmdPtr(bool cmdLineOnly)
         // next command in the command line
         return cmdPtr->next;
     }
-    else if ((!cmdLineOnly) && (cmdLineIdx < programIdx))
+    else if ((!cmdLineOnly) && (cmdLineIdx < programSize))
     {
         // first command in the next command line
         return &Program[++cmdLineIdx].cmd;
@@ -149,7 +155,7 @@ Command *IterateCmdPtr(bool cmdLineOnly)
 // convert a line number to a program index
 bool LineNum2CmdLineIdx(int lineNum)
 {
-    for (int i = 0; i < programIdx; i++)
+    for (int i = 0; i < programSize; i++)
     {
         if (Program[i].lineNum == lineNum)
         {
@@ -174,11 +180,11 @@ void SortProgramByLineNum(void)
     int i, j, min_idx; 
   
     // One by one move boundary of unsorted subarray 
-    for (i = 0; i < programIdx - 1; i++) 
+    for (i = 0; i < programSize - 1; i++) 
     { 
         // Find the minimum element in unsorted array 
         min_idx = i; 
-        for (j = i + 1; j < programIdx; j++) 
+        for (j = i + 1; j < programSize; j++) 
             if (Program[j].lineNum < Program[min_idx].lineNum) 
                 min_idx = j; 
   
@@ -225,12 +231,8 @@ bool ProcessCommand(char *commandStr)
     }
     else if (!strcmp(commandStr, "new"))
     {
-        fortabIdx = 0;
-        programIdx = 0;
-        cmdLineIdx = 0;
-        callSP = 0;
-        numSP = 0;
-        strSP = 0;
+        fortabSize = 0;
+        programSize = 0;
         FreeExprTrees();
         FreeSymtab();
         FreeProgram();
@@ -240,8 +242,8 @@ bool ProcessCommand(char *commandStr)
     }
     else if (!strcmp(commandStr, "reboot"))
     {
-        fortabIdx = 0;
-        programIdx = 0;
+        fortabSize = 0;
+        programSize = 0;
         cmdLineIdx = 0;
         callSP = 0;
         numSP = 0;
@@ -264,9 +266,9 @@ bool ProcessCommand(char *commandStr)
                 cmdPtr = &commandLine.cmd;
                 while (cmdPtr)
                 {
-                    if (!ExecCommand(cmdPtr, isImmediate))
+                    if (ExecCommand(cmdPtr, isImmediate))
                     {
-                        return false;
+                        PrintResult();
                     }
                 }
                 FreeCommandLine(&commandLine);
@@ -275,7 +277,7 @@ bool ProcessCommand(char *commandStr)
             else
             {
                 // check to see if this is a replacement of an existing line by number
-                for (i = 0; i < programIdx; i++)
+                for (i = 0; i < programSize; i++)
                 {
                     if (commandLine.lineNum == Program[i].lineNum)
                     {
@@ -283,12 +285,12 @@ bool ProcessCommand(char *commandStr)
                     }
                 }
                 Program[i] = commandLine;
-                if (i == programIdx)
+                if (i == programSize)
                 {
                     //Program[i].lineNum = command.lineNum;
-                    if (programIdx < MAX_PROGRAM_LEN-1)
+                    if (programSize < MAX_PROGRAM_LEN-1)
                     {
-                        programIdx++;
+                        programSize++;
                     }
                     else
                     {
@@ -317,21 +319,30 @@ bool RunProgram(void)
 {
     char tempStr[STRING_LEN];
     
-    // default error string
-    strcpy(errorStr, "execution error");
-    
-    // ready for more commands whether or not the program executes correctly
-    ready = true;    
-      
-    // init the command pointer to the first command in the first command line
-    if (programIdx != 0)
+    if (programSize != 0)
     {
+        // default error string
+        strcpy(errorStr, "execution error");
+        
+        // ready for more commands whether or not the program executes correctly
+        ready = true;    
+
+        // init all stacks
+        callSP = 0;
+        numSP = 0;
+        strSP = 0;
+                  
+        // init the command pointer to the first command in the first command line
         cmdPtr = &Program[0].cmd;
         cmdLineIdx = 0;
         while (cmdPtr != NULL)
         {
             // execute the command
-            if (!ExecCommand(cmdPtr, ALL_COMMANDS))
+            if (ExecCommand(cmdPtr, ALL_COMMANDS))
+            {
+                PrintResult();
+            }
+            else
             {
                 sprintf(tempStr, " at line %d", cmdPtr->lineNum);
                 strcat(errorStr, tempStr);
@@ -350,7 +361,7 @@ bool RunProgram(void)
 
 bool ListProgram(void)
 {
-    for (int i = 0; i < programIdx; i++)
+    for (int i = 0; i < programSize; i++)
     {
         if (Program[i].cmd.type != CT_NOP || strstr(Program[i].commandStr, "rem"))
         {
@@ -438,8 +449,33 @@ bool ExecCommand(Command *command, bool cmdLineOnly)
                 return false;
             break;                
                 
+        case CT_LEDS: 
+            if (!ExecLeds(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
         case CT_DISPLAY: 
             if (!ExecDisplay(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_PUTCHAR: 
+            if (!ExecPutchar(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_CLEAR: 
+            if (!ExecClear(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_TEXT: 
+            if (!ExecText(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_GR: 
+            if (!ExecGr(&command->cmd.platformCmd))
                 return false;
             break;                
                 
@@ -463,7 +499,6 @@ bool ExecCommand(Command *command, bool cmdLineOnly)
                 return false;
             break;                
     }
-    PrintResult();
     if (cmdPtr == lastCmdPtr)
     {
         // if a command didn't change the command pointer, logically increment it
@@ -575,14 +610,19 @@ bool ExecPrint(PrintCommand *cmd)
 // [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
 bool ExecAssign(AssignCommand *cmd)
 {
-    float indeces[4] = {0};
+    float indeces[DIM_MAX] = {0};
     float numRhs;
     char *strRhs;
+    int i;
     
-    // evaluate the LHS index values from their nodes if any
-    for (int i = 0; i < SYM_DIM(cmd->varsym); i++)
+    // evaluate the LHS index values from their nodes padding with 0's for unused higher order dimensions
+    for (i = 0; i < DIM_MAX - SYM_DIM(cmd->varsym); i++)
     {
-        if (!EvaluateNumExpr(cmd->indexNodes[i], &indeces[i]))
+        SYM_DIMSIZES(cmd->varsym, i) = 0;
+    }
+    for (int j = 0; j < SYM_DIM(cmd->varsym); j++, i++)
+    {
+        if (!EvaluateNumExpr(cmd->indexNodes[j], &indeces[i]))
         {
             strcpy(errorStr, "invalid array index expression");
             return false;
@@ -628,7 +668,7 @@ bool ExecFor(ForCommand *cmd)
     {
         if (SymWriteNumvar(cmd->symbol, NULL, value))
         {
-            fortab[fortabIdx++] = cmd;
+            fortab[fortabSize++] = cmd;
             return true;
         }
     }
@@ -648,14 +688,14 @@ bool ExecNext(NextCommand *cmd)
     if (cmd->symbol)
     {
         // find the explicit for instruction associated with the next instruction's var name
-        for (int i = 0; i < fortabIdx; i++)
+        for (int i = 0; i < fortabSize; i++)
         {
             if (fortab[i]->symbol == cmd->symbol)
             {
                 forInstr = fortab[i];
             }
         }
-        if (fortabIdx == 0)
+        if (fortabSize == 0)
         {
             strcpy(errorStr, "no matching for");
             return false;
@@ -664,12 +704,12 @@ bool ExecNext(NextCommand *cmd)
     else
     {
         // use the for instruction on the top of the for stack for annonymous next
-        if (fortabIdx == 0)
+        if (fortabSize == 0)
         {
             strcpy(errorStr, "no matching for");
             return false;
         }
-        forInstr = fortab[fortabIdx - 1];
+        forInstr = fortab[fortabSize - 1];
     }
         
     // modify the associated variable and perform a goto if needed        
@@ -938,6 +978,21 @@ bool ExecBeep(PlatformCommand *cmd)
     return true;
 }
 
+bool ExecLeds(PlatformCommand *cmd)
+{
+    float numval;
+    int value;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        value = (int)numval;
+        Leds((uint16_t)value);
+        return true;
+    }
+    
+    return false;
+}
+
 bool ExecDisplay(PlatformCommand *cmd)
 {
     float numval;
@@ -949,12 +1004,55 @@ bool ExecDisplay(PlatformCommand *cmd)
         if (EvaluateNumExpr(cmd->arg2, &numval))
         {
             displayQty = (int)numval;
-            Display((uint16_t)value, (uint8_t)displayQty);
+            Display7((uint16_t)value, (uint8_t)displayQty);
             return true;
         }
     }
     
     return false;
+}
+
+bool ExecPutchar(PlatformCommand *cmd)
+{
+    float numval;
+    int row, col, value;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        row = (int)numval;
+        if (EvaluateNumExpr(cmd->arg2, &numval))
+        {
+            col = (int)numval;
+            if (EvaluateNumExpr(cmd->arg3, &numval))
+            {
+                value = (int)numval;
+                GfxPutChar((uint8_t)row, (uint8_t)col, (uint8_t)value);
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool ExecClear(PlatformCommand *cmd)
+{
+    GfxClearScreen();
+    return true;
+}
+
+bool ExecText(PlatformCommand *cmd)
+{
+    textMode = true;
+    GfxTextMode(1);
+    return true;
+}
+
+bool ExecGr(PlatformCommand *cmd)
+{
+    textMode = false;
+    GfxTextMode(0);
+    return true;
 }
 
 bool ExecOutchar(PlatformCommand *cmd)
@@ -1002,15 +1100,23 @@ bool ExecDelay(PlatformCommand *cmd)
 // dim : DIM {Numvar | Strvar} '(' expr [',' expr]+ ')'
 bool ExecDim(DimCommand *cmd)
 {
-    // evaluate the dim sizes
-    for (int i = 0; i < SYM_DIM(cmd->varsym); i++)
+    int size = 1, i;
+    
+    // load the dim size array padding with 0's for unused higher order dimensions
+    for (i = 0; i < DIM_MAX - SYM_DIM(cmd->varsym); i++)
     {
-        if (!EvaluateNumExpr(cmd->dimSizeNodes[i], &SYM_DIMSIZES(cmd->varsym, i)))
+        SYM_DIMSIZES(cmd->varsym, i) = 0;
+    }
+    for (int j = 0; j < SYM_DIM(cmd->varsym); j++, i++)
+    {
+        if (!EvaluateNumExpr(cmd->dimSizeNodes[j], &SYM_DIMSIZES(cmd->varsym, i)))
         {
             strcpy(errorStr, "invalid dim expression");
             return false;
         }
+        size *= SYM_DIMSIZES(cmd->varsym, i);
     }
+    printf("the size of %s is %d\n", cmd->varsym->name, size);
 
     return true;
 }
@@ -1029,6 +1135,21 @@ bool ExecBuiltinFct(const char *name)
     {
         return NumStackPush(fabsf(NumStackPop()));
     } 
+    else if (!strcmp(name, "switches"))
+    {
+        return NumStackPush(Switches());
+    } 
+    else if (!strcmp(name, "buttons"))
+    {
+        return NumStackPush(Buttons());
+    } 
+    else if (!strcmp(name, "getchar"))
+    {
+        int col = (uint8_t)(NumStackPop());
+        int row = (uint8_t)(NumStackPop());
+        return NumStackPush(GfxGetChar(row, col));
+    } 
+    
     
     return false;       
 }
@@ -1256,6 +1377,17 @@ bool TraverseTree(Node *node)
             // note: for arrays, pop the indeces into an index array then read the value, 
             // the popped values will be the reverse of the needed indeces so reverse them in the indeces array
             case NT_NUMVAR:
+#ifndef OLD_NUMVAR
+                for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
+                {
+                    
+                    if ((indeces[DIM_MAX-1 - i] = (int)NumStackPop()) == -1)
+                    {
+                        retval = false;
+                        break;
+                    }
+                }
+#else            
                 for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
                 {
                     if ((intval = (int)NumStackPop()) == -1)
@@ -1265,6 +1397,7 @@ bool TraverseTree(Node *node)
                     }
                     indeces[(int)(SYM_DIM(NODE_VAL_VARSYM(node))) - i - 1] = intval;
                 }
+#endif                
                 if ((retval = SymReadNumvar(NODE_VAL_VARSYM(node), indeces, &numval)))
                 {
                     NumStackPush(numval);

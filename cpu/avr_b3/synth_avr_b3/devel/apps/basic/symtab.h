@@ -3,6 +3,7 @@
  */
 
 #define DIM_MAX 4
+#define ARRAY_MAX 200
 
 #define SYM_NAME(symbol)                ((symbol)->name)
 #define SYM_TYPE(symbol)                ((symbol)->type)
@@ -16,8 +17,8 @@ typedef struct Symbol
     enum SYMTYPE type;
     union 
     {
-        float numval[100];
-        char *strval[100];
+        float numval[ARRAY_MAX];
+        char *strval[ARRAY_MAX];
     } value;
     float dim;                  // the dimension of the array, e.g. dim a(2,3,4) dim = 3
     float dimSizes[DIM_MAX];    // the size of each dimension, e.g. dim a(2,3,4) dimSizes = {2,3,4,0}

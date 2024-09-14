@@ -109,33 +109,41 @@ void FreeSymtab(void)
     symtab = NULL;
 }
 
+// linearize the indeces into a 1D array
+//   - the array is dimensioned as a(O,P,M,N)
+//   - the array is referenced as a(o,p,m,n)
+//   - the 1D index is calculated as follows:
+//       - index = o*(P*M*N) + p*(M*N) + m*N + n
+//   - dimSizes contain the dimensioned values:
+//       - O = dimSizes[0], P = dimSizes[1], M = dimSizes[2], N = dimSizes[3], 
+//   - using the indeces array:
+//       - o = indeces[0], p = indeces[1], m = indeces[2], n = indeces[3]
+//   - using these definitions, the resulting 1D index is:
+//       - (the sum from i = 0 to 2 of indeces[i] * dimSizes[i+1]) + indeces[3]
 int CalcVarIndex(Symbol *varsym, float indeces[4])
 {
-    int index = 0;
+    int index = 0, i;
     
     if (SYM_DIM(varsym) > 0)
-    {
-        if (indeces[0] < SYM_DIMSIZES(varsym, 0))
+    {    
+        // test for indeces in range
+        for (i = 0; i < DIM_MAX; i++)
         {
-            index = indeces[0];
-        }
-        else
-        {
-            return -1;
+            if (indeces[i] != 0)
+            {
+                if (indeces[i] >= SYM_DIMSIZES(varsym, i))
+                {
+                    return -1;
+                }
+            }
         }
         
-        // linearize the indeces to index the value
-        for (int i = 1; i < SYM_DIM(varsym); i++)
-        {
-            if (indeces[i] < SYM_DIMSIZES(varsym, i))
-            {
-                index += indeces[i] * SYM_DIMSIZES(varsym, i);
-            }
-            else
-            {
-                return -1;
-            }
-        }
+        // TODO: need to come up with an algorithm for this
+        // transform n-dim indeces to 1D index
+        index += indeces[0] * SYM_DIMSIZES(varsym, 1) *SYM_DIMSIZES(varsym, 2) * SYM_DIMSIZES(varsym, 3);
+        index += indeces[1] * SYM_DIMSIZES(varsym, 2) *SYM_DIMSIZES(varsym, 3);
+        index += indeces[2] * SYM_DIMSIZES(varsym, 3);
+        index += indeces[3];
     }
     
     return index;

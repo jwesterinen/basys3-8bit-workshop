@@ -87,7 +87,12 @@ struct KeywordTableEntry {
     {"dim",     DIM     },
     {"tone",    TONE    },
     {"beep",    BEEP    },
+    {"leds",    LEDS    },
     {"display", DISPLAY },
+    {"text",    TEXT    },
+    {"gr",      GR      },
+    {"putchar", PUTCHAR },
+    {"clear",   CLEAR   },
     {"outchar", OUTCHAR },
     {"rseed",   RSEED   },
     {"delay",   DELAY   },
@@ -102,7 +107,10 @@ int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 char *builtinFctTab[] = {
     "peek",
     "rnd",
-    "abs"
+    "abs",
+    "switches",
+    "buttons",
+    "getchar"
 };
 int builtinFctTableSize = sizeof builtinFctTab / sizeof(char *);
 

@@ -107,6 +107,7 @@ typedef struct InputCommand {
 typedef struct PlatformCommand {
     Node *arg1;
     Node *arg2;
+    Node *arg3;
 } PlatformCommand;
 
 typedef struct DimCommand {
@@ -130,7 +131,12 @@ enum COMMAND_TYPE {
     CT_DIM,
     CT_TONE,
     CT_BEEP,
+    CT_LEDS,
     CT_DISPLAY,
+    CT_PUTCHAR,
+    CT_CLEAR,
+    CT_TEXT,
+    CT_GR,
     CT_OUTCHAR,
     CT_RSEED,
     CT_DELAY

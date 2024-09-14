@@ -18,6 +18,8 @@
         | LIST
         | NEW
         | REBOOT
+        | TEXT
+        | GR
         ;
     command-line
         : executable-cmd [':' command-line]
@@ -38,10 +40,15 @@
         | poke
         | tone
         | beep
+        | leds
         | display
+        | putchar
+        | clear
         | outchar
         | rseed
         | dim
+        | text
+        | gr
         ;
     print
         : {PRINT | '?'} expr-list
@@ -91,17 +98,32 @@
     beep
         : BEEP
         ;
+    leds
+        : LEDS expr
+        ;
     display
         : DISPLAY expr ',' expr
         ;
+    text
+        : TEXT
+        ;
+    gr
+        : GR
+        ;
+    putchar
+        : PUTCHAR expr ',' expr ',' expr
+        ;
+    clear
+        : CLEAR
+        ;
     outchar
-        :   OUTCHAR expr
+        : OUTCHAR expr
         ;
     rseed
-        :   RSEED expr
+        : RSEED expr
         ;
     delay
-        :   DELAY expr
+        : DELAY expr
         ;
     dim
         : DIM {Numvar | Strvar} '(' expr [',' expr]+ ')'
@@ -177,6 +199,7 @@
 
     subExprList
 	    : addExpr [',' argExprList]
+	    | $
 	    ;
 
     primaryExpr
@@ -221,7 +244,12 @@ bool IsInput(Command *command);
 bool IsPoke(Command *command);
 bool IsTone(Command *command);
 bool IsBeep(Command *command);
+bool IsLeds(Command *command);
 bool IsDisplay(Command *command);
+bool IsPutchar(Command *command);
+bool IsClear(Command *command);
+bool IsText(Command *command);
+bool IsGr(Command *command);
 bool IsOutchar(Command *command);
 bool IsRseed(Command *command);
 bool IsDelay(Command *command);
@@ -330,7 +358,12 @@ bool IsExecutableCommand(Command *command)
         IsPoke(command)             ||
         IsTone(command)             ||
         IsBeep(command)             ||
+        IsLeds(command)             ||
         IsDisplay(command)          ||
+        IsPutchar(command)          ||
+        IsClear(command)            ||
+        IsText(command)             ||
+        IsGr(command)               ||
         IsOutchar(command)          ||
         IsRseed(command)            ||
         IsDelay(command)            ||
@@ -348,14 +381,7 @@ bool IsExecutableCommand(Command *command)
 // nop
 bool IsNop(Command *command)
 {
-    // NOP
-    if (token == EOL)
-    {
-        command->type = CT_NOP;
-        return true;
-    }
-
-    return false;
+    return (token == EOL);
 }
     
 // print
@@ -788,6 +814,24 @@ bool IsBeep(Command *command)
     return false;
 }
 
+// leds : LEDS expr
+bool IsLeds(Command *command)
+{
+    Node *value;
+    
+    if (token == LEDS)
+    {
+        if (GetNextToken(NULL) && IsExpr(&value))
+        {
+            command->type = CT_LEDS;
+            command->cmd.platformCmd.arg1 = value;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 // display : DISPLAY expr ',' expr
 bool IsDisplay(Command *command)
 {
@@ -808,6 +852,74 @@ bool IsDisplay(Command *command)
                 }
             }
         }
+    }
+    
+    return false;
+}
+
+// putchar : PUTCHAR expr ',' expr ',' expr
+bool IsPutchar(Command *command)
+{
+    Node *row, *col, *value;
+    
+    if (token == PUTCHAR)
+    {
+        if (GetNextToken(NULL) && IsExpr(&row))
+        {
+            if (token == ',')
+            {
+                if (GetNextToken(NULL) && IsExpr(&col))
+                {
+                    if (token == ',')
+                    {
+                        if (GetNextToken(NULL) && IsExpr(&value))
+                        {
+                            command->type = CT_PUTCHAR;
+                            command->cmd.platformCmd.arg1 = row;
+                            command->cmd.platformCmd.arg2 = col;
+                            command->cmd.platformCmd.arg3 = value;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+// clear : CLEAR
+bool IsClear(Command *command)
+{
+    if (token == CLEAR)
+    {
+        command->type = CT_CLEAR;
+        return GetNextToken(NULL);
+    }
+    
+    return false;
+}
+
+// text : TEXT
+bool IsText(Command *command)
+{
+    if (token == TEXT)
+    {
+        command->type = CT_TEXT;
+        return GetNextToken(NULL);
+    }
+    
+    return false;
+}
+
+// gr : GR
+bool IsGr(Command *command)
+{
+    if (token == GR)
+    {
+        command->type = CT_GR;
+        return GetNextToken(NULL);
     }
     
     return false;
@@ -1310,7 +1422,7 @@ bool IsPostfixExpr(Node **ppNode)
     MESSAGE("IsPostfixExpr...");
     *ppNode = NewNode(NT_POSTFIX_EXPR, (union NodeValue)0);
       
-    // primaryExpr ['(' argExprList ')']
+    // primaryExpr ['(' subExprList ')']
     if (IsPrimaryExpr(&son))
     {
         AddSon(*ppNode, son);
@@ -1359,6 +1471,13 @@ bool IsSubExprList(Node **ppNode)
         {
             return true;
         }
+    }
+    
+    // $
+    else
+    {
+        *ppNode = 0;
+        return true;
     }
     
     FreeNode(*ppNode);

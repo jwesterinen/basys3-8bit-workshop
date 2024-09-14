@@ -50,7 +50,7 @@ ISR(_VECTOR(2))
 #endif
 
 char message[80];
-char *versionStr = "v0.7";
+char *versionStr = "v1.0";
 char *promptStr = "> ";
     
 extern bool ready;
@@ -70,7 +70,10 @@ void Message(const char *message)
 
 void PutString(char *string)
 {
-    VgaPrintStr(string);
+    if (textMode)
+    {
+        VgaPrintStr(string);
+    }
 }
 
 // returns the next CR-terminated string from the input device
@@ -144,9 +147,49 @@ void InitDisplay(void)
     PutString("\n\n");
 }
 
+uint16_t Switches(void)
+{
+    return SW;
+}
+
+uint8_t Buttons(void)
+{
+    return BUTTONS;
+}
+
+void Leds(uint16_t value)
+{
+    LED = value;
+}
+
+void Display7(uint16_t value, uint8_t displayQty)
+{
+    Display(value, displayQty);
+}
+
 void Delay(uint16_t duration)
 {
     msleep(duration);
+}
+
+uint8_t GfxGetChar(uint8_t row, uint8_t col)
+{
+    return VgaGetChar(row, col);
+}
+
+uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c)
+{
+    return VgaPutChar(row, col, c);
+}
+
+void GfxClearScreen(void)
+{
+    VgaClearFrameBuffer();
+}
+
+void GfxTextMode(uint8_t mode)
+{
+    VGA_CUR_STYLE = (mode) ? VGA_CUR_VISIBLE : VGA_CUR_INVISIBLE;
 }
 
 int main(void)

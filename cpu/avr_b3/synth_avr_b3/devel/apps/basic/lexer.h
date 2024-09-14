@@ -43,10 +43,15 @@
 #define DIM         332
 #define TONE        333
 #define BEEP        334
-#define DISPLAY     335
-#define OUTCHAR     336
-#define RSEED       337
-#define DELAY       338
+#define LEDS        335
+#define DISPLAY     336
+#define PUTCHAR     337
+#define CLEAR       338
+#define OUTCHAR     339
+#define RSEED       340
+#define DELAY       341
+#define TEXT        342
+#define GR          343
 
 union LEXTYPE {
     Symbol *lexsym;  // the symbol created from a token
