@@ -8,6 +8,8 @@
 #include "symtab.h"
 #include "lexer.h"
 
+extern void Panic(const char *message);
+
 #define SYM_NUMVAL(symbol)              ((symbol)->value.numval[0])
 #define SYM_NUMVAL_IDX(symbol, index)   ((symbol)->value.numval[(index)])
 #define SYM_STRVAL(symbol)              ((symbol)->value.strval[0])
@@ -21,13 +23,17 @@ static Symbol *symtab = NULL;
 static char* strsave(const char* s)
 {
     char* cp = calloc(strlen(s)+1, 1);
+    
     if (cp)
     {
         strcpy(cp, s);
-        return cp;
+    }
+    else
+    {
+        Panic("system error: memory allocation error while creating string\n");
     }
 
-    return (char*)NULL;    
+    return cp;
 }
   
 static Symbol *SymCreate(const char *name)
@@ -38,12 +44,13 @@ static Symbol *SymCreate(const char *name)
     if (newEntry)
     {
         // set the name and add it to the front of the symbol list
-        if ((newEntry->name = strsave(name)) == NULL)
-        {
-            return NULL;
-        }
+        newEntry->name = strsave(name);
         newEntry->next = symtab;
         symtab = newEntry;
+    }
+    else
+    {
+        Panic("system error: memory allocation error while creating symbol\n");
     }
      
     return newEntry;
@@ -55,8 +62,12 @@ struct Symbol *SymFind(const char *name)
     
     // search symtab until match of end of symtab chain
     for (next = symtab; next; next = next->next)
+    {
         if (!strcmp(next->name, name))
+        {
             break;
+        }
+    }
    
     return next;
 }
@@ -133,6 +144,7 @@ int CalcVarIndex(Symbol *varsym, float indeces[4])
             {
                 if (indeces[i] >= SYM_DIMSIZES(varsym, i))
                 {
+                    strcpy(errorStr, "index out of range");
                     return -1;
                 }
             }

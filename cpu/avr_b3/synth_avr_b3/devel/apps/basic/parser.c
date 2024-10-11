@@ -254,6 +254,7 @@ bool IsOutchar(Command *command);
 bool IsRseed(Command *command);
 bool IsDelay(Command *command);
 bool IsDim(Command *command);
+bool IsBreak(Command *command);
 bool IsExpr(Node **ppNode);
 bool IsLogicExpr(Node **ppNode);
 bool IsLogicExprPrime(Node **ppNode);
@@ -267,7 +268,7 @@ bool IsMultExpr(Node **ppNode);
 bool IsMultExprPrime(Node **ppNode);
 bool IsUnaryExpr(Node **ppNode);
 bool IsPostfixExpr(Node **ppNode);
-bool IsSubExprList(Node **ppNode);
+bool IsSubExprList(Node **ppNode, int *subExprQty);
 bool IsPrimaryExpr(Node **ppNode);
 
 // expression root node list used to free expression trees
@@ -323,7 +324,7 @@ bool IsCommandLine(CommandLine *commandLine, bool *isImmediate)
                 }
                 else
                 {
-                    strcpy(errorStr, "memory allocation error");
+                    Panic("system error: memory allocation error while parsing command line\n");
                     return false;
                 }
             }
@@ -367,7 +368,8 @@ bool IsExecutableCommand(Command *command)
         IsOutchar(command)          ||
         IsRseed(command)            ||
         IsDelay(command)            ||
-        IsDim(command)
+        IsDim(command)              ||
+        IsBreak(command)
     )
     {
         sprintf(message, "node count = %d\n", nodeCount);
@@ -456,41 +458,39 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
 }
 
 // parse the indeces of an array variable
-bool ParseIndeces(Node *indexNodes[], int mod)
+// this MUST parse the given number of indeces
+bool ParseIndeces(Node *indexNodes[], int dim)
 {
     int nodeIdx = 0;
 
-    if (mod > 0)
+    if (token == '(')
     {
-        if (token == '(')
+        // this is an array reference so get the first index node
+        if (GetNextToken(NULL) && IsExpr(&indexNodes[nodeIdx++]))
         {
-            // this is an array reference so get the first index node
-            if (GetNextToken(NULL) && IsExpr(&indexNodes[nodeIdx++]))
+            // get the rest of the index nodes if any
+            for (int i = 1; i < dim; i++)
             {
-                // get the rest of the index nodes if any
-                for (int i = 1; i < mod; i++)
+                if (token == ',')
                 {
-                    if (token == ',')
+                    if (!GetNextToken(NULL) || !IsExpr(&indexNodes[nodeIdx++]))
                     {
-                        if (!GetNextToken(NULL) || !IsExpr(&indexNodes[nodeIdx++]))
-                        {
-                            return false;
-                        }
+                        return false;
                     }
                 }
-                if (token != ')')
+                else
                 {
                     return false;
                 }
             }
-            else
+            if (token == ')')
             {
-                return false;
+                return true;
             }
         }
     }
 
-    return true;
+    return false;
 }
 
 // assignment
@@ -518,6 +518,7 @@ bool IsAssign(Command *command)
         {
             if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
             {
+                strcpy(errorStr,"subscript error");
                 return false;
             }
         }
@@ -729,11 +730,16 @@ bool IsInput(Command *command)
             if (token == Numvar || token == Strvar)
             {
                 // parse the index nodes for arrays
-                if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
+                if (SYM_DIM(command->cmd.assignCmd.varsym) > 0)
                 {
-                    return false;
+                    // parse the index nodes for arrays
+                    if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
+                    {
+                        strcpy(errorStr,"subscript error");
+                        return false;
+                    }
                 }
-                return true;
+                return GetNextToken(NULL);
             }
         }
     }
@@ -1016,13 +1022,35 @@ bool IsDim(Command *command)
     return false;
 }
 
+// break : BREAK
+bool IsBreak(Command *command)
+{
+    if (token == BREAK)
+    {
+        command->type = CT_BREAK;
+        return GetNextToken(NULL);
+    }
+    
+    return false;
+}
+
 Node *NewNode(enum NodeType type, union NodeValue value)
 {
-    MESSAGE("new node...");
-    nodeCount++;
     Node *newNode = (Node *)calloc(1, sizeof(Node));
-    newNode->type = type;
-    newNode->value = value;
+    
+    MESSAGE("new node...");
+    
+    if (newNode)
+    {
+        nodeCount++;
+        newNode->type = type;
+        newNode->value = value;
+    }
+    else
+    {
+        Panic("system error: memory allocation error while creating expression node\n");
+    }
+    
     return newNode;
 }
 
@@ -1418,18 +1446,23 @@ bool IsUnaryExpr(Node **ppNode)
 bool IsPostfixExpr(Node **ppNode)
 {
     Node *son;
+    int subExprQty = 0;
     
     MESSAGE("IsPostfixExpr...");
     *ppNode = NewNode(NT_POSTFIX_EXPR, (union NodeValue)0);
       
-    // primaryExpr ['(' subExprList ')']
+    // primaryExpr ['(' [subExprList] ')']
     if (IsPrimaryExpr(&son))
     {
         AddSon(*ppNode, son);
         if (token == '(')
         {  
-            if (GetNextToken(NULL) && IsSubExprList(&son))
+            if (GetNextToken(NULL) && IsSubExprList(&son, &subExprQty))
             {      
+                // set the postfix expr node's "op" value to the subexpr size, which could be 0
+                NODE_VAL_OP(*ppNode) = subExprQty;
+                
+                // add the subexprlist which could be null as a son of the postfix expr node
                 AddSon(*ppNode, son);
                 if (token == ')' && GetNextToken(NULL))
                 {      
@@ -1448,7 +1481,8 @@ bool IsPostfixExpr(Node **ppNode)
 }
 
 // subscript expression list
-bool IsSubExprList(Node **ppNode)
+// parse the arguments and return the number parsed
+bool IsSubExprList(Node **ppNode, int *subExprQty)
 {
     Node *son;
 
@@ -1459,9 +1493,10 @@ bool IsSubExprList(Node **ppNode)
     if (IsAddExpr(&son))
     {
         AddSon(*ppNode, son);
+        (*subExprQty)++;
         if (token == ',')
         {
-            if (GetNextToken(NULL) && IsSubExprList(&son))
+            if (GetNextToken(NULL) && IsSubExprList(&son, subExprQty))
             {
                 AddSon(*ppNode, son);
                 return true;
@@ -1476,7 +1511,6 @@ bool IsSubExprList(Node **ppNode)
     // $
     else
     {
-        *ppNode = 0;
         return true;
     }
     

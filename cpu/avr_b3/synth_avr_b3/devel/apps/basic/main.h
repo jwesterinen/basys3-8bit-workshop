@@ -14,6 +14,7 @@
 extern char message[80];
 void Console(const char *string);
 void Message(const char *message);
+void Panic(const char *message);
 char *GetString(char *buffer);
 void PutString(char *string);
 uint8_t MemRead(uint16_t addr);

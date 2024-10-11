@@ -20,8 +20,8 @@ typedef struct Symbol
         float numval[ARRAY_MAX];
         char *strval[ARRAY_MAX];
     } value;
-    float dim;                  // the dimension of the array, e.g. dim a(2,3,4) dim = 3
-    float dimSizes[DIM_MAX];    // the size of each dimension, e.g. dim a(2,3,4) dimSizes = {2,3,4,0}
+    float dim;                  // the dimension of an array, e.g. dim a(2,3,4) dim = 3, or arity of a fct
+    float dimSizes[DIM_MAX];    // the size of each array dimension, e.g. dim a(2,3,4) dimSizes = {2,3,4,0}, or fct arg values
     struct Symbol *next;
 } Symbol;
 

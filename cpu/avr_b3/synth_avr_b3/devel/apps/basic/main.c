@@ -68,6 +68,12 @@ void Message(const char *message)
     VgaPrintStr(message);
 }
 
+// print out system error messages unconditionally during runtime
+void Panic(const char *message)
+{
+    VgaPrintStr(message);
+}
+
 void PutString(char *string)
 {
     if (textMode)

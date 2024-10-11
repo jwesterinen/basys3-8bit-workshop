@@ -41,17 +41,18 @@
 #define SR_OP       330
 #define POKE        331
 #define DIM         332
-#define TONE        333
-#define BEEP        334
-#define LEDS        335
-#define DISPLAY     336
-#define PUTCHAR     337
-#define CLEAR       338
-#define OUTCHAR     339
-#define RSEED       340
-#define DELAY       341
-#define TEXT        342
-#define GR          343
+#define BREAK       333
+#define TONE        334
+#define BEEP        335
+#define LEDS        336
+#define DISPLAY     337
+#define PUTCHAR     338
+#define CLEAR       339
+#define OUTCHAR     340
+#define RSEED       341
+#define DELAY       342
+#define TEXT        343
+#define GR          344
 
 union LEXTYPE {
     Symbol *lexsym;  // the symbol created from a token
@@ -64,6 +65,13 @@ extern int token;
 
 extern char gCommandStr[];
 extern char *nextChar;
+
+struct BuiltinFctTableEntry {
+    char *name;
+    int arity;
+};
+extern struct BuiltinFctTableEntry builtinFctTab[];
+extern int builtinFctTableSize;
 
 bool GetNextToken(char *commandStr);
 

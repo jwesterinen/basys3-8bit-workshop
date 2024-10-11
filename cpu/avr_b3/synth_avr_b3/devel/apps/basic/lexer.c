@@ -66,7 +66,7 @@ struct KeywordTableEntry {
     char *keyword;
     int token;
 } keywordTab[] = {
-//       tokenStr   token
+//   tokenStr   token
     {"print",   PRINT   },
     {"printx",  PRINTX  },
     {"printa",  PRINTA  },
@@ -85,6 +85,7 @@ struct KeywordTableEntry {
     {"input",   INPUT   },
     {"poke",    POKE    },
     {"dim",     DIM     },
+    {"break",   BREAK   },
     {"tone",    TONE    },
     {"beep",    BEEP    },
     {"leds",    LEDS    },
@@ -104,15 +105,15 @@ struct KeywordTableEntry {
 };
 int keywordTableSize = sizeof keywordTab / sizeof(struct KeywordTableEntry);
 
-char *builtinFctTab[] = {
-    "peek",
-    "rnd",
-    "abs",
-    "switches",
-    "buttons",
-    "getchar"
+struct BuiltinFctTableEntry builtinFctTab[] = {
+    {"peek",        1},
+    {"rnd",         1},
+    {"abs",         1},
+    {"switches",    0},
+    {"buttons",     0},
+    {"getchar",     2}
 };
-int builtinFctTableSize = sizeof builtinFctTab / sizeof(char *);
+int builtinFctTableSize = sizeof builtinFctTab / sizeof(struct BuiltinFctTableEntry);
 
 char gCommandStr[STRING_LEN];
 char *nextChar;
@@ -324,7 +325,7 @@ bool GetNextToken(char *commandStr)
                 // if the token string is a builtin fct id set the token type to Function
                 for (int j = 0; j < builtinFctTableSize; j++)
                 {
-                    if (!strcmp(builtinFctTab[j], tokenStrLc))
+                    if (!strcmp(builtinFctTab[j].name, tokenStrLc))
                     {
                         token = Function;
                     }
