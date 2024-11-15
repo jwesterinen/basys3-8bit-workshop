@@ -67,4 +67,6 @@ clean:
 	
 clean-all:
 	rm -f $(TARGET) $(SYNTH_DIR)/$(TARGET) $(TB_DIR)/$(TARGET) *.o *.elf *.mem *.disasm *.hex *.bin $(LIB_DIR)/*.o
+	$(MAKE) -C simulator clean
+
 	
