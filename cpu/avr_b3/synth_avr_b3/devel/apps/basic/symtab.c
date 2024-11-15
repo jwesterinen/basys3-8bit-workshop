@@ -8,12 +8,15 @@
 #include "symtab.h"
 #include "lexer.h"
 
-#define SYM_NUMVAL(symbol)              ((symbol)->value.numval[0])
-#define SYM_NUMVAL_IDX(symbol, index)   ((symbol)->value.numval[(index)])
-#define SYM_STRVAL(symbol)              ((symbol)->value.strval[0])
-#define SYM_STRVAL_IDX(symbol, index)   ((symbol)->value.strval[(index)])
+extern void Panic(const char *message);
+
+#define SYM_NUMVAL(symbol)              ((symbol)->scalerVal.numval)
+#define SYM_NUMVAL_IDX(symbol, index)   ((symbol)->vectorVal.numvals[(index)])
+#define SYM_STRVAL(symbol)              ((symbol)->scalerVal.strval)
+#define SYM_STRVAL_IDX(symbol, index)   ((symbol)->vectorVal.strvals[(index)])
 
 extern char errorStr[];
+char *emptyStr = "";
 
 // symbol table
 static Symbol *symtab = NULL;
@@ -21,13 +24,17 @@ static Symbol *symtab = NULL;
 static char* strsave(const char* s)
 {
     char* cp = calloc(strlen(s)+1, 1);
+    
     if (cp)
     {
         strcpy(cp, s);
-        return cp;
+    }
+    else
+    {
+        Panic("system error: memory allocation error while creating string\n");
     }
 
-    return (char*)NULL;    
+    return cp;
 }
   
 static Symbol *SymCreate(const char *name)
@@ -38,12 +45,13 @@ static Symbol *SymCreate(const char *name)
     if (newEntry)
     {
         // set the name and add it to the front of the symbol list
-        if ((newEntry->name = strsave(name)) == NULL)
-        {
-            return NULL;
-        }
+        newEntry->name = strsave(name);
         newEntry->next = symtab;
         symtab = newEntry;
+    }
+    else
+    {
+        Panic("system error: memory allocation error while creating symbol\n");
     }
      
     return newEntry;
@@ -55,8 +63,12 @@ struct Symbol *SymFind(const char *name)
     
     // search symtab until match of end of symtab chain
     for (next = symtab; next; next = next->next)
+    {
         if (!strcmp(next->name, name))
+        {
             break;
+        }
+    }
    
     return next;
 }
@@ -73,12 +85,15 @@ bool SymLookup(int token)
                 break;
             lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_NUMVAR;
+            lexval.lexsym->vectorVal.numvals = NULL;
             break;
         case Strvar:
             if ((lexval.lexsym = SymFind(tokenStr)))
                 break;
             lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_STRVAR;
+            lexval.lexsym->scalerVal.strval = emptyStr;
+            lexval.lexsym->vectorVal.strvals = NULL;
             break;
         case Function:
             if ((lexval.lexsym = SymFind(tokenStr)))
@@ -95,10 +110,53 @@ bool SymLookup(int token)
     return true; 
 }
 
+bool SymConvertToArray(Symbol *varsym, int size)
+{
+    // allocate the array
+    if (varsym->type == ST_NUMVAR)
+    {
+        if(varsym->vectorVal.numvals == NULL)
+        {
+            if ((varsym->vectorVal.numvals = (float *)calloc(size, sizeof(float))) == NULL)
+            {
+                Panic("system error: memory allocation error while dimensioning num array\n");
+                return false;
+            }
+        }
+    }
+    else if (varsym->type == ST_STRVAR)
+    {
+        if (varsym->vectorVal.strvals == NULL)
+        {
+            if ((varsym->vectorVal.strvals = (char **)calloc(size, sizeof(char *))) == NULL)
+            {
+                Panic("system error: memory allocation error while dimensioning string array\n");
+                return false;
+            }
+            
+            // default all string array elements to the empty string
+            for (int i = 0; i < size; i++)
+            {
+                varsym->vectorVal.strvals[i] = emptyStr;
+            }
+        }
+    }
+    
+    return true;
+}
+
 void FreeSymbol(Symbol *symbol)
 {
     if (symbol->next)
         FreeSymbol(symbol->next);
+    if (symbol->type == ST_NUMVAR)
+    {
+        free (symbol->vectorVal.numvals);
+    }
+    else
+    {
+        free (symbol->vectorVal.strvals);
+    }
     free(symbol);
 }
 
@@ -133,6 +191,7 @@ int CalcVarIndex(Symbol *varsym, float indeces[4])
             {
                 if (indeces[i] >= SYM_DIMSIZES(varsym, i))
                 {
+                    strcpy(errorStr, "index out of range");
                     return -1;
                 }
             }
@@ -158,7 +217,7 @@ bool SymReadNumvar(Symbol *varsym, float indeces[4], float *value)
         return false;
     }
     
-    *value = SYM_NUMVAL_IDX(varsym, index);
+    *value = (varsym->dim == 0) ? SYM_NUMVAL(varsym) : SYM_NUMVAL_IDX(varsym, index);
     
     return true;
 }
@@ -172,7 +231,14 @@ bool SymWriteNumvar(Symbol *varsym, float indeces[4], float value)
         return false;
     }
     
-    SYM_NUMVAL_IDX(varsym, index) = value;
+    if (varsym->dim == 0)
+    {
+        SYM_NUMVAL(varsym) = value;
+    }
+    else
+    {
+        SYM_NUMVAL_IDX(varsym, index) = value;
+    }
     
     return true;
 }
@@ -186,7 +252,7 @@ bool SymReadStrvar(Symbol *varsym, float indeces[4], char **value)
         return false;
     }
     
-    *value = SYM_STRVAL_IDX(varsym, index);
+    *value = (varsym->dim == 0) ? SYM_STRVAL(varsym) : SYM_STRVAL_IDX(varsym, index);
     
     return true;
 }
@@ -200,7 +266,14 @@ bool SymWriteStrvar(Symbol *varsym, float indeces[4], char *value)
         return false;
     }
     
-    SYM_STRVAL_IDX(varsym, index) = value;
+    if (varsym->dim == 0)
+    {
+        SYM_STRVAL(varsym) = value;
+    }
+    else
+    {
+        SYM_STRVAL_IDX(varsym, index) = value;
+    }
     
     return true;
 }

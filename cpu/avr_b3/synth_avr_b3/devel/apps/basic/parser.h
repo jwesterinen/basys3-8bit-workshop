@@ -76,6 +76,7 @@ typedef struct ForCommand {
 } ForCommand;
 
 typedef struct NextCommand {
+    int lineNum;
     Symbol *symbol;
 } NextCommand;
 
@@ -129,6 +130,7 @@ enum COMMAND_TYPE {
     CT_INPUT,
     CT_POKE,
     CT_DIM,
+    CT_BREAK,
     CT_TONE,
     CT_BEEP,
     CT_LEDS,

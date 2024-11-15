@@ -15,18 +15,24 @@ typedef struct Symbol
 {
     char *name;
     enum SYMTYPE type;
-    union 
+    union
     {
-        float numval[ARRAY_MAX];
-        char *strval[ARRAY_MAX];
-    } value;
-    float dim;                  // the dimension of the array, e.g. dim a(2,3,4) dim = 3
-    float dimSizes[DIM_MAX];    // the size of each dimension, e.g. dim a(2,3,4) dimSizes = {2,3,4,0}
+        float numval;
+        char *strval;
+    } scalerVal;
+    union
+    {
+        float *numvals;
+        char **strvals;
+    } vectorVal;
+    float dim;                  // the dimension of an array, e.g. dim a(2,3,4) dim = 3, or arity of a fct
+    float dimSizes[DIM_MAX];    // the size of each array dimension, e.g. dim a(2,3,4) dimSizes = {2,3,4,0}, or fct arg values
     struct Symbol *next;
 } Symbol;
 
 bool SymLookup(int token);
 Symbol *SymFind(const char *name);
+bool SymConvertToArray(Symbol *varsym, int size);
 void FreeSymtab(void);
 bool SymReadNumvar(Symbol *varsym, float indeces[4], float *value);
 bool SymWriteNumvar(Symbol *varsym, float indeces[4], float value);
