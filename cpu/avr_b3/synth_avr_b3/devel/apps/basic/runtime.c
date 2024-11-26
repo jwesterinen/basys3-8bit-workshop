@@ -1220,8 +1220,6 @@ bool ExecBreak(PlatformCommand *cmd)
 
 bool ExecBuiltinFct(const char *name, float arity)
 {
-    uint16_t argList[ARG_MAX];
-    
     // the qty of args parsed resides on the top of the num stack so check for agreement
     if (arity != (int)NumStackPop())
     {
@@ -1229,35 +1227,37 @@ bool ExecBuiltinFct(const char *name, float arity)
         return false;
     }
     
-    // fill the arg list from the num stack
-    for (int i = arity-1; i >= 0; i--)
-    {
-        argList[i] = (uint16_t)NumStackPop();
-    }
-    
     if (!strcmp(name, "peek"))
     {
-        NumStackPush(MemRead(argList[0]));
+        // 1 unsigned int arg
+        NumStackPush(MemRead((uint16_t)NumStackPop()));
     } 
     else if (!strcmp(name, "rnd"))
     {
-        NumStackPush(rand() % (argList[0]));
+        // 1 unsigned int arg
+        NumStackPush(rand() % ((uint16_t)NumStackPop()));
     } 
     else if (!strcmp(name, "abs"))
     {
-        NumStackPush(fabsf(argList[0]));
+        // 1 float arg
+        NumStackPush(fabsf(NumStackPop()));
     } 
     else if (!strcmp(name, "switches"))
     {
+        // no args
         NumStackPush(Switches());
     } 
     else if (!strcmp(name, "buttons"))
     {
+        // no args
         NumStackPush(Buttons());
     } 
     else if (!strcmp(name, "getchar"))
     {
-        NumStackPush(GfxGetChar(argList[0], argList[1]));
+        // 2 unsigned int args, row in on TOS followed by col
+        uint16_t row = (uint16_t)NumStackPop();
+        uint16_t col = (uint16_t)NumStackPop();
+        NumStackPush(GfxGetChar(row, col));
     }
     else
     {
@@ -1343,12 +1343,15 @@ bool TraverseTree(Node *node)
                 //   primaryExpr [subExprList]
                 if (BRO(SON(node)))
                 {
-                    // check for attempt to use scaler as vector
-                    if (SYM_DIM(SON(SON(node))->value.varsym) == 0)
+                    // check for attempt to use scaler as vector if this is not a builtin fct
+                    if (SYM_TYPE(SON(SON(node))->value.varsym) != ST_FCT)
                     {
-                        strcpy(errorStr, "subscript error");
-                        retval = false;
-                        break;
+                        if (SYM_DIM(SON(SON(node))->value.varsym) == 0)
+                        {
+                            strcpy(errorStr, "subscript error");
+                            retval = false;
+                            break;
+                        }
                     }
                     
                     // only do this for fct/array ref

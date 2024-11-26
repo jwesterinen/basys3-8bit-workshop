@@ -810,6 +810,7 @@ bool IsLeds(Command *pCommand)
 // display : DISPLAY expr ',' expr
 bool IsDisplay(Command *pCommand)
 {
+    // note: display quantity is either 2 or 4 (the number of 7-seg displays)
     Node *value, *displayQty;
     
     if (token == DISPLAY)

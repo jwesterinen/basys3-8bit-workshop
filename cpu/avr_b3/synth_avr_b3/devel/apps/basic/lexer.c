@@ -328,6 +328,7 @@ bool GetNextToken(char *commandStr)
                     if (!strcmp(builtinFctTab[j].name, tokenStrLc))
                     {
                         token = Function;
+                        break;
                     }
                 }
                 
