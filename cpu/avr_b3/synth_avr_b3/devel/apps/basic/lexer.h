@@ -63,7 +63,7 @@ extern LEXTYPE lexval;
 extern char tokenStr[80];
 extern int token;
 
-extern char gCommandStr[];
+//extern char gCommandStr[];
 extern char *nextChar;
 
 struct BuiltinFctTableEntry {

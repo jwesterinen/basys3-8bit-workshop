@@ -34,7 +34,7 @@
 
 bool RunProgram(void);
 bool ListProgram(void);
-bool ExecCommand(Command *command, bool cmdLineOnly);
+bool ExecCommand(Command *command, bool cmdListOnly);
 bool ExecPrint(PrintCommand *cmd);
 bool ExecAssign(AssignCommand *cmd);
 bool ExecFor(ForCommand *cmd);
@@ -84,10 +84,12 @@ int nodeCount = 0;
 // ***stacks and queues***
 
 // command queue aka "the program"
-CommandLine Program[MAX_PROGRAM_LEN]; // list of command lines all of which share the same line number
-int programSize = 0;     // program index used to add commands to the program
-int cmdLineIdx = 0;     // command line index used to point to the current command line in the program
-Command *cmdPtr = NULL; // command pointer is used to point to the next command to be executed
+CommandLine Program[MAX_PROGRAM_LEN];   // list of command lines all of which share the same line number
+int programSize = 0;                    // program index used to add commands to the program
+int cmdListIdx = 0;                     // index into the program of the current command list
+Command *cmdPtr = NULL;                 // command pointer is used to point to the next command to be executed
+CommandLine emptyCommandLine = {0};
+
 
 // for command stack needed by the next command
 ForCommand *fortab[TABLE_LEN];
@@ -114,49 +116,50 @@ typedef struct FctList {
 // free a command list
 void FreeCommand(Command *cmd)
 {
-    if (cmd->next)
-        FreeCommand(cmd->next);
-    free(cmd);
+    if (cmd)
+    {
+        if (cmd->next)
+        {
+            FreeCommand(cmd->next);
+        }
+        free(cmd);
+    }
 }
 
 // free all allocated commands in a command line
-void FreeCommandLine(CommandLine *cmdLine)
+void FreeCommandList(Command *commandList)
 {
-    if (cmdLine->cmd.next)
-        FreeCommand(cmdLine->cmd.next);
-    cmdLine->cmd.next = NULL;
+    if (commandList)
+    {
+        if (commandList->next)
+        {
+            FreeCommand(commandList->next);
+        }
+        commandList->next = NULL;
+    }
 }
 
 // free all allocated commands in the program
 void FreeProgram(void)
 {
-    CommandLine *pEmptyCommand = (CommandLine *)calloc(1, sizeof(CommandLine));
-    if (pEmptyCommand)
+    for (int i = 0; i < MAX_PROGRAM_LEN; i++)
     {
-        for (int i = 0; i < MAX_PROGRAM_LEN; i++)
-        {
-            FreeCommandLine(&Program[i]);
-            Program[i] = *pEmptyCommand;
-        }
-        free(pEmptyCommand);
+        FreeCommandList(Program[i].commandList);
+        Program[i] = emptyCommandLine;
     }
-    else
-    {
-        Panic("system error: memory allocation error while freeing program\n");
-    }    
 }
 
-Command *IterateCmdPtr(bool cmdLineOnly)
+Command *IterateCmdPtr(bool cmdListOnly)
 {
     if (cmdPtr->next)
     {
         // next command in the command line
         return cmdPtr->next;
     }
-    else if ((!cmdLineOnly) && (cmdLineIdx < programSize))
+    else if ((!cmdListOnly) && (cmdListIdx < programSize))
     {
         // first command in the next command line
-        return &Program[++cmdLineIdx].cmd;
+        return Program[++cmdListIdx].commandList;
     }
     
     return NULL;
@@ -169,7 +172,7 @@ bool LineNum2CmdLineIdx(int lineNum)
     {
         if (Program[i].lineNum == lineNum)
         {
-            cmdLineIdx = i;
+            cmdListIdx = i;
             return true;
         }
     }
@@ -239,7 +242,7 @@ bool ProcessCommand(char *commandStr)
 {
     // init the parser and error string
     CommandLine commandLine = {0};
-    bool isImmediate;
+    bool isImmediate = true;
     int i;
     char tempStr[80];
     
@@ -247,6 +250,7 @@ bool ProcessCommand(char *commandStr)
     strcpy(errorStr, "syntax error");
     
     // execute any directive
+    // command-line : directive
     if (!strcmp(commandStr, ""))
     {
         return true;
@@ -263,7 +267,7 @@ bool ProcessCommand(char *commandStr)
     {
         fortabSize = 0;
         programSize = 0;
-        cmdLineIdx = 0;
+        cmdListIdx = 0;
         callSP = 0;
         numSP = 0;
         strSP = 0;
@@ -279,17 +283,32 @@ bool ProcessCommand(char *commandStr)
         }
         return true;
     }
-    // init the lexer and parse the command line to create the IR
+    
+    // init the lexer and parse the command to create the IR
+    // command-line : [Constant] command-list
     if (GetNextToken(commandStr))
     {
-        if (IsCommandLine(&commandLine, &isImmediate))
+        // check for a line number to determine whether this is an immediate command
+        if (token == Constant)
+        {
+            // if there's a line number set the command-line's line number and save the command string for later printing
+            commandLine.lineNum = atoi(lexval.lexeme);
+            strcpy(commandLine.commandStr, commandStr);
+            isImmediate = false;
+            if (!GetNextToken(NULL))
+            {
+                return false;
+            }
+        }
+
+        if (IsCommandList(&commandLine.commandList, commandLine.lineNum))
         {
             if (isImmediate)
             {
                 bool success = true;
                 
-                // the command line has no line number so execute it
-                cmdPtr = &commandLine.cmd;
+                // the command list has no line number so execute it immediately
+                cmdPtr = commandLine.commandList;
                 while (success && cmdPtr)
                 {
                     success = ExecCommand(cmdPtr, isImmediate);
@@ -297,7 +316,8 @@ bool ProcessCommand(char *commandStr)
                 }
                 
                 // free the command line and all expressions immediately
-                FreeCommandLine(&commandLine);
+                FreeCommandList(commandLine.commandList);
+                commandLine = emptyCommandLine;
                 FreeExprTrees();
                 return success;
             }
@@ -360,8 +380,8 @@ bool RunProgram(void)
         strSP = 0;
                   
         // init the command pointer to the first command in the first command line
-        cmdPtr = &Program[0].cmd;
-        cmdLineIdx = 0;
+        cmdPtr = Program[0].commandList;
+        cmdListIdx = 0;
         while (cmdPtr != NULL)
         {
             // execute the command
@@ -390,7 +410,7 @@ bool ListProgram(void)
 {
     for (int i = 0; i < programSize; i++)
     {
-        if (Program[i].cmd.type != CT_NOP || strstr(Program[i].commandStr, "rem"))
+        if (Program[i].commandList->type != CT_NOP || strstr(Program[i].commandStr, "rem"))
         {
             strcpy(resultStr, Program[i].commandStr);
             PrintResult();
@@ -402,7 +422,7 @@ bool ListProgram(void)
 }
 
 // execute a possible list of commands
-bool ExecCommand(Command *command, bool cmdLineOnly)
+bool ExecCommand(Command *command, bool cmdListOnly)
 {
     Command *lastCmdPtr = cmdPtr;
     
@@ -533,7 +553,7 @@ bool ExecCommand(Command *command, bool cmdLineOnly)
     if (cmdPtr == lastCmdPtr)
     {
         // if a command didn't change the command pointer, logically increment it
-        cmdPtr = IterateCmdPtr(cmdLineOnly);                      
+        cmdPtr = IterateCmdPtr(cmdListOnly);                      
     }
     
     return true;
@@ -802,8 +822,8 @@ bool ExecNext(NextCommand *cmd)
                     // goto the first command in the command line following the for command
                     if (LineNum2CmdLineIdx(forInstr->lineNum))
                     {
-                        cmdLineIdx++;
-                        cmdPtr = &Program[cmdLineIdx].cmd;
+                        cmdListIdx++;
+                        cmdPtr = Program[cmdListIdx].commandList;
                     }
                     else
                     {
@@ -830,7 +850,7 @@ bool ExecGoto(GotoCommand *cmd)
             // goto the first command in the command line of the goto destination
             if (LineNum2CmdLineIdx((int)dest))
             {
-                cmdPtr = &Program[cmdLineIdx].cmd;
+                cmdPtr = Program[cmdListIdx].commandList;
                 return true;
             }
             else
@@ -847,30 +867,30 @@ bool ExecGoto(GotoCommand *cmd)
 bool ExecIf(IfCommand *cmd)
 {
     float predicate;
+    char tempStr[STRING_LEN];
     
     if (EvaluateNumExpr(cmd->expr, &predicate))
     {
-        // duh, but... if the predicate expr is true then perform 
-        // the associated commands, else go on to the following command
+        // if the predicate expr is true then execute the command list, else simply return
         if (predicate)
         {
-            switch (cmd->type)
+            cmdPtr = cmd->commandList;
+            while (cmdPtr != NULL)
             {
-                case IT_PRINT:
-                    return ExecPrint(&cmd->cmd.printCmd);
-                case IT_ASSIGN:
-                    return ExecAssign(&cmd->cmd.assignCmd);
-                case IT_GOTO:
-                    return ExecGoto(&cmd->cmd.gotoCmd);
-                default:
-                    strcpy(errorStr, "unknown sub-command in IF");
-                    break;
+                // execute the command
+                if (ExecCommand(cmdPtr, ALL_COMMANDS))
+                {
+                    PrintResult();
+                }
+                else
+                {
+                    sprintf(tempStr, " at line %d", cmdPtr->lineNum);
+                    strcat(errorStr, tempStr);
+                    return false;
+                }
             }
         }
-        else
-        {
-            return true;
-        }
+        return true;
     }
 
     return false;
@@ -893,7 +913,7 @@ bool ExecGosub(GosubCommand *cmd)
             // goto the first command in the command line of the gosub destination
             if (LineNum2CmdLineIdx((int)dest))
             {
-                cmdPtr = &Program[cmdLineIdx].cmd;
+                cmdPtr = Program[cmdListIdx].commandList;
                 return true;
             }
         }

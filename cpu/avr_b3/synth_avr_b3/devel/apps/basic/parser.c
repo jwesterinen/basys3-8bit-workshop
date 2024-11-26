@@ -8,9 +8,9 @@
 *
     BASIC grammar:
     
-    command
+    command-line
         : directive
-        | [Constant] command-line
+        | [Constant] command-list
         | 
         ;
     directive
@@ -21,10 +21,10 @@
         | TEXT
         | GR
         ;
-    command-line
-        : executable-cmd [':' command-line]
+    command-list
+        : command [':' command-list]
         ;
-    executable-cmd  
+    command  
         : for
         | next
         | goto
@@ -72,7 +72,7 @@
         : GOTO Constant
         ;
     if
-        : IF expr THEN [immediate-cmd | goto]
+        : IF expr THEN command-list
         ;
     gosub   
         : GOSUB Constant
@@ -228,33 +228,33 @@
 char *Type2Name(enum NodeType type);
 Node *NewNode(enum NodeType type, union NodeValue value);
 Node *AddSon(Node *parent, Node *node);
-bool IsExecutableCommand(Command *command);
-bool IsNop(Command *command);
-bool IsPrint(Command *command);
+bool IsExecutableCommand(Command *pCommand);
+bool IsNop(Command *pCommand);
+bool IsPrint(Command *pCommand);
 bool IsExprList(PrintCommand *cmd, int *listIdx);
-bool IsAssign(Command *command);
-bool IsFor(Command *command);
-bool IsNext(Command *command);
-bool IsGoto(Command *command);
-bool IsIf(Command *command);
-bool IsGosub(Command *command);
-bool IsReturn(Command *command);
-bool IsEnd(Command *command);
-bool IsInput(Command *command);
-bool IsPoke(Command *command);
-bool IsTone(Command *command);
-bool IsBeep(Command *command);
-bool IsLeds(Command *command);
-bool IsDisplay(Command *command);
-bool IsPutchar(Command *command);
-bool IsClear(Command *command);
-bool IsText(Command *command);
-bool IsGr(Command *command);
-bool IsOutchar(Command *command);
-bool IsRseed(Command *command);
-bool IsDelay(Command *command);
-bool IsDim(Command *command);
-bool IsBreak(Command *command);
+bool IsAssign(Command *pCommand);
+bool IsFor(Command *pCommand);
+bool IsNext(Command *pCommand);
+bool IsGoto(Command *pCommand);
+bool IsIf(Command *pCommand);
+bool IsGosub(Command *pCommand);
+bool IsReturn(Command *pCommand);
+bool IsEnd(Command *pCommand);
+bool IsInput(Command *pCommand);
+bool IsPoke(Command *pCommand);
+bool IsTone(Command *pCommand);
+bool IsBeep(Command *pCommand);
+bool IsLeds(Command *pCommand);
+bool IsDisplay(Command *pCommand);
+bool IsPutchar(Command *pCommand);
+bool IsClear(Command *pCommand);
+bool IsText(Command *pCommand);
+bool IsGr(Command *pCommand);
+bool IsOutchar(Command *pCommand);
+bool IsRseed(Command *pCommand);
+bool IsDelay(Command *pCommand);
+bool IsDim(Command *pCommand);
+bool IsBreak(Command *pCommand);
 bool IsExpr(Node **ppNode);
 bool IsLogicExpr(Node **ppNode);
 bool IsLogicExprPrime(Node **ppNode);
@@ -276,49 +276,39 @@ Node *ExprList[TABLE_LEN];
 int exprListIdx;
 extern int nodeCount;
 
-// command : [Constant] command-line
-bool IsCommandLine(CommandLine *commandLine, bool *isImmediate)
+// parse a possible list of colon-delineated executable commands on one line
+// command : [Constant] command-list
+bool IsCommandList(Command **ppCommandList, int lineNum)
 {
-    Command *command = &commandLine->cmd, *nextCommand;
+    Command *pCommand, *next;
     
-    // check for a line number for the command list
-    if (token == Constant)
-    {
-        // if there's a line number set the command's line number and save the command string for later printing
-        commandLine->lineNum = atoi(lexval.lexeme);
-        strcpy(commandLine->commandStr, gCommandStr);
-        *isImmediate = false;
-        if (!GetNextToken(NULL))
-        {
-            return false;
-        }
-    }
-    else
-    {
-        *isImmediate = true;
-    }
-
     // create a possible list of commands
-    command->lineNum = commandLine->lineNum;
-    if (IsExecutableCommand(command))
+    *ppCommandList = pCommand = (Command *)calloc(1, sizeof(Command));
+    if (*ppCommandList == NULL)
+    {
+        Panic("system error: memory allocation error while parsing command line\n");
+        return false;
+    }
+    pCommand->lineNum = lineNum;
+    if (IsExecutableCommand(pCommand))
     {
         // commands on the same line must be separated by ':'
         while (token == ':')
         {
             if (GetNextToken(NULL))
             {
-                nextCommand = (Command *)calloc(1, sizeof(Command));
-                if (nextCommand)
+                next = (Command *)calloc(1, sizeof(Command));
+                if (next)
                 {
-                    nextCommand->lineNum = commandLine->lineNum;
-                    if (IsExecutableCommand(nextCommand))
+                    next->lineNum = lineNum;
+                    if (IsExecutableCommand(next))
                     {
-                        command->next = nextCommand;
-                        command = nextCommand;
+                        pCommand->next = next;
+                        pCommand = next;
                     }
                     else
                     {
-                        free(nextCommand);
+                        free(next);
                         return false;
                     }
                 }
@@ -342,34 +332,34 @@ bool IsCommandLine(CommandLine *commandLine, bool *isImmediate)
     return false;
 }
 
-bool IsExecutableCommand(Command *command)
+bool IsExecutableCommand(Command *pCommand)
 {
     if (
-        IsNop(command)              ||
-        IsPrint(command)            ||
-        IsAssign(command)           ||
-        IsFor(command)              ||
-        IsNext(command)             ||
-        IsGoto(command)             ||
-        IsIf(command)               ||
-        IsGosub(command)            ||
-        IsReturn(command)           ||
-        IsEnd(command)              ||
-        IsInput(command)            ||
-        IsPoke(command)             ||
-        IsTone(command)             ||
-        IsBeep(command)             ||
-        IsLeds(command)             ||
-        IsDisplay(command)          ||
-        IsPutchar(command)          ||
-        IsClear(command)            ||
-        IsText(command)             ||
-        IsGr(command)               ||
-        IsOutchar(command)          ||
-        IsRseed(command)            ||
-        IsDelay(command)            ||
-        IsDim(command)              ||
-        IsBreak(command)
+        IsNop(pCommand)              ||
+        IsPrint(pCommand)            ||
+        IsAssign(pCommand)           ||
+        IsFor(pCommand)              ||
+        IsNext(pCommand)             ||
+        IsGoto(pCommand)             ||
+        IsIf(pCommand)               ||
+        IsGosub(pCommand)            ||
+        IsReturn(pCommand)           ||
+        IsEnd(pCommand)              ||
+        IsInput(pCommand)            ||
+        IsPoke(pCommand)             ||
+        IsTone(pCommand)             ||
+        IsBeep(pCommand)             ||
+        IsLeds(pCommand)             ||
+        IsDisplay(pCommand)          ||
+        IsPutchar(pCommand)          ||
+        IsClear(pCommand)            ||
+        IsText(pCommand)             ||
+        IsGr(pCommand)               ||
+        IsOutchar(pCommand)          ||
+        IsRseed(pCommand)            ||
+        IsDelay(pCommand)            ||
+        IsDim(pCommand)              ||
+        IsBreak(pCommand)
     )
     {
         sprintf(message, "node count = %d\n", nodeCount);
@@ -381,13 +371,13 @@ bool IsExecutableCommand(Command *command)
 }
 
 // nop
-bool IsNop(Command *command)
+bool IsNop(Command *pCommand)
 {
     return (token == EOL);
 }
     
 // print
-bool IsPrint(Command *command)
+bool IsPrint(Command *pCommand)
 {
     PrintCommand cmd = {0};
     int printListIdx = 0;
@@ -397,10 +387,10 @@ bool IsPrint(Command *command)
     {
         if (GetNextToken(NULL) && IsExprList(&cmd, &printListIdx))
         {
-            command->type = CT_PRINT;
-            command->cmd.printCmd = cmd;
-            command->cmd.printCmd.printListIdx = printListIdx;
-            command->cmd.printCmd.style = PS_DECIMAL;
+            pCommand->type = CT_PRINT;
+            pCommand->cmd.printCmd = cmd;
+            pCommand->cmd.printCmd.printListIdx = printListIdx;
+            pCommand->cmd.printCmd.style = PS_DECIMAL;
             return true;
         }
     }
@@ -409,10 +399,10 @@ bool IsPrint(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&cmd.printList[0].expr))
         {
-            command->type = CT_PRINT;
-            command->cmd.printCmd = cmd;
-            command->cmd.printCmd.printListIdx = 1;
-            command->cmd.printCmd.style = PS_HEX;
+            pCommand->type = CT_PRINT;
+            pCommand->cmd.printCmd = cmd;
+            pCommand->cmd.printCmd.printListIdx = 1;
+            pCommand->cmd.printCmd.style = PS_HEX;
             return true;
         }
     }
@@ -421,10 +411,10 @@ bool IsPrint(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&cmd.printList[0].expr))
         {
-            command->type = CT_PRINT;
-            command->cmd.printCmd = cmd;
-            command->cmd.printCmd.printListIdx = 1;
-            command->cmd.printCmd.style = PS_ASCII;
+            pCommand->type = CT_PRINT;
+            pCommand->cmd.printCmd = cmd;
+            pCommand->cmd.printCmd.printListIdx = 1;
+            pCommand->cmd.printCmd.style = PS_ASCII;
             return true;
         }
     }
@@ -494,7 +484,7 @@ bool ParseIndeces(Node *indexNodes[], int dim)
 }
 
 // assignment
-bool IsAssign(Command *command)
+bool IsAssign(Command *pCommand)
 {
     // allow "let" although unnecessary
     if (token == LET)
@@ -506,17 +496,17 @@ bool IsAssign(Command *command)
     }
 
     // the LHS is a symbol that represents an integer scaler or vector
-    command->type = CT_ASSIGN;
-    command->cmd.assignCmd.varsym = lexval.lexsym;
+    pCommand->type = CT_ASSIGN;
+    pCommand->cmd.assignCmd.varsym = lexval.lexsym;
 
     // [let] Numvar ['(' expr [',' expr]* ')'] '=' expr
     // [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
     if (token == Numvar || token == Strvar)
     {
         // parse the index nodes for arrays
-        if (SYM_DIM(command->cmd.assignCmd.varsym) > 0)
+        if (SYM_DIM(pCommand->cmd.assignCmd.varsym) > 0)
         {
-            if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
+            if (!GetNextToken(NULL) || !ParseIndeces(pCommand->cmd.assignCmd.indexNodes, SYM_DIM(pCommand->cmd.assignCmd.varsym)))
             {
                 strcpy(errorStr,"subscript error");
                 return false;
@@ -529,18 +519,18 @@ bool IsAssign(Command *command)
             if (token == '=')
             {
                 // perform the assignment based on the LHS
-                if (SYM_TYPE(command->cmd.assignCmd.varsym) == ST_NUMVAR)
+                if (SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_NUMVAR)
                 {
                     // the RHS is a const, scaler or vector number variable or function return value
-                    if (GetNextToken(NULL) && IsExpr(&command->cmd.assignCmd.expr))
+                    if (GetNextToken(NULL) && IsExpr(&pCommand->cmd.assignCmd.expr))
                     {
                         return true;
                     }
                 }
-                else if (SYM_TYPE(command->cmd.assignCmd.varsym) == ST_STRVAR)
+                else if (SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_STRVAR)
                 {
                     // the RHS is a string or scaler or vector string variable
-                    if (GetNextToken(NULL) && IsPostfixExpr(&command->cmd.assignCmd.expr))
+                    if (GetNextToken(NULL) && IsPostfixExpr(&pCommand->cmd.assignCmd.expr))
                     {
                         return true;
                     }
@@ -553,7 +543,7 @@ bool IsAssign(Command *command)
 }
 
 // for : FOR Numvar '=' expr TO expr [STEP expr]
-bool IsFor(Command *command)
+bool IsFor(Command *pCommand)
 {
     ForCommand cmd = {0};
 
@@ -577,9 +567,9 @@ bool IsFor(Command *command)
                                     return false;
                                 }
                             }
-                            cmd.lineNum = command->lineNum;
-                            command->type = CT_FOR;
-                            command->cmd.forCmd = cmd;
+                            cmd.lineNum = pCommand->lineNum;
+                            pCommand->type = CT_FOR;
+                            pCommand->cmd.forCmd = cmd;
                             return true;
                         }
                     }
@@ -592,17 +582,17 @@ bool IsFor(Command *command)
 }
 
 // next : NEXT [IntvarName]
-bool IsNext(Command *command)
+bool IsNext(Command *pCommand)
 {
     if (token == NEXT)
     {
-        command->cmd.nextCmd.symbol = NULL;
+        pCommand->cmd.nextCmd.symbol = NULL;
         if (GetNextToken(NULL) && (token == Numvar))
         {
-            command->cmd.nextCmd.symbol = lexval.lexsym;
+            pCommand->cmd.nextCmd.symbol = lexval.lexsym;
         }
-        command->cmd.nextCmd.lineNum = command->lineNum;
-        command->type = CT_NEXT;
+        pCommand->cmd.nextCmd.lineNum = pCommand->lineNum;
+        pCommand->type = CT_NEXT;
         return GetNextToken(NULL);
     }
 
@@ -610,7 +600,7 @@ bool IsNext(Command *command)
 }
 
 // goto : GOTO Constant
-bool IsGoto(Command *command)
+bool IsGoto(Command *pCommand)
 {
     Node *dest;
     
@@ -618,8 +608,8 @@ bool IsGoto(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&dest))
         {
-            command->type = CT_GOTO;
-            command->cmd.gotoCmd.dest = dest;
+            pCommand->type = CT_GOTO;
+            pCommand->cmd.gotoCmd.dest = dest;
             return true;
         }
     }        
@@ -627,11 +617,10 @@ bool IsGoto(Command *command)
     return false;
 }
 
-// if : IF expr THEN [assign | print | goto]
-bool IsIf(Command *command)
+// if : IF expr THEN command-list
+bool IsIf(Command *pCommand)
 {
     Node *expr;
-    Command subCommand;
     
     if (token == IF)
     {
@@ -642,32 +631,11 @@ bool IsIf(Command *command)
             {
                 if (!GetNextToken(NULL))
                     return false;
-            }
-            
-            // TODO: allow a list of commands in an if clause
-            // parse the possible commands that follow an if
-            if (IsAssign(&subCommand))
+            }            
+            if (IsCommandList(&pCommand->cmd.ifCmd.commandList, pCommand->lineNum))
             {
-                command->type = CT_IF;
-                command->cmd.ifCmd.expr = expr;
-                command->cmd.ifCmd.type = IT_ASSIGN;
-                command->cmd.ifCmd.cmd.assignCmd = subCommand.cmd.assignCmd;
-                return true;
-            }
-            else if (IsPrint(&subCommand))
-            {
-                command->type = CT_IF;
-                command->cmd.ifCmd.expr = expr;
-                command->cmd.ifCmd.type = IT_PRINT;
-                command->cmd.ifCmd.cmd.printCmd = subCommand.cmd.printCmd;
-                return true;
-            }
-            else if (IsGoto(&subCommand))
-            {
-                command->type = CT_IF;
-                command->cmd.ifCmd.expr = expr;
-                command->cmd.ifCmd.type = IT_GOTO;
-                command->cmd.ifCmd.cmd.gotoCmd = subCommand.cmd.gotoCmd;
+                pCommand->type = CT_IF;
+                pCommand->cmd.ifCmd.expr = expr;
                 return true;
             }
         }
@@ -677,7 +645,7 @@ bool IsIf(Command *command)
 }
 
 // gosub : GOSUB Constant
-bool IsGosub(Command *command)
+bool IsGosub(Command *pCommand)
 {
     Node *dest;
     
@@ -685,9 +653,9 @@ bool IsGosub(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&dest))
         {
-            command->type = CT_GOSUB;
-            command->cmd.gosubCmd.lineNum = command->lineNum;
-            command->cmd.gosubCmd.dest = dest;
+            pCommand->type = CT_GOSUB;
+            pCommand->cmd.gosubCmd.lineNum = pCommand->lineNum;
+            pCommand->cmd.gosubCmd.dest = dest;
             return true;
         }
     }        
@@ -696,11 +664,11 @@ bool IsGosub(Command *command)
 }
 
 // return : RETURN
-bool IsReturn(Command *command)
+bool IsReturn(Command *pCommand)
 {
     if (token == RETURN)
     {
-        command->type = CT_RETURN;
+        pCommand->type = CT_RETURN;
         return GetNextToken(NULL);
     }
     
@@ -708,11 +676,11 @@ bool IsReturn(Command *command)
 }
 
 // end : END
-bool IsEnd(Command *command)
+bool IsEnd(Command *pCommand)
 {
     if (token == END || token == STOP)
     {
-        command->type = CT_END;
+        pCommand->type = CT_END;
         return GetNextToken(NULL);
     }
     
@@ -720,21 +688,21 @@ bool IsEnd(Command *command)
 }
 
 // input : INPUT {Numvar | Strvar} ['(' expr [',' expr]* ')']
-bool IsInput(Command *command)
+bool IsInput(Command *pCommand)
 {
     if (token == INPUT)
     {
-        command->type = CT_INPUT;
+        pCommand->type = CT_INPUT;
         if (GetNextToken(NULL))
         {
-            command->cmd.inputCmd.varsym = lexval.lexsym;
+            pCommand->cmd.inputCmd.varsym = lexval.lexsym;
             if (token == Numvar || token == Strvar)
             {
                 // parse the index nodes for arrays
-                if (SYM_DIM(command->cmd.assignCmd.varsym) > 0)
+                if (SYM_DIM(pCommand->cmd.assignCmd.varsym) > 0)
                 {
                     // parse the index nodes for arrays
-                    if (!GetNextToken(NULL) || !ParseIndeces(command->cmd.assignCmd.indexNodes, SYM_DIM(command->cmd.assignCmd.varsym)))
+                    if (!GetNextToken(NULL) || !ParseIndeces(pCommand->cmd.assignCmd.indexNodes, SYM_DIM(pCommand->cmd.assignCmd.varsym)))
                     {
                         strcpy(errorStr,"subscript error");
                         return false;
@@ -749,7 +717,7 @@ bool IsInput(Command *command)
 }
 
 // poke : POKE expr ',' expr
-bool IsPoke(Command *command)
+bool IsPoke(Command *pCommand)
 {
     Node *addr, *data;
     
@@ -761,9 +729,9 @@ bool IsPoke(Command *command)
             {
                 if (GetNextToken(NULL) && IsExpr(&data))
                 {
-                    command->type = CT_POKE;
-                    command->cmd.platformCmd.arg1 = addr;
-                    command->cmd.platformCmd.arg2 = data;
+                    pCommand->type = CT_POKE;
+                    pCommand->cmd.platformCmd.arg1 = addr;
+                    pCommand->cmd.platformCmd.arg2 = data;
                     return true;
                 }
             }
@@ -774,7 +742,7 @@ bool IsPoke(Command *command)
 }
 
 // tone : TONE expr [',' expr]
-bool IsTone(Command *command)
+bool IsTone(Command *pCommand)
 {
     Node *freq, *duration;
     
@@ -799,9 +767,9 @@ bool IsTone(Command *command)
                     return false;
                 }
             }
-            command->type = CT_TONE;
-            command->cmd.platformCmd.arg1 = freq;
-            command->cmd.platformCmd.arg2 = duration;
+            pCommand->type = CT_TONE;
+            pCommand->cmd.platformCmd.arg1 = freq;
+            pCommand->cmd.platformCmd.arg2 = duration;
             return true;
         }
     }
@@ -810,11 +778,11 @@ bool IsTone(Command *command)
 }
 
 // beep : BEEP
-bool IsBeep(Command *command)
+bool IsBeep(Command *pCommand)
 {
     if (token == BEEP)
     {
-        command->type = CT_BEEP;
+        pCommand->type = CT_BEEP;
         return GetNextToken(NULL);
     }
     
@@ -822,7 +790,7 @@ bool IsBeep(Command *command)
 }
 
 // leds : LEDS expr
-bool IsLeds(Command *command)
+bool IsLeds(Command *pCommand)
 {
     Node *value;
     
@@ -830,8 +798,8 @@ bool IsLeds(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&value))
         {
-            command->type = CT_LEDS;
-            command->cmd.platformCmd.arg1 = value;
+            pCommand->type = CT_LEDS;
+            pCommand->cmd.platformCmd.arg1 = value;
             return true;
         }
     }
@@ -840,7 +808,7 @@ bool IsLeds(Command *command)
 }
 
 // display : DISPLAY expr ',' expr
-bool IsDisplay(Command *command)
+bool IsDisplay(Command *pCommand)
 {
     Node *value, *displayQty;
     
@@ -852,9 +820,9 @@ bool IsDisplay(Command *command)
             {
                 if (GetNextToken(NULL) && IsExpr(&displayQty))
                 {
-                    command->type = CT_DISPLAY;
-                    command->cmd.platformCmd.arg1 = value;
-                    command->cmd.platformCmd.arg2 = displayQty;
+                    pCommand->type = CT_DISPLAY;
+                    pCommand->cmd.platformCmd.arg1 = value;
+                    pCommand->cmd.platformCmd.arg2 = displayQty;
                     return true;
                 }
             }
@@ -865,7 +833,7 @@ bool IsDisplay(Command *command)
 }
 
 // putchar : PUTCHAR expr ',' expr ',' expr
-bool IsPutchar(Command *command)
+bool IsPutchar(Command *pCommand)
 {
     Node *row, *col, *value;
     
@@ -881,10 +849,10 @@ bool IsPutchar(Command *command)
                     {
                         if (GetNextToken(NULL) && IsExpr(&value))
                         {
-                            command->type = CT_PUTCHAR;
-                            command->cmd.platformCmd.arg1 = row;
-                            command->cmd.platformCmd.arg2 = col;
-                            command->cmd.platformCmd.arg3 = value;
+                            pCommand->type = CT_PUTCHAR;
+                            pCommand->cmd.platformCmd.arg1 = row;
+                            pCommand->cmd.platformCmd.arg2 = col;
+                            pCommand->cmd.platformCmd.arg3 = value;
                             return true;
                         }
                     }
@@ -897,11 +865,11 @@ bool IsPutchar(Command *command)
 }
 
 // clear : CLEAR
-bool IsClear(Command *command)
+bool IsClear(Command *pCommand)
 {
     if (token == CLEAR)
     {
-        command->type = CT_CLEAR;
+        pCommand->type = CT_CLEAR;
         return GetNextToken(NULL);
     }
     
@@ -909,11 +877,11 @@ bool IsClear(Command *command)
 }
 
 // text : TEXT
-bool IsText(Command *command)
+bool IsText(Command *pCommand)
 {
     if (token == TEXT)
     {
-        command->type = CT_TEXT;
+        pCommand->type = CT_TEXT;
         return GetNextToken(NULL);
     }
     
@@ -921,11 +889,11 @@ bool IsText(Command *command)
 }
 
 // gr : GR
-bool IsGr(Command *command)
+bool IsGr(Command *pCommand)
 {
     if (token == GR)
     {
-        command->type = CT_GR;
+        pCommand->type = CT_GR;
         return GetNextToken(NULL);
     }
     
@@ -933,7 +901,7 @@ bool IsGr(Command *command)
 }
 
 // outchar : OUTCHAR expr
-bool IsOutchar(Command *command)
+bool IsOutchar(Command *pCommand)
 {
     Node *outputChar;
     
@@ -941,8 +909,8 @@ bool IsOutchar(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&outputChar))
         {
-            command->type = CT_OUTCHAR;
-            command->cmd.platformCmd.arg1 = outputChar;
+            pCommand->type = CT_OUTCHAR;
+            pCommand->cmd.platformCmd.arg1 = outputChar;
             return true;
         }
     }
@@ -951,7 +919,7 @@ bool IsOutchar(Command *command)
 }
 
 // rseed : RSEED expr
-bool IsRseed(Command *command)
+bool IsRseed(Command *pCommand)
 {
     Node *seed;
     
@@ -959,8 +927,8 @@ bool IsRseed(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&seed))
         {
-            command->type = CT_RSEED;
-            command->cmd.platformCmd.arg1 = seed;
+            pCommand->type = CT_RSEED;
+            pCommand->cmd.platformCmd.arg1 = seed;
             return true;
         }
     }
@@ -969,7 +937,7 @@ bool IsRseed(Command *command)
 }
 
 // delay : DELAY expr
-bool IsDelay(Command *command)
+bool IsDelay(Command *pCommand)
 {
     Node *duration;
     
@@ -977,8 +945,8 @@ bool IsDelay(Command *command)
     {
         if (GetNextToken(NULL) && IsExpr(&duration))
         {
-            command->type = CT_DELAY;
-            command->cmd.platformCmd.arg1 = duration;
+            pCommand->type = CT_DELAY;
+            pCommand->cmd.platformCmd.arg1 = duration;
             return true;
         }
     }
@@ -987,32 +955,32 @@ bool IsDelay(Command *command)
 }
 
 // DIM {Numvar | Strvar} '(' expr [',' expr]* ')'
-bool IsDim(Command *command)
+bool IsDim(Command *pCommand)
 {
     int dim = 0;
     
     if (token == DIM)
     {
-        command->type = CT_DIM;
+        pCommand->type = CT_DIM;
         if (GetNextToken(NULL) && (token == Numvar || token == Strvar))
         {
-            command->cmd.dimCmd.varsym = lexval.lexsym;
+            pCommand->cmd.dimCmd.varsym = lexval.lexsym;
             if (GetNextToken(NULL) && (token == '('))
             {
                 // get the first index
-                if (GetNextToken(NULL) && IsExpr(&command->cmd.dimCmd.dimSizeNodes[dim++]))
+                if (GetNextToken(NULL) && IsExpr(&pCommand->cmd.dimCmd.dimSizeNodes[dim++]))
                 {
                     // get the rest of the indeces
                     while (token == ',')
                     {
-                        if (!GetNextToken(NULL) || !IsExpr(&command->cmd.dimCmd.dimSizeNodes[dim++]) || dim > DIM_MAX)
+                        if (!GetNextToken(NULL) || !IsExpr(&pCommand->cmd.dimCmd.dimSizeNodes[dim++]) || dim > DIM_MAX)
                         {
                             return false;
                         } 
                     } 
                     if (token == ')')
                     {
-                        SYM_DIM(command->cmd.dimCmd.varsym) = dim;
+                        SYM_DIM(pCommand->cmd.dimCmd.varsym) = dim;
                         return GetNextToken(NULL);
                     }
                 }
@@ -1024,11 +992,11 @@ bool IsDim(Command *command)
 }
 
 // break : BREAK
-bool IsBreak(Command *command)
+bool IsBreak(Command *pCommand)
 {
     if (token == BREAK)
     {
-        command->type = CT_BREAK;
+        pCommand->type = CT_BREAK;
         return GetNextToken(NULL);
     }
     

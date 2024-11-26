@@ -50,6 +50,8 @@ typedef struct Node {
 extern Node *ExprList[TABLE_LEN];
 extern int exprListIdx;
 
+typedef struct Command Command;
+
 typedef struct Printable {
     Node *expr;
     char separator;
@@ -87,12 +89,7 @@ typedef struct GotoCommand {
 enum IF_TYPE {IT_PRINT, IT_ASSIGN, IT_GOTO};
 typedef struct IfCommand {
     Node *expr;
-    enum IF_TYPE type;
-    union {
-        PrintCommand    printCmd;
-        AssignCommand   assignCmd;
-        GotoCommand     gotoCmd;
-    } cmd;
+    Command *commandList;
 } IfCommand;
 
 typedef struct GosubCommand {
@@ -116,7 +113,7 @@ typedef struct DimCommand {
     Node *dimSizeNodes[DIM_MAX];    // the expression of each dimension
 } DimCommand;
 
-enum COMMAND_TYPE {
+enum EX_COMMAND_TYPE {
     CT_NOP,
     CT_PRINT,
     CT_ASSIGN,
@@ -146,7 +143,7 @@ enum COMMAND_TYPE {
 
 typedef struct Command {
     int lineNum;
-    enum COMMAND_TYPE type;
+    enum EX_COMMAND_TYPE type;
     union {
         PrintCommand    printCmd;
         AssignCommand   assignCmd;
@@ -165,10 +162,10 @@ typedef struct Command {
 typedef struct CommandLine {
     char commandStr[80];
     int lineNum;
-    Command cmd;
+    Command *commandList;
 } CommandLine;    
 
-bool IsCommandLine(CommandLine *command, bool *isImmediate);
+bool IsCommandList(Command **ppCommandList, int lineNum);
 bool IsExpr(Node **ppNode);
 void FreeExprTrees(void);
 

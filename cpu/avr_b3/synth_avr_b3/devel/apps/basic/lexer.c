@@ -131,7 +131,7 @@ bool GetNextToken(char *commandStr)
     // init the lexer on a new input string
     if (commandStr != NULL)
     {
-        strcpy(gCommandStr, commandStr);
+        //strcpy(gCommandStr, commandStr);
         nextChar = commandStr;
     }
     
