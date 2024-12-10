@@ -16,7 +16,6 @@
 #include <inttypes.h>
 #include "symtab.h"
 #include "lexer.h"
-#include "parser.h"
 
 #define STRING_LEN 80
 

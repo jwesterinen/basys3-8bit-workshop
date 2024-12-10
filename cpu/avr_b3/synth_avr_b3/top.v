@@ -61,7 +61,12 @@ module avr_b3(
     output [3:0] vgaGreen,
     output [3:0] vgaRed,
     output Vsync,
-    output Hsync
+    output Hsync,
+    output sdsck,
+    input  sdmiso,
+    output sdmosi,
+    output sdcs,
+    input  sdcd
 );
 
     wire			io_re;
@@ -78,9 +83,10 @@ module avr_b3(
     wire [7:0] keypad_io_dout;
     wire [7:0] sound_io_dout;
     
-    wire system_clk;
-    // scale the input clock to ~50 MHz
-    prescaler #(.N(1)) ps12(clk, system_clk);
+    // Set up system clock and clocks array
+    wire system_clk;     // 50 MHz
+    wire [`MXCLK:0] sysclks;
+    clocks clks(clk, system_clk, sysclks);
     
     // ROM
     parameter pmem_width = 15;      // 15-bit width = 32K program space, BUT the AVR pmem works in _words_, so it's actually 64K _bytes_
@@ -118,9 +124,9 @@ module avr_b3(
     assign mmio_we = dmem_we & (dmem_a[15:12] == `MMIO_BASE);
     mmio core0_mmio
     (
-        clk, system_clk, mmio_re, mmio_we, rio_a[11:0], mmio_di, dmem_do, 
+        system_clk, sysclks, mmio_re, mmio_we, rio_a[11:0], mmio_di, dmem_do, 
         sw, btn, led, seg, dp, an, JBU, JBL, JA7, vgaBlue, vgaGreen, vgaRed,
-        Vsync, Hsync, PS2Clk, PS2Data, PS2irq
+        Vsync, Hsync, PS2Clk, PS2Data, PS2irq, sdsck, sdmiso, sdmosi, sdcs, sdcd
     );
 
     // Select between RAM and MMIO and latch value on read of either

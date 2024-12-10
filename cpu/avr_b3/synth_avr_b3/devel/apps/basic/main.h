@@ -26,6 +26,8 @@ uint16_t Switches(void);
 uint8_t Buttons(void);
 void Leds(uint16_t value);
 void Display7(uint16_t value, uint8_t displayQty);
+
+// graphics
 uint8_t GfxGetChar(uint8_t row, uint8_t col);
 uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c);
 void GfxClearScreen(void);
@@ -34,4 +36,11 @@ void GfxClearScreen(void);
 void GfxSetFGColor(uint8_t color);
 void GfxSetBGColor(uint8_t color);
 
+// basic file system
+bool SdMount(void);
+bool SdUnmount(void);
+bool SdList(void);
+bool SdDelete(const char *filename);
+bool SdLoad(const char *filename);
+bool SdSave(const char *filename);
 

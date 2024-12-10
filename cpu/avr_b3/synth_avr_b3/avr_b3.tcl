@@ -20,6 +20,7 @@ read_verilog PmodKYPD.v
 read_verilog SN76477.v
 read_verilog lfsr.v
 read_verilog sound_b3.v
+read_verilog sd.v
 read_verilog mmio.v
 read_verilog top.v 
 read_xdc $xdc_file

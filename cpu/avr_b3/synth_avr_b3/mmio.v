@@ -11,6 +11,7 @@
  *      sound:      reg addrs 0x200-0x2ff
  *      vgaterm:    reg addrs 0x300-0x3ff
  *      ps2:        reg addrs 0x400-0x4ff
+ *      sd:         reg addrs 0x500-0x5ff
  */
  
 `define BASIC_IO_SELECT 4'h0
@@ -18,11 +19,12 @@
 `define SOUND_SELECT    4'h2
 `define VGATERM_SELECT  4'h3
 `define PS2_SELECT      4'h4
+`define SD_SELECT       4'h5
 
 module mmio
 (  
-    input    clk,           // 100 MHz clock
     input    system_clk,    // CPU clock
+    input    [`MXCLK:0] sysclks,
     input    re,
     input    we,
     input    [11:0] addr,
@@ -45,7 +47,12 @@ module mmio
     output Hsync,
     inout  PS2Clk,
     inout  PS2Data,
-    output PS2irq
+    output PS2irq,
+    output sdsck,
+    input  sdmiso,
+    output sdmosi,
+    output sdcs,
+    input  sdcd
 );
 
     reg [7:0] out_buf;          // Latched output buffer for data_read
@@ -55,14 +62,6 @@ module mmio
     wire [7:0] sound_dout;
     wire [7:0] vgaterm_dout;
 
-    wire clk_50MHz;
-    // scale the input clock to 50MHz
-    prescaler #(.N(1)) ps50(clk, clk_50MHz);
-    
-    wire clk_12MHz;
-    // scale the input clock to ~12.5MHz
-    prescaler #(.N(3)) ps12(clk, clk_12MHz);
-    
     // basic I/O (switches, buttons, LEDs, and 7-segment displays
     wire basic_io_select = (addr[11:8] == `BASIC_IO_SELECT);
     wire basic_io_re = basic_io_select & re;
@@ -95,13 +94,6 @@ module mmio
         JA7
     );
         
-    // DP peripherals
-
-    // DP clocks peripheral
-    wire CLK_O;
-    wire [`MXCLK:0] peri_clks;
-    clocks clks(clk, CLK_O, peri_clks);
-
     // DP vgaterm
     wire vgaterm_select = (addr[11:8] == `VGATERM_SELECT);
     wire vgaterm_re = vgaterm_select & re;
@@ -111,7 +103,7 @@ module mmio
     vgaterm vga
     (
         system_clk,
-        vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, peri_clks, 
+        vgaterm_we, 1'b1, vgaterm_select, addr[7:0], vgaterm_stall, vgaterm_ack, data_write, vgaterm_dout, sysclks, 
         {vgaBlue[1], vgaGreen[1], vgaRed[1], vgaBlue[2], vgaGreen[2], vgaRed[2], Vsync, Hsync}
     );
 
@@ -123,18 +115,34 @@ module mmio
     wire ps2_stall;
     wire ps2_ack;
     ps2 ps2_b3 (
-        clk, ps2_we, ~addr[7], ps2_select, {1'b0, addr[6:0]},
+         system_clk, ps2_we, ~addr[7], ps2_select, {1'b0, addr[6:0]},
         ps2_stall, ps2_ack, data_write, ps2_dout, PS2irq,
-        peri_clks, {PS2Clk, PS2Clk, PS2Data, PS2Data }
+        sysclks, {PS2Clk, PS2Clk, PS2Data, PS2Data }
+    );
+
+
+    // sd memory card
+    wire [7:0] sd_dout;
+    wire sd_select = (addr[11:8] == `SD_SELECT);
+    wire sd_re = sd_select & re;
+    wire sd_we = sd_select & we;
+    wire sd_stall;
+    wire sd_ack;
+    wire sd_irq;
+    sd sd_b3 (
+        system_clk, sd_we, ~addr[7], sd_select, {1'b0, addr[6:0]},
+        sd_stall, sd_ack, data_write, sd_dout, sd_irq, sysclks,
+        sdsck, sdmiso, sdmosi, sdcs, sdcd
     );
 
     // latch peripheral output
-    always @(posedge clk) begin
+    always @(posedge system_clk) begin
         out_buf <= (basic_io_select && re)  ? basic_io_dout :
                    (keypad_select && re)    ? keypad_dout   :
                    (sound_select && re)     ? sound_dout    :
                    (vgaterm_select && re)   ? vgaterm_dout  :
                    (ps2_select && re)       ? ps2_dout :
+                   (sd_select && re)        ? sd_dout :
                    out_buf;
     end
     assign data_read = out_buf;

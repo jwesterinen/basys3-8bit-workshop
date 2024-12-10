@@ -19,12 +19,11 @@
 #include "symtab.h"
 #include "lexer.h"
 #include "parser.h"
+#include "runtime.h"
 #include "main.h"
 
-#define STRING_LEN 80
 #define TABLE_LEN 100
 #define STACK_SIZE 20
-#define MAX_PROGRAM_LEN 100
 #define ARG_MAX 10
 
 #define BEEP_TONE 440
@@ -76,16 +75,12 @@ char *StrStackPut(char *a);
 // runtime strings and flags
 bool ready = true;
 bool textMode = true;
-char errorStr[STRING_LEN];
 char resultStr[STRING_LEN];
 int nodeCount = 0;
 
 
 // ***stacks and queues***
 
-// command queue aka "the program"
-CommandLine Program[MAX_PROGRAM_LEN];   // list of command lines all of which share the same line number
-int programSize = 0;                    // program index used to add commands to the program
 int cmdListIdx = 0;                     // index into the program of the current command list
 Command *cmdPtr = NULL;                 // command pointer is used to point to the next command to be executed
 CommandLine emptyCommandLine = {0};
@@ -245,6 +240,8 @@ bool ProcessCommand(char *commandStr)
     bool isImmediate = true;
     int i;
     char tempStr[80];
+    char commandBuf[80];
+    char *filename;
     
     // default parser error
     strcpy(errorStr, "syntax error");
@@ -255,15 +252,15 @@ bool ProcessCommand(char *commandStr)
     {
         return true;
     }
-    else if (!strcmp(commandStr, "run"))
+    if (!strcmp(commandStr, "run"))
     {
         return RunProgram();
     }
-    else if (!strcmp(commandStr, "list"))
+    if (!strcmp(commandStr, "list"))
     {
         return ListProgram();
     }
-    else if (!strcmp(commandStr, "new") || !strcmp(commandStr, "reboot"))
+    if (!strcmp(commandStr, "new") || !strcmp(commandStr, "reboot"))
     {
         fortabSize = 0;
         programSize = 0;
@@ -282,6 +279,36 @@ bool ProcessCommand(char *commandStr)
             InitDisplay();
         }
         return true;
+    }
+    if (!strcmp(commandStr, "mount"))
+    {
+        return SdMount();
+    }
+    if (!strcmp(commandStr, "unmount"))
+    {
+        return SdUnmount();
+    }
+    if (!strcmp(commandStr, "files"))
+    {
+        return SdList();
+    }    
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "delete"))
+    {
+        filename = strtok(NULL, " ");
+        return SdDelete(filename);
+    }
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "load"))
+    {
+        filename = strtok(NULL, " ");
+        return SdLoad(filename);
+    }
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "save"))
+    {
+        filename = strtok(NULL, " ");
+        return SdSave(filename);
     }
     
     // init the lexer and parse the command to create the IR

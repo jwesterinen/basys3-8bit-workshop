@@ -1,6 +1,5 @@
 #include <inttypes.h>
 #include <stdbool.h>
-#include "keycodes.h"
 
 enum VGA_CUR_DIR {CUR_UP, CUR_DOWN, CUR_LEFT, CUR_RIGHT};
 typedef char VGA_DISPLAY_BUFFER[VGA_ROW_MAX][VGA_COL_MAX];

@@ -3,7 +3,12 @@
 *
 */
 
+#define STRING_LEN 80
 #define TABLE_LEN 100
+#define MAX_PROGRAM_LEN 100
+#define MAX_CMDLINE_LEN 80
+
+extern char errorStr[];
 
 // command data structures are loaded by the parser and used by the runtime
 
@@ -160,11 +165,14 @@ typedef struct Command {
 } Command;
 
 typedef struct CommandLine {
-    char commandStr[80];
+    char commandStr[MAX_CMDLINE_LEN];
     int lineNum;
     Command *commandList;
 } CommandLine;    
 
+extern CommandLine Program[MAX_PROGRAM_LEN];
+extern int programSize;
+    
 bool IsCommandList(Command **ppCommandList, int lineNum);
 bool IsExpr(Node **ppNode);
 void FreeExprTrees(void);

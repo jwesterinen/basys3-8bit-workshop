@@ -117,6 +117,72 @@ void GfxTextMode(uint8_t mode)
     printf("text mode %s\n", (mode) ? "on" : "off");
 }
 
+bool SdMount(void)
+{
+    printf("mount SD card\n");
+    return true;
+}
+
+bool SdUnmount(void)
+{
+    printf("unmount SD card\n");
+    return true;
+}
+
+bool SdList(void)
+{
+    printf("list files on SD card\n");
+    return true;
+}
+
+bool SdDelete(const char *filename)
+{
+    if (filename != NULL)
+    {
+        printf("delete file %s from SD card\n", filename);
+        return true;
+    }
+    else
+    {
+        strcpy(errorStr, "missing filename");
+        return false;
+    }
+
+    return true;
+}
+
+bool SdLoad(const char *filename)
+{
+    if (filename != NULL)
+    {
+        printf("load file %s from SD card\n", filename);
+        return true;
+    }
+    else
+    {
+        strcpy(errorStr, "missing filename");
+        return false;
+    }
+
+    return true;
+}
+
+bool SdSave(const char *filename)
+{
+     if (filename != NULL)
+    {
+        printf("save file %s to SD card\n", filename);
+        return true;
+    }
+    else
+    {
+        strcpy(errorStr, "missing filename");
+        return false;
+    }
+
+   return true;
+}
+
 int main(void)
 {
     char command[80]; 

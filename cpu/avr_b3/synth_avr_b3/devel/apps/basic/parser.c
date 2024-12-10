@@ -20,6 +20,12 @@
         | REBOOT
         | TEXT
         | GR
+        | MOUNT
+        | UNMOUNT
+        | LIST
+        | DELETE filename
+        | LOAD filename
+        | SAVE filename
         ;
     command-list
         : command [':' command-list]
@@ -221,7 +227,6 @@
 #include <stdbool.h>
 #include "symtab.h"
 #include "lexer.h"
-#include "runtime.h"
 #include "parser.h"
 #include "main.h"
 
@@ -270,6 +275,12 @@ bool IsUnaryExpr(Node **ppNode);
 bool IsPostfixExpr(Node **ppNode);
 bool IsSubExprList(Node **ppNode, int *subExprQty);
 bool IsPrimaryExpr(Node **ppNode);
+
+char errorStr[STRING_LEN];
+
+// command queue aka "the program"
+CommandLine Program[MAX_PROGRAM_LEN];   // list of command lines all of which share the same line number
+int programSize = 0;                    // program index used to add commands to the program
 
 // expression root node list used to free expression trees
 Node *ExprList[TABLE_LEN];

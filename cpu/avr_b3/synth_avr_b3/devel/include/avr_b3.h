@@ -43,11 +43,12 @@
 #define __MMIOR(x) (*(__MMIOR_ADDR(x)))
 #define __MMIOW(x) (*(__MMIOW_ADDR(x)))
 
-#define MMIO_BASE_BASIC_IO  0x0000  // reg addrs 0x8000-0x80ff
-#define MMIO_BASE_KEYPAD    0x0100  // reg addrs 0x8100-0x81ff
-#define MMIO_BASE_SOUND     0x0200  // reg addrs 0x8200-0x82ff
-#define MMIO_BASE_VGATERM   0x0300  // reg addrs 0x8300-0x83ff
-#define MMIO_BASE_KEYBOARD  0x0400  // reg addrs 0x8400-0x84ff
+#define MMIO_BASE_BASIC_IO  0x0000  // reg addrs 0xf000-0xf0ff
+#define MMIO_BASE_KEYPAD    0x0100  // reg addrs 0xf100-0xf1ff
+#define MMIO_BASE_SOUND     0x0200  // reg addrs 0xf200-0xf2ff
+#define MMIO_BASE_VGATERM   0x0300  // reg addrs 0xf300-0xf3ff
+#define MMIO_BASE_PS2  0x0400  // reg addrs 0xf400-0xf4ff
+#define MMIO_BASE_SDCARD    0x0500  // reg addrs 0xf500-0xf5ff
 
 // basic I/O
 #define SW          __MMIOW(MMIO_BASE_BASIC_IO+0x00)    // all switches
@@ -170,17 +171,21 @@
 #define VGA_COL_MAX         79
 
 // PS2 keyboard
-#define PS2_START_BIT_ADDR      __MMIOR_ADDR(MMIO_BASE_KEYBOARD+0x00)
-#define PS2_START_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x00)
-#define PS2_DATA0_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x01)
-#define PS2_DATA1_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x02)
-#define PS2_DATA2_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x03)
-#define PS2_DATA3_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x04)
-#define PS2_DATA4_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x05)
-#define PS2_DATA5_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x06)
-#define PS2_DATA6_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x07)
-#define PS2_DATA7_BIT           __MMIOR(MMIO_BASE_KEYBOARD+0x08)
-#define PS2_PARITY_BIT          __MMIOR(MMIO_BASE_KEYBOARD+0x09)
-#define PS2_STOP_BIT            __MMIOR(MMIO_BASE_KEYBOARD+0x0a)
-#define PS2_READY_COUNT         __MMIOR(MMIO_BASE_KEYBOARD+0x80)
+#define PS2_START_BIT_ADDR      __MMIOR_ADDR(MMIO_BASE_PS2+0x00)
+#define PS2_START_BIT           __MMIOR(MMIO_BASE_PS2+0x00)
+#define PS2_DATA0_BIT           __MMIOR(MMIO_BASE_PS2+0x01)
+#define PS2_DATA1_BIT           __MMIOR(MMIO_BASE_PS2+0x02)
+#define PS2_DATA2_BIT           __MMIOR(MMIO_BASE_PS2+0x03)
+#define PS2_DATA3_BIT           __MMIOR(MMIO_BASE_PS2+0x04)
+#define PS2_DATA4_BIT           __MMIOR(MMIO_BASE_PS2+0x05)
+#define PS2_DATA5_BIT           __MMIOR(MMIO_BASE_PS2+0x06)
+#define PS2_DATA6_BIT           __MMIOR(MMIO_BASE_PS2+0x07)
+#define PS2_DATA7_BIT           __MMIOR(MMIO_BASE_PS2+0x08)
+#define PS2_PARITY_BIT          __MMIOR(MMIO_BASE_PS2+0x09)
+#define PS2_STOP_BIT            __MMIOR(MMIO_BASE_PS2+0x0a)
+#define PS2_READY_COUNT         __MMIOR(MMIO_BASE_PS2+0x80)
+
+// SD card
+#define SD_DATA     __MMIOR(MMIO_BASE_SDCARD+0x00) // Transmit data on write, receive data on read
+#define SD_STATUS   __MMIOR(MMIO_BASE_SDCARD+0x01) // Configuration on write, buffer status on read
 
