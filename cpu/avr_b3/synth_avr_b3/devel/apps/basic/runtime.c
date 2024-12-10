@@ -33,6 +33,7 @@
 
 bool RunProgram(void);
 bool ListProgram(void);
+bool NewProgram(void);
 bool ExecCommand(Command *command, bool cmdListOnly);
 bool ExecPrint(PrintCommand *cmd);
 bool ExecAssign(AssignCommand *cmd);
@@ -260,25 +261,14 @@ bool ProcessCommand(char *commandStr)
     {
         return ListProgram();
     }
-    if (!strcmp(commandStr, "new") || !strcmp(commandStr, "reboot"))
+    if (!strcmp(commandStr, "new"))
     {
-        fortabSize = 0;
-        programSize = 0;
-        cmdListIdx = 0;
-        callSP = 0;
-        numSP = 0;
-        strSP = 0;
-        FreeExprTrees();
-        FreeSymtab();
-        InstallBuiltinFcts();
-        FreeProgram();
-        sprintf(message, "node qty: %d\n", nodeCount);
-        MESSAGE(message);
-        if (!strcmp(commandStr, "reboot"))
-        {
-            InitDisplay();
-        }
-        return true;
+        return NewProgram();
+    }
+    if (!strcmp(commandStr, "reboot"))
+    {
+        InitDisplay();
+        return NewProgram();
     }
     if (!strcmp(commandStr, "mount"))
     {
@@ -301,6 +291,7 @@ bool ProcessCommand(char *commandStr)
     strcpy(commandBuf, commandStr);
     if (!strcmp(strtok(commandBuf, " "), "load"))
     {
+        NewProgram();
         filename = strtok(NULL, " ");
         return SdLoad(filename);
     }
@@ -445,6 +436,24 @@ bool ListProgram(void)
     }
     ready = true;      
       
+    return true;
+}
+
+bool NewProgram(void)
+{
+    fortabSize = 0;
+    programSize = 0;
+    cmdListIdx = 0;
+    callSP = 0;
+    numSP = 0;
+    strSP = 0;
+    FreeExprTrees();
+    FreeSymtab();
+    InstallBuiltinFcts();
+    FreeProgram();
+    sprintf(message, "node qty: %d\n", nodeCount);
+    MESSAGE(message);
+    
     return true;
 }
 
