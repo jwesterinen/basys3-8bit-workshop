@@ -247,39 +247,49 @@ bool ProcessCommand(char *commandStr)
     // default parser error
     strcpy(errorStr, "syntax error");
     
-    // execute any directive
+    // execute any directive - use strtok instead of the parsing infrastructure
     // command-line : directive
+    strcpy(commandBuf, commandStr);
     if (!strcmp(commandStr, ""))
     {
         return true;
     }
-    if (!strcmp(commandStr, "run"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "run"))
     {
         return RunProgram();
     }
-    if (!strcmp(commandStr, "list"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "list"))
     {
         return ListProgram();
     }
-    if (!strcmp(commandStr, "new"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "new"))
     {
         return NewProgram();
     }
-    if (!strcmp(commandStr, "reboot"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "reboot"))
     {
         InitDisplay();
         return NewProgram();
     }
-    if (!strcmp(commandStr, "mount"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "mount"))
     {
         return SdMount();
     }
-    if (!strcmp(commandStr, "unmount"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "unmount"))
     {
         return SdUnmount();
     }
-    if (!strcmp(commandStr, "files"))
+    strcpy(commandBuf, commandStr);
+    if (!strcmp(strtok(commandBuf, " "), "files"))
     {
+        if ((filename = strtok(NULL, " ")) != NULL)
+            return false;
         return SdList();
     }    
     strcpy(commandBuf, commandStr);

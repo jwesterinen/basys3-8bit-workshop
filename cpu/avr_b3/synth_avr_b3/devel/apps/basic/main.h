@@ -1,6 +1,10 @@
 /*
-    main.h
-*/
+ *  main.h
+ *   
+ *  version:
+ *      1.0     First complete Basic interpreter
+ *      2.0     Added file system
+ */
 
 #include <inttypes.h>
 

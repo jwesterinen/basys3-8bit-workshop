@@ -6,10 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+#include "symtab.h"
+#include "parser.h"
 #include "runtime.h"
 
 char message[80];
-char *versionStr = "v1.0";
+char *versionStr = "v2.0";
 char *promptStr = "> ";
 char frameBuf[40][80];
 

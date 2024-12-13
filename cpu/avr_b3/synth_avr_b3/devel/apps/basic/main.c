@@ -55,7 +55,7 @@ ISR(_VECTOR(2))
 #endif
 
 char message[80];
-char *versionStr = "v1.0";
+char *versionStr = "v2.0";
 char *promptStr = "> ";
     
 extern bool ready;
@@ -214,19 +214,22 @@ char fileBuffer[MAX_PROGRAM_LEN][MAX_CMDLINE_LEN];
 bool SdMount(void)
 {
     // initialize SD card, mount FAT filesystem, and open root directory
-    if (disk_initialize(0) != FR_OK) 
+    retstat = disk_initialize(0);
+    if (retstat != FR_OK) 
     {
-        strcpy(errorStr, "disk initialization failure\n");
+        sprintf(errorStr, "mount failed (error %d)\n", retstat);
         return false;
     }
-    if (f_mount(&diskA, "/", 0) != FR_OK) 
+    retstat = f_mount(&diskA, "/", 0);
+    if (retstat != FR_OK) 
     {
-        strcpy(errorStr, "failed to mount FAT filesystem\n");
+        sprintf(errorStr, "mount failed (error %d)\n", retstat);
         return false;
     }
-    if (f_opendir(&topdir, "") != FR_OK) 
+    retstat = f_opendir(&topdir, "");
+    if (retstat != FR_OK) 
     {
-        strcpy(errorStr, "Failed to open root directory \n");
+        sprintf(errorStr, "mount failed (error %d)\n", retstat);
         return false;
     }
 
@@ -260,7 +263,13 @@ bool SdList(void)
     }
     if (retstat != FR_OK)
     {
-        strcpy(errorStr, "file listing failed\n");
+        sprintf(errorStr, "file listing failed (err %d)\n", retstat);
+        return false;
+    }
+    retstat = f_rewinddir(&topdir);
+    if (retstat != FR_OK)
+    {
+        sprintf(errorStr, "file listing failed (err %d)\n", retstat);
         return false;
     }
 
@@ -289,7 +298,7 @@ bool SdDelete(const char *filename)
 
 bool SdLoad(const char *filename)
 {
-    TCHAR *bufptr;       // pointer to line buffer
+    TCHAR *bufptr;
     int i;
     char *nextChar;
     
@@ -299,7 +308,7 @@ bool SdLoad(const char *filename)
         retstat = f_open(&fp, filename, FA_READ);
         if (retstat != FR_OK) 
         {
-            sprintf(errorStr, "file open for reading failed (err %d)\n", retstat);
+            sprintf(errorStr, "load failed (err %d)\n", retstat);
             return false;
         }
 
@@ -314,7 +323,7 @@ bool SdLoad(const char *filename)
             bufptr = f_gets(fileBuffer[i], MAX_CMDLINE_LEN, &fp);
             if (bufptr == 0) 
             {
-                sprintf(errorStr, "file read failed (err %d)\n", f_error(&fp));
+                sprintf(errorStr, "load failed (err %d)\n", f_error(&fp));
                 return false;
             }
         }
@@ -324,7 +333,7 @@ bool SdLoad(const char *filename)
         retstat = f_close(&fp);
         if (retstat != FR_OK) 
         {
-            sprintf(errorStr, "file close failed (err %d)\n", retstat);
+            sprintf(errorStr, "load failed (err %d)\n", retstat);
             return false;
         }
         
@@ -368,7 +377,7 @@ bool SdSave(const char *filename)
         retstat = f_open(&fp, filename, (FA_CREATE_ALWAYS | FA_READ | FA_WRITE));
         if (retstat != FR_OK) 
         {
-            sprintf(errorStr, "file creation failed (err %d)\n", retstat);
+            sprintf(errorStr, "save failed (err %d)\n", retstat);
             return false;
         }
 
@@ -385,7 +394,7 @@ bool SdSave(const char *filename)
         {
             if (f_puts(fileBuffer[line], &fp) < 0) 
             {
-                sprintf(errorStr, "file write failed at line %d\n", line);
+                sprintf(errorStr, "save failed at line %d\n", line);
                 return false;
             }
         }
@@ -394,7 +403,7 @@ bool SdSave(const char *filename)
         retstat = f_sync(&fp);
         if (retstat != FR_OK) 
         {
-            sprintf(errorStr, "data sync failed (err %d)\n", retstat);
+            sprintf(errorStr, "save failed (err %d)\n", retstat);
             return false;
         }
 
@@ -402,7 +411,7 @@ bool SdSave(const char *filename)
         retstat = f_close(&fp);
         if (retstat != FR_OK) 
         {
-            sprintf(errorStr, "file close failed (err %d)\n", retstat);
+            sprintf(errorStr, "save failed (err %d)\n", retstat);
             return false;
         }
     }
