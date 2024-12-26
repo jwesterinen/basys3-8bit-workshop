@@ -8,9 +8,9 @@ LIB_DIR = ../../lib
 INC_DIR = ../../include
 MISC_DIR = ../../misc
 
-HEADERS=main.h symtab.h lexer.h parser.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_ps2.h $(INC_DIR)/keycodes.h \
+HEADERS=main.h symtab.h lexer.h parser.h ir.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_ps2.h $(INC_DIR)/keycodes.h \
 $(INC_DIR)/avr_b3_diskio.h $(INC_DIR)/ff.h $(INC_DIR)/ffconf.h
-OBJECTS=main.o symtab.o lexer.o parser.o runtime.o $(LIB_DIR)/avr_b3_stdio.o $(LIB_DIR)/avr_b3_ps2.o \
+OBJECTS=main.o symtab.o lexer.o parser.o ir.o runtime.o $(LIB_DIR)/avr_b3_stdio.o $(LIB_DIR)/avr_b3_ps2.o \
 $(LIB_DIR)/avr_b3_diskio.o $(LIB_DIR)/ff.o $(LIB_DIR)/ffsystem.o $(LIB_DIR)/ffunicode.o
 
 CC=avr-gcc

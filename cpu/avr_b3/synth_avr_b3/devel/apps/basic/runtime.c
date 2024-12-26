@@ -18,10 +18,12 @@
 #include <math.h>
 #include "symtab.h"
 #include "lexer.h"
+#include "ir.h"
 #include "parser.h"
 #include "runtime.h"
 #include "main.h"
 
+#define STRING_LEN 80
 #define TABLE_LEN 100
 #define STACK_SIZE 20
 #define ARG_MAX 10
@@ -30,6 +32,8 @@
 #define BEEP_DURATION 300
 
 #define ALL_COMMANDS false
+
+extern void PrintExprTree(PT_Node *root);
 
 bool RunProgram(void);
 bool ListProgram(void);
@@ -61,9 +65,9 @@ bool ExecDim(DimCommand *cmd);
 bool ExecBreak(PlatformCommand *cmd);
 
 bool ExecBuiltinFct(const char *name, float arity);
-bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue);
-bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue);
-bool TraverseTree(Node *node);
+bool EvaluateNumExpr(PT_Node *exprTreeRoot, float *pValue);
+bool EvaluateStrExpr(PT_Node *exprTreeRoot, char **pValue);
+bool TraverseTree(PT_Node *node);
 float NumStackPush(float a);
 float NumStackPop(void);
 float NumStackTop(void);
@@ -77,15 +81,22 @@ char *StrStackPut(char *a);
 bool ready = true;
 bool textMode = true;
 char resultStr[STRING_LEN];
-int nodeCount = 0;
 
 
 // ***stacks and queues***
 
-int cmdListIdx = 0;                     // index into the program of the current command list
-Command *cmdPtr = NULL;                 // command pointer is used to point to the next command to be executed
-CommandLine emptyCommandLine = {0};
+// command queue aka "the program"
+CommandLine Program[MAX_PROGRAM_LEN];   // list of command lines all of which share the same line number
+int programSize = 0;                    // program index used to add commands to the program
 
+// index into the program of the current command list
+int cmdListIdx = 0;
+
+// command pointer is used to point to the next command to be executed
+Command *cmdPtr = NULL;
+
+// empty command line with which to reset the program
+CommandLine emptyCommandLine = {0};
 
 // for command stack needed by the next command
 ForCommand *fortab[TABLE_LEN];
@@ -461,8 +472,8 @@ bool NewProgram(void)
     FreeSymtab();
     InstallBuiltinFcts();
     FreeProgram();
-    sprintf(message, "node qty: %d\n", nodeCount);
-    MESSAGE(message);
+    //sprintf(message, "node qty: %d\n", nodeCount);
+    //MESSAGE(message);
     
     return true;
 }
@@ -605,16 +616,16 @@ bool ExecCommand(Command *command, bool cmdListOnly)
     return true;
 }
 
-Node *GetPrimaryExprNode(Node *node)
+PT_Node *GetPrimaryExprNode(PT_Node *node)
 {
     if (node == NULL || NODE_TYPE(node) == NT_PRIMARY_EXPR)
     {
         return node;
     }
-    if (NODE_TYPE(node) == NT_UNOP)
-    {
-        return GetPrimaryExprNode(BRO(node));
-    } 
+    //if (NODE_TYPE(node) == NT_UNOP)
+    //{
+    //    return GetPrimaryExprNode(BRO(node));
+    //} 
     return GetPrimaryExprNode(SON(node));
 }
 
@@ -625,7 +636,7 @@ bool ExecPrint(PrintCommand *cmd)
     float numval;
     char *strval;
     int intval, decval;
-    Node *primaryExprNode;
+    PT_Node *primaryExprNode;
     
     for (int i = 0; i < cmd->printListIdx; i++)
     {
@@ -737,7 +748,7 @@ bool ExecAssign(AssignCommand *cmd)
     }
             
     // perform the assignment
-    Node *varNode = SON(GetPrimaryExprNode(cmd->expr));
+    PT_Node *varNode = SON(GetPrimaryExprNode(cmd->expr));
     if (SYM_TYPE(cmd->varsym) == ST_NUMVAR)
     {
         // check for type agreement
@@ -1003,7 +1014,7 @@ bool ExecInput(InputCommand *cmd)
 {
     char buffer[80];
     float indeces[4];
-    Node *expr;
+    PT_Node *expr;
     float numInput;
     char *strInput;
     
@@ -1315,8 +1326,13 @@ bool ExecBuiltinFct(const char *name, float arity)
 }
 
 // return the value of a numberic expression based on the traversal of its expr tree
-bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue)
+bool EvaluateNumExpr(PT_Node *exprTreeRoot, float *pValue)
 {
+#ifdef VERBOSE
+    PrintExprTree(exprTreeRoot);
+    printf("%d nodes\n", gNodeQty);
+#endif    
+
     if (TraverseTree(exprTreeRoot))
     {
         *pValue = NumStackPop();
@@ -1327,7 +1343,7 @@ bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue)
 }
 
 // return the value of a string expression based on the traversal of its expr tree
-bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue)
+bool EvaluateStrExpr(PT_Node *exprTreeRoot, char **pValue)
 {
     if (TraverseTree(exprTreeRoot))
     {
@@ -1339,7 +1355,7 @@ bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue)
 }
 
 // tree traversal is guided by the grammar rule
-bool TraverseTree(Node *node)
+bool TraverseTree(PT_Node *node)
 {
     bool retval = true;
     float indeces[4] = {0};
@@ -1380,8 +1396,8 @@ bool TraverseTree(Node *node)
             case NT_UNARY_EXPR:
                 // unaryExpr
                 //   ['+' | '-' | NOT_OP] factor    
-                retval &= TraverseTree(BRO(SON(node)));         // opnd
-                retval &= TraverseTree(SON(node));              // unop
+                retval &= TraverseTree(SON(node));              // opnd
+                retval &= TraverseTree(BRO(SON(node)));         // unop
                 break;
 
             case NT_POSTFIX_EXPR:

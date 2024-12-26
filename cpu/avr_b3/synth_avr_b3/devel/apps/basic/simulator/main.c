@@ -7,11 +7,12 @@
 #include <string.h>
 #include <inttypes.h>
 #include "symtab.h"
+#include "ir.h"
 #include "parser.h"
 #include "runtime.h"
 
 char message[80];
-char *versionStr = "v2.0";
+char *versionStr = "v2.1";
 char *promptStr = "> ";
 char frameBuf[40][80];
 
@@ -183,6 +184,99 @@ bool SdSave(const char *filename)
     }
 
    return true;
+}
+
+char *NodeTypeStr(enum NodeType type)
+{
+    switch (type)
+    {
+        case NT_NONE:
+            return "none";
+        case NT_EXPR:
+            return "EXPR ";
+        case NT_LOGIC_EXPR:
+            return "LE   ";
+        case NT_LOGIC_EXPR_PRIME:
+            return "LE'  ";
+        case NT_REL_EXPR:
+            return "RE   ";
+        case NT_REL_EXPR_PRIME:
+            return "RE'  ";
+        case NT_SHIFT_EXPR:
+            return "SE   ";
+        case NT_SHIFT_EXPR_PRIME:
+            return "SE'  ";
+        case NT_ADD_EXPR:
+            return "AE   ";
+        case NT_ADD_EXPR_PRIME:
+            return "AE'  ";
+        case NT_MULT_EXPR:
+            return "ME   ";
+        case NT_MULT_EXPR_PRIME:
+            return "ME'  ";
+        case NT_UNARY_EXPR:
+            return "UE   ";
+        case NT_POSTFIX_EXPR:
+            return "PFE  ";
+        case NT_POSTFIX_EXPR_PRIME:
+            return "PFE' ";
+        case NT_SUB_EXPR_LIST:
+            return "SEL  ";
+        case NT_PRIMARY_EXPR:
+            return "PE   ";
+        case NT_BINOP:
+            return "BOP  ";
+        case NT_UNOP:
+            return "UNOP ";
+        case NT_CONSTANT:
+            return "CNST ";
+        case NT_NUMVAR:
+            return "NVAR ";
+        case NT_STRVAR:
+            return "SVAR ";
+        case NT_FCT:
+            return "FCT  ";
+        case NT_STRING:
+            return "STR  ";
+    }
+    return "unknown type";
+}
+
+int indent = 0;
+bool broMode = false;
+
+void PrintNode(PT_Node *node)
+{
+    if (node == NULL)
+    {
+        return;
+    }
+    for (int i = 0; i < indent; i++)
+    {
+        printf("     ");
+    }
+    printf("%s", NodeTypeStr(NODE_TYPE(node)));
+    if (node->son)
+    {
+        puts("");
+        PrintNode(node->son);
+        if (node->son->bro)
+        {
+            indent++;
+            PrintNode(node->son->bro);
+            puts("");
+            indent--;
+        }
+    }
+}
+
+void PrintExprTree(PT_Node *root)
+{
+    if (root)
+    {
+        printf("expr tree:\n");
+        PrintNode(root);
+    }
 }
 
 int main(void)
