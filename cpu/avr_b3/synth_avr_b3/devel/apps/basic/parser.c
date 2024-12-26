@@ -135,88 +135,6 @@
         : DIM {Numvar | Strvar} '(' expr [',' expr]+ ')'
         ;
 
-    expr
-        :  logicExpr
-        ;
-        
-    logicExpr
-	    : relExpr logicExpr'
-	    ;
-    logicExpr'
-	    : AND_OP relExpr logicExpr'
-	    | OR_OP  relExpr logicExpr'
-	    | XOR_OP relExpr logicExpr'
-	    | $
-	    ;
-	
-    relExpr
-	    : shiftExpr relExpr'
-	    ;
-    relExpr'
-	    : '='   shiftExpr relExpr'
-	    | NE_OP shiftExpr relExpr'
-	    | '>'   shiftExpr relExpr'
-	    | GE_OP shiftExpr relExpr'
-	    | '<'   shiftExpr relExpr'
-	    | LE_OP shiftExpr relExpr'
-	    | $
-	    ;
-	
-    shiftExpr
-	    : addExpr shiftExpr'
-	    ;
-    shiftExpr'
-	    : '='   addExpr shiftExpr'
-	    | NE_OP addExpr shiftExpr'
-	    | '>'   addExpr shiftExpr'
-	    | GE_OP addExpr shiftExpr'
-	    | '<'   addExpr shiftExpr'
-	    | LE_OP addExpr shiftExpr'
-	    | $
-	    ;
-	
-    addExpr        
-        : multExpr addExpr'    
-    addExpr'       
-        : '+' multExpr addExpr' 
-        | '-' multExpr addExpr'
-        | $
-        ;
-                    
-    multExpr
-        : unaryExpr multExpr'
-    multExpr'
-        : '*'    unaryExpr multExpr'
-        | '/'    unaryExpr multExpr'
-        | '%'    unaryExpr multExpr'
-        | MOD_OP unaryExpr multExpr'
-        | $
-        ;
-
-    unaryExpr
-	    : postfixExpr
-	    | ['+' | '-' | '~' | NOT_OP] unaryExpr
-	    ;
-
-    postfixExpr
-	    : primaryExpr ['(' subExprList ')']
-        | $
-	    ;
-
-    subExprList
-	    : addExpr [',' subExprList]
-	    | $
-	    ;
-
-    primaryExpr
-        : Constant 
-        | Numvar
-        | Function
-        | Strvar
-        | String
-        | '(' expr ')'
-        ;
-
 */
 
 #include <time.h>
@@ -227,11 +145,11 @@
 #include <stdbool.h>
 #include "symtab.h"
 #include "lexer.h"
-#include "parser.h"
 #include "ir.h"
+#include "parser.h"
 #include "main.h"
 
-char *Type2Name(enum PT_NodeType type);
+char *Type2Name(enum NodeType type);
 bool IsExecutableCommand(Command *pCommand);
 bool IsNop(Command *pCommand);
 bool IsPrint(Command *pCommand);
@@ -261,14 +179,6 @@ bool IsDim(Command *pCommand);
 bool IsBreak(Command *pCommand);
 
 char errorStr[STRING_LEN];
-
-// command queue aka "the program"
-CommandLine Program[MAX_PROGRAM_LEN];   // list of command lines all of which share the same line number
-int programSize = 0;                    // program index used to add commands to the program
-
-// expression root node list used to free expression trees
-PT_Node *ExprList[TABLE_LEN];
-int exprListIdx;
 
 // parse a possible list of colon-delineated executable commands on one line
 // command : [Constant] command-list
@@ -994,25 +904,6 @@ bool IsBreak(Command *pCommand)
     }
     
     return false;
-}
-
-PT_Node *NewNode(enum PT_NodeType type, union PT_NodeValue value)
-{
-    PT_Node *newNode = (PT_Node *)calloc(1, sizeof(PT_Node));
-    
-    //MESSAGE("new node...");
-    
-    if (newNode)
-    {
-        newNode->type = type;
-        newNode->value = value;
-    }
-    else
-    {
-        Panic("system error: memory allocation error while creating expression node\n");
-    }
-    
-    return newNode;
 }
 
 
