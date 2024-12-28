@@ -218,7 +218,7 @@ bool IsExpr(PT_Node **ppNode)
         ExprList[exprListIdx++] = *ppNode;
         
         // trim the tree
-        //TrimTree(*ppNode, (*ppNode)->son);
+        TrimTree(*ppNode, (*ppNode)->son);
         
         return true;
     }
