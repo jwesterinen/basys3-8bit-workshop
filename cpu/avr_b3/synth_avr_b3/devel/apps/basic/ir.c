@@ -1,6 +1,9 @@
 /*
  *  This file contains the internal representation of the Basic Interpreter which consists
  *  of both the parse tree and the syntax tree.
+ *
+ *  The following is the grammar for expressions:
+ *
     expr
         :  logicExpr
         ;
@@ -181,6 +184,29 @@ PT_Node *AddSon(PT_Node *parent, PT_Node *node)
     return node;
 }
 
+// trim superfluous tree nodes
+void TrimTree(PT_Node *parent, PT_Node *node)
+{
+    if (NODE_TYPE(node) != NT_POSTFIX_EXPR)
+    {
+        if (node->bro == NULL)
+        {
+            TrimTree(node, node->son);
+            parent->son = node->son;
+            free(node);
+            gNodeQty--;
+        }
+        else
+        {
+            TrimTree(node, node->son);
+            if (node->bro->son)
+            {
+                TrimTree(node->bro->son->bro, node->bro->son->bro->son);
+            }
+        }
+    }
+}
+
 // expression -- this is the top-level query for an expression
 // expr : logicExpr
 bool IsExpr(PT_Node **ppNode)
@@ -190,9 +216,9 @@ bool IsExpr(PT_Node **ppNode)
     {
         // build list of expressions so they can be freed
         ExprList[exprListIdx++] = *ppNode;
-        //MESSAGE("...IsExpr");
         
-        // TRIM THE TREE HERE!!!!
+        // trim the tree
+        //TrimTree(*ppNode, (*ppNode)->son);
         
         return true;
     }
@@ -500,18 +526,15 @@ bool IsMultExprPrime(PT_Node **ppNode)
 // unary expression
 bool IsUnaryExpr(PT_Node **ppNode)
 {
-    PT_Node *son, *opNode;
-    char op = '+';
+    PT_Node *son, *opNode = NULL;
+    char op;
     
     *ppNode = NewNode(NT_UNARY_EXPR, (union NodeValue)0);
-    
-    // always have a unop node and default it to be '+'
-    opNode = NewNode(NT_UNOP, (union NodeValue)'+');
     
 	// ['+' | '-' | '~' | NOT_OP] unaryExpr
     if (token == '+' || token == '-' || token == '~' || token == NOT_OP)
     {
-        // change the unary operator if there is an explicit op
+        opNode = NewNode(NT_UNOP, (union NodeValue)'+');
         NODE_VAL_OP(opNode) = token;
         op = token;
         if (!GetNextToken(NULL))
@@ -523,9 +546,12 @@ bool IsUnaryExpr(PT_Node **ppNode)
     if (IsPostfixExpr(&son))
     {
         AddSon(*ppNode, son);
-        AddSon(*ppNode, opNode);
-        sprintf(message, "IsUnaryExpr unop '%c'", op);
-        MESSAGE(message);
+        if (opNode)
+        {
+            AddSon(*ppNode, opNode);
+            sprintf(message, "IsUnaryExpr unop '%c'", op);
+            MESSAGE(message);
+        }
         return true;
     }
     

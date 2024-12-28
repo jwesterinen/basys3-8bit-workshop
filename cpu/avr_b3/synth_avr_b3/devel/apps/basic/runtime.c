@@ -1278,7 +1278,7 @@ bool ExecBreak(PlatformCommand *cmd)
 bool ExecBuiltinFct(const char *name, float arity)
 {
     // the qty of args parsed resides on the top of the num stack so check for agreement
-    if (arity != (int)NumStackPop())
+    if (arity != NumStackPop())
     {
         strcpy(errorStr, "incorrect number of arguments for builtin function");
         return false;
@@ -1395,9 +1395,12 @@ bool TraverseTree(PT_Node *node)
                 
             case NT_UNARY_EXPR:
                 // unaryExpr
-                //   ['+' | '-' | NOT_OP] factor    
-                retval &= TraverseTree(SON(node));              // opnd
-                retval &= TraverseTree(BRO(SON(node)));         // unop
+	            //   ['+' | '-' | '~' | NOT_OP] unaryExpr
+	            if (SON(node))
+	            {
+                    retval &= TraverseTree(SON(node));              // opnd
+                    retval &= TraverseTree(BRO(SON(node)));         // unop
+                }
                 break;
 
             case NT_POSTFIX_EXPR:
@@ -1410,7 +1413,7 @@ bool TraverseTree(PT_Node *node)
                     {
                         if (SYM_DIM(SON(SON(node))->value.varsym) == 0)
                         {
-                            strcpy(errorStr, "subscript error");
+                            strcpy(errorStr, "subscript error: attempt to use scaler as vector");
                             retval = false;
                             break;
                         }
@@ -1587,7 +1590,7 @@ bool TraverseTree(PT_Node *node)
                     }
                     else
                     {
-                        strcpy(errorStr, "subscript error");
+                        strcpy(errorStr, "subscript error: dim of the number array does not equal the qty of indeces parsed");
                         retval = false;
                     }
                 }
@@ -1624,7 +1627,7 @@ bool TraverseTree(PT_Node *node)
                     }
                     else
                     {
-                        strcpy(errorStr, "subscript error");
+                        strcpy(errorStr, "subscript error: dim of the string array does not equal the qty of indeces parsed");
                         retval = false;
                     }
                 }

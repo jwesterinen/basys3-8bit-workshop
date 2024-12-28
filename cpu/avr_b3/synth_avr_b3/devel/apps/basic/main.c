@@ -56,7 +56,7 @@ ISR(_VECTOR(2))
 #endif
 
 char message[80];
-char *versionStr = "v2.1";
+char *versionStr = "v3.0";
 char *promptStr = "> ";
     
 extern bool ready;
@@ -441,6 +441,7 @@ int main(void)
     
     char command[80];
     
+    InstallBuiltinFcts();
     InitDisplay();
     SdMount();
     while (1)

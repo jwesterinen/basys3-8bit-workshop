@@ -1,5 +1,5 @@
 /*
-*   This is the main module for the a Basic interpreter.
+*   This is the main module for the a Basic interpreter simulator.
 */
 
 #include <stdbool.h>
@@ -12,7 +12,7 @@
 #include "runtime.h"
 
 char message[80];
-char *versionStr = "v2.1";
+char *versionStr = "v3.0";
 char *promptStr = "> ";
 char frameBuf[40][80];
 
@@ -218,8 +218,6 @@ char *NodeTypeStr(enum NodeType type)
             return "UE   ";
         case NT_POSTFIX_EXPR:
             return "PFE  ";
-        case NT_POSTFIX_EXPR_PRIME:
-            return "PFE' ";
         case NT_SUB_EXPR_LIST:
             return "SEL  ";
         case NT_PRIMARY_EXPR:
@@ -276,6 +274,7 @@ void PrintExprTree(PT_Node *root)
     {
         printf("expr tree:\n");
         PrintNode(root);
+        puts("");
     }
 }
 
