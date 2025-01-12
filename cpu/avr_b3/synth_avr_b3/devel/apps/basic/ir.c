@@ -64,7 +64,7 @@
 
     unaryExpr
 	    : postfixExpr
-	    | ['+' | '-' | '~' | NOT_OP] unaryExpr
+	    | ['+' | '-' | '~' | NOT_OP] addExpr
 	    ;
 
     postfixExpr
@@ -98,32 +98,40 @@
 #include "parser.h"
 #include "main.h"
 
-PT_Node *NewNode(enum NodeType type, union NodeValue value);
-PT_Node *AddSon(PT_Node *parent, PT_Node *node);
-bool IsExpr(PT_Node **ppNode);
-bool IsLogicExpr(PT_Node **ppNode);
-bool IsLogicExprPrime(PT_Node **ppNode);
-bool IsRelExpr(PT_Node **ppNode);
-bool IsRelExprPrime(PT_Node **ppNode);
-bool IsShiftExpr(PT_Node **ppNode);
-bool IsShiftExprPrime(PT_Node **ppNode);
-bool IsAddExpr(PT_Node **ppNode);
-bool IsAddExprPrime(PT_Node **ppNode);
-bool IsMultExpr(PT_Node **ppNode);
-bool IsMultExprPrime(PT_Node **ppNode);
-bool IsUnaryExpr(PT_Node **ppNode);
-bool IsSubExprList(PT_Node **ppNode, int *subExprQty);
+#define USE_SYNTAX_TREE   
+ 
+Node *NewNode(enum NodeType type, union NodeValue value);
+Node *AddSon(Node *parent, Node *node);
+bool IsExpr(Node **ppNode);
+bool IsLogicExpr(Node **ppNode);
+bool IsLogicExprPrime(Node **ppNode);
+bool IsRelExpr(Node **ppNode);
+bool IsRelExprPrime(Node **ppNode);
+bool IsShiftExpr(Node **ppNode);
+bool IsShiftExprPrime(Node **ppNode);
+bool IsAddExpr(Node **ppNode);
+bool IsAddExprPrime(Node **ppNode);
+bool IsMultExpr(Node **ppNode);
+bool IsMultExprPrime(Node **ppNode);
+bool IsUnaryExpr(Node **ppNode);
+bool IsSubExprList(Node **ppNode, int *subExprQty);
+
+Node *TraverseParseTree(Node *node);
 
 // expression root node list used to free expression trees
-PT_Node *ExprList[TABLE_LEN];
+Node *ExprList[TABLE_LEN];
 int exprListIdx;
+
+// syntax tree list used to free them
+Node *SyntaxTreeList[TABLE_LEN];
+int syntaxTreeListIdx;
 
 // total node count
 int gNodeQty = 0;
 
-PT_Node *NewNode(enum NodeType type, union NodeValue value)
+Node *NewNode(enum NodeType type, union NodeValue value)
 {
-    PT_Node *newNode = (PT_Node *)calloc(1, sizeof(PT_Node));
+    Node *newNode = (Node *)calloc(1, sizeof(Node));
     
     //MESSAGE("new node...");
     
@@ -141,7 +149,7 @@ PT_Node *NewNode(enum NodeType type, union NodeValue value)
     return newNode;
 }
 
-void FreeNode(PT_Node *node)
+void FreeNode(Node *node)
 {
     if (node->son)
     {
@@ -162,11 +170,36 @@ void FreeExprTrees(void)
         FreeNode(ExprList[i]);
     }
     exprListIdx = 0;
+    for (int i = 0; i < syntaxTreeListIdx; i++)
+    {
+        FreeNode(SyntaxTreeList[i]);
+    }
+    syntaxTreeListIdx = 0;
 }
 
-PT_Node *AddSon(PT_Node *parent, PT_Node *node)
+Node *AddSon(Node *parent, Node *node)
 {
-    PT_Node *next, *last;
+    Node *next, *last;
+    
+    next = SON(parent);
+    if (next == NULL)
+    {
+        SON(parent) = node;
+        return node;
+    }
+    while (next != NULL)
+    {
+        last = next;
+        next = BRO(next);
+    }
+    BRO(last) = node;
+    
+    return node;
+}
+
+Node *AddOpndR(Node *parent, Node *node)
+{
+    Node *next, *last;
     
     next = SON(parent);
     if (next == NULL)
@@ -185,7 +218,7 @@ PT_Node *AddSon(PT_Node *parent, PT_Node *node)
 }
 
 // trim superfluous tree nodes
-void TrimTree(PT_Node *parent, PT_Node *node)
+void TrimTree(Node *parent, Node *node)
 {
     if (NODE_TYPE(node) != NT_POSTFIX_EXPR)
     {
@@ -207,18 +240,205 @@ void TrimTree(PT_Node *parent, PT_Node *node)
     }
 }
 
+Node *TraverseParseTree(Node *node)
+{
+    Node *stNode = NULL, *opnd, *son, *bro;
+    
+    if (node != NULL)
+    {
+        switch (NODE_TYPE(node))
+        {
+            case NT_LOGIC_EXPR:
+                //  expr
+                //    : expr
+                stNode = TraverseParseTree(node->son);        // pure PM
+                return stNode;
+                
+            case NT_REL_EXPR:
+            case NT_SHIFT_EXPR:
+            case NT_ADD_EXPR:
+            case NT_MULT_EXPR:
+                //  expr
+                //    : expr expr'
+                opnd = TraverseParseTree(node->son);        // left opnd or pure PM
+                stNode = TraverseParseTree(node->bro);      // binop tree with right opnd
+                if (stNode != NULL)
+                {
+                    stNode->son = opnd; 
+                    return stNode;
+                }
+                else
+                {
+                    stNode = opnd;
+                    return stNode;
+                }
+                break;
+                
+            case NT_LOGIC_EXPR_PRIME:
+            case NT_REL_EXPR_PRIME:
+            case NT_SHIFT_EXPR_PRIME:
+            case NT_ADD_EXPR_PRIME:
+            case NT_MULT_EXPR_PRIME:
+                // binary expressions
+                // expr'
+	            //    : op expr expr'
+	            //    ...
+	            //    | $
+                stNode = TraverseParseTree(node->son);      // binop node
+                opnd = TraverseParseTree(node->son->bro);   // right opnd
+                stNode->bro = opnd;
+                return stNode;
+                
+            case NT_UNARY_EXPR:
+                // unaryExpr
+                //    : postfixExpr
+                //    | ['+' | '-' | '~' | NOT_OP] addExpr
+                stNode = TraverseParseTree(node->son);          // unop or postfixExpr
+                if (NODE_TYPE(stNode) == NT_UNOP)
+                {
+                    opnd = TraverseParseTree(node->son->bro);   // opnd
+                    stNode->son = opnd;
+                }
+                return stNode;
+                break;
+                
+            case NT_POSTFIX_EXPR:
+                // postfixExpr
+                //   primaryExpr [subExprList]
+                stNode = TraverseParseTree(node->son);          // PE, array/fct name or pure PE
+                
+                // the presence of a son's bro node indicates that this is a vector
+                if (BRO(SON(node)))
+                {
+                    // check for attempt to use scaler as vector if this is not a builtin fct
+                    if (SYM_TYPE(SON(SON(node))->value.varsym) != ST_FCT)
+                    {
+                        if (SYM_DIM(SON(SON(node))->value.varsym) == 0)
+                        {
+                            strcpy(errorStr, "subscript error: attempt to use scaler as vector");
+                            return NULL;
+                        }
+                    }
+                    
+                    opnd = TraverseParseTree(BRO(SON(node)));    // arg/subscript list extracted from SEL, could be null
+                    stNode->bro = opnd;
+                }
+                return stNode;
+                
+            // FIXME: there must be some kind of non-PE, non-OP placeholder node type that contains an arg/subscript expr and is understood by the syntax tree traversal,
+            //        -- possibly use the NT_EXPR node type
+            case NT_SUB_EXPR_LIST:
+                // subExprList
+                //   addExpr [',' subExprList]
+                stNode = NewNode(NT_EXPR, (union NodeValue)0);  // expr placeholder node
+                son = TraverseParseTree(SON(node));             // arg/subscript expr
+                stNode->son = son;
+                if (son)
+                {
+                    bro = TraverseParseTree(BRO(SON(node)));        // another SEl
+                    stNode->bro = bro;
+                }
+                return stNode;
+            
+            case NT_PRIMARY_EXPR:
+                // postfixExpr
+                //   primaryExpr [subExprList]
+                stNode = TraverseParseTree(node->son);  // const, string, numvar, strvar, fct
+                return stNode;
+                
+            case NT_BINOP:
+                switch (NODE_VAL_OP(node))
+                {    
+                    case AND_OP:
+                    case OR_OP:
+                    case XOR_OP:
+                    case '=':
+                    case NE_OP:
+                    case '>':
+                    case GE_OP:
+                    case '<':
+                    case LE_OP:
+                    case '+':
+                    case '-':
+                    case '*':
+                    case '/':
+                    case '%':
+                    case MOD_OP:
+                    case SL_OP:
+                    case SR_OP:
+                        stNode = NewNode(NT_BINOP, (union NodeValue)(NODE_VAL_OP(node)));
+                        return stNode;
+                    default:
+                        return NULL;
+                }
+                
+            case NT_UNOP:
+                switch (NODE_VAL_OP(node))
+                {    
+                    case '+':
+                    case '-':
+                    case NOT_OP:
+                        stNode = NewNode(NT_UNOP, (union NodeValue)(NODE_VAL_OP(node)));
+                        return stNode;
+                    default:
+                        return NULL;
+                }
+                
+            case NT_CONSTANT:
+                stNode = NewNode(NT_CONSTANT, (union NodeValue)(NODE_VAL_CONST(node)));
+                return stNode;
+                
+            case NT_STRING:
+                stNode = NewNode(NT_STRING, (union NodeValue)(NODE_VAL_STRING(node)));
+                return stNode;
+                
+            case NT_NUMVAR:
+                stNode = NewNode(NT_NUMVAR, (union NodeValue)(NODE_VAL_VARSYM(node)));
+                return stNode;
+                
+            case NT_STRVAR:
+                stNode = NewNode(NT_STRVAR, (union NodeValue)(NODE_VAL_VARSYM(node)));
+                return stNode;
+                
+            case NT_FCT:
+                stNode = NewNode(NT_FCT, (union NodeValue)(NODE_VAL_VARSYM(node)));
+                return stNode;
+                
+            default:
+                break;
+        }
+    }                
+    
+    return stNode;
+}
+
 // expression -- this is the top-level query for an expression
 // expr : logicExpr
-bool IsExpr(PT_Node **ppNode)
+bool IsExpr(Node **ppNode)
 {
+    Node *parseTree, *syntaxTree;
+    
     MESSAGE("building expression tree...");
-    if (IsLogicExpr(ppNode))
+    if (IsLogicExpr(&parseTree))
     {
+#ifndef USE_SYNTAX_TREE    
         // build list of expressions so they can be freed
-        ExprList[exprListIdx++] = *ppNode;
+        ExprList[exprListIdx++] = parseTree;
         
-        // trim the tree
-        TrimTree(*ppNode, (*ppNode)->son);
+        // trim the parse tree then return it
+        TrimTree(parseTree, parseTree->son);
+        *ppNode = parseTree;
+#else        
+        // create syntax tree from parse tree
+        syntaxTree = TraverseParseTree(parseTree);
+        
+        // add to list of syntax trees so they can be freed then free the unnecessary parse tree
+        SyntaxTreeList[syntaxTreeListIdx++] = syntaxTree;        
+        FreeNode(parseTree);
+        
+        // return the syntax tree
+        *ppNode = syntaxTree;
+#endif        
         
         return true;
     }
@@ -226,9 +446,9 @@ bool IsExpr(PT_Node **ppNode)
     return false;
 }
 
-bool IsLogicExpr(PT_Node **ppNode)
+bool IsLogicExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
         
     MESSAGE("IsLogicExpr...");
     *ppNode = NewNode(NT_LOGIC_EXPR, (union NodeValue)0);
@@ -250,9 +470,9 @@ bool IsLogicExpr(PT_Node **ppNode)
 }
 
 // 
-bool IsLogicExprPrime(PT_Node **ppNode)
+bool IsLogicExprPrime(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
        
     
     // {AND_OP | OR_OP | XOR_OP} relExpr logicExpr'
@@ -286,9 +506,9 @@ bool IsLogicExprPrime(PT_Node **ppNode)
     return false;
 }
 
-bool IsRelExpr(PT_Node **ppNode)
+bool IsRelExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     MESSAGE("IsRelExpr...");
     *ppNode = NewNode(NT_REL_EXPR, (union NodeValue)0);
@@ -310,9 +530,9 @@ bool IsRelExpr(PT_Node **ppNode)
 }
 
 // 
-bool IsRelExprPrime(PT_Node **ppNode)
+bool IsRelExprPrime(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
        
     
     // {'=' || NE_OP || '>' || GE_OP || '<' || LE_OP } shiftExpr relExpr'
@@ -346,9 +566,9 @@ bool IsRelExprPrime(PT_Node **ppNode)
     return false;
 }
 
-bool IsShiftExpr(PT_Node **ppNode)
+bool IsShiftExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     MESSAGE("IsShiftExpr...");
     *ppNode = NewNode(NT_SHIFT_EXPR, (union NodeValue)0);
@@ -370,9 +590,9 @@ bool IsShiftExpr(PT_Node **ppNode)
 }
 
 // 
-bool IsShiftExprPrime(PT_Node **ppNode)
+bool IsShiftExprPrime(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
        
     // {SL_OP || SR_OP} addExpr shiftExpr'
     if (token == SL_OP || token == SR_OP)
@@ -406,9 +626,9 @@ bool IsShiftExprPrime(PT_Node **ppNode)
 }
 
 // additive expression
-bool IsAddExpr(PT_Node **ppNode)
+bool IsAddExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     MESSAGE("IsAddExpr...");
     *ppNode = NewNode(NT_ADD_EXPR, (union NodeValue)0);
@@ -430,9 +650,9 @@ bool IsAddExpr(PT_Node **ppNode)
 }
 
 // additive expression prime
-bool IsAddExprPrime(PT_Node **ppNode)
+bool IsAddExprPrime(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     // {'+' | '-'} multExpr addExpr'
     if (token == '+' || token == '-')
@@ -465,9 +685,9 @@ bool IsAddExprPrime(PT_Node **ppNode)
 }
 
 // multiplicative expression
-bool IsMultExpr(PT_Node **ppNode)
+bool IsMultExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     MESSAGE("IsMultExpr...");
     *ppNode = NewNode(NT_MULT_EXPR, (union NodeValue)0);  
@@ -489,9 +709,9 @@ bool IsMultExpr(PT_Node **ppNode)
 }
 
 // multiplicative expression prime
-bool IsMultExprPrime(PT_Node **ppNode)
+bool IsMultExprPrime(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     
     // {'*' | '/' | '%' | MOD_OP} unaryExpr multExpr'
     if (token == '*' || token == '/' || token == '%' || token == MOD_OP)
@@ -524,34 +744,32 @@ bool IsMultExprPrime(PT_Node **ppNode)
 }
 
 // unary expression
-bool IsUnaryExpr(PT_Node **ppNode)
+//    unaryExpr
+//	    : postfixExpr
+//	    | ['+' | '-' | '~' | NOT_OP] addExpr
+bool IsUnaryExpr(Node **ppNode)
 {
-    PT_Node *son, *opNode = NULL;
-    char op;
+    Node *son;
+    int op;
     
     *ppNode = NewNode(NT_UNARY_EXPR, (union NodeValue)0);
     
-	// ['+' | '-' | '~' | NOT_OP] unaryExpr
+	// ['+' | '-' | '~' | NOT_OP] addExpr
     if (token == '+' || token == '-' || token == '~' || token == NOT_OP)
     {
-        opNode = NewNode(NT_UNOP, (union NodeValue)'+');
-        NODE_VAL_OP(opNode) = token;
         op = token;
-        if (!GetNextToken(NULL))
+        if (GetNextToken(NULL) && IsAddExpr(&son))
         {
-            FreeNode(*ppNode);
-            return false;
+            AddSon(*ppNode, NewNode(NT_UNOP, (union NodeValue)op));
+            sprintf(message, "IsUnaryExpr unop '%c'", (char)op);
+            AddSon(*ppNode, son);
+            return true;
         }
     }    
-    if (IsPostfixExpr(&son))
+    // postfixExpr
+    else if (IsPostfixExpr(&son))
     {
         AddSon(*ppNode, son);
-        if (opNode)
-        {
-            AddSon(*ppNode, opNode);
-            sprintf(message, "IsUnaryExpr unop '%c'", op);
-            MESSAGE(message);
-        }
         return true;
     }
     
@@ -560,9 +778,9 @@ bool IsUnaryExpr(PT_Node **ppNode)
 }
 
 // postfix expression
-bool IsPostfixExpr(PT_Node **ppNode)
+bool IsPostfixExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     int subExprQty = 0;
     
     MESSAGE("IsPostfixExpr...");
@@ -571,6 +789,7 @@ bool IsPostfixExpr(PT_Node **ppNode)
     // primaryExpr ['(' [subExprList] ')']
     if (IsPrimaryExpr(&son))
     {
+        // TODO: check for consistence in what kind of primary expr it is, i.e. can't have PFE with const or string
         AddSon(*ppNode, son);
         if (token == '(')
         {  
@@ -589,6 +808,7 @@ bool IsPostfixExpr(PT_Node **ppNode)
         }
         else
         {
+            // not a vector nor a function
             return true;
         }
     }
@@ -599,15 +819,18 @@ bool IsPostfixExpr(PT_Node **ppNode)
 
 // subscript expression list
 // parse the arguments and return the number parsed
-bool IsSubExprList(PT_Node **ppNode, int *subExprQty)
+//   subExprList
+//      : addExpr [',' subExprList]
+//	    | $
+bool IsSubExprList(Node **ppNode, int *subExprQty)
 {
-    PT_Node *son;
+    Node *son;
 
     MESSAGE("IsSubExprList...");
     *ppNode = NewNode(NT_SUB_EXPR_LIST, (union NodeValue)0);    
     
     // addExpr [',' subExprList]
-    if (IsAddExpr(&son))
+    if (IsLogicExpr(&son))
     {
         AddSon(*ppNode, son);
         (*subExprQty)++;
@@ -636,9 +859,9 @@ bool IsSubExprList(PT_Node **ppNode, int *subExprQty)
 }
 
 // primary expression
-bool IsPrimaryExpr(PT_Node **ppNode)
+bool IsPrimaryExpr(Node **ppNode)
 {
-    PT_Node *son;
+    Node *son;
     float value;
 
     //MESSAGE("IsPrimaryExpr...");
@@ -664,21 +887,21 @@ bool IsPrimaryExpr(PT_Node **ppNode)
             }
             break;
         
+        case String:
+            AddSon(*ppNode, NewNode(NT_STRING, (union NodeValue)lexval.lexeme));
+            if (GetNextToken(NULL))
+            {
+                sprintf(message, "IsPrimaryExpr String %s", NODE_VAL_STRING(SON(*ppNode)));
+                MESSAGE(message);
+                return true;
+            }
+            break;
+        
         case Numvar:
             AddSon(*ppNode, NewNode(NT_NUMVAR, (union NodeValue)lexval.lexsym));
             if (GetNextToken(NULL))
             {
                 sprintf(message, "IsPrimaryExpr Numvar %s", SYM_NAME(NODE_VAL_VARSYM(SON(*ppNode))));
-                return true;
-            }
-            break;
-        
-        case Function:
-            AddSon(*ppNode, NewNode(NT_FCT, (union NodeValue)lexval.lexsym));
-            if (GetNextToken(NULL))
-            {
-                sprintf(message, "IsPrimaryExpr Function %s", SYM_NAME(NODE_VAL_VARSYM(SON(*ppNode))));
-                MESSAGE(message);
                 return true;
             }
             break;
@@ -693,11 +916,11 @@ bool IsPrimaryExpr(PT_Node **ppNode)
             }
             break;
         
-        case String:
-            AddSon(*ppNode, NewNode(NT_STRING, (union NodeValue)lexval.lexeme));
+        case Function:
+            AddSon(*ppNode, NewNode(NT_FCT, (union NodeValue)lexval.lexsym));
             if (GetNextToken(NULL))
             {
-                sprintf(message, "IsPrimaryExpr String %s", NODE_VAL_STRING(SON(*ppNode)));
+                sprintf(message, "IsPrimaryExpr Function %s", SYM_NAME(NODE_VAL_VARSYM(SON(*ppNode))));
                 MESSAGE(message);
                 return true;
             }
@@ -705,7 +928,7 @@ bool IsPrimaryExpr(PT_Node **ppNode)
         
         // '(' expr ')'
         case '(':
-            if (GetNextToken(NULL) && IsExpr(&son))
+            if (GetNextToken(NULL) && IsLogicExpr(&son))
             {
                 AddSon(*ppNode, son);
                 if (token == ')')
@@ -724,4 +947,6 @@ bool IsPrimaryExpr(PT_Node **ppNode)
     return false;
 }
 
+
+// end of ir.c
 

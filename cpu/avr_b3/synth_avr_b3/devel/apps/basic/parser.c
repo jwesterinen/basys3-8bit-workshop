@@ -351,7 +351,7 @@ bool IsExprList(PrintCommand *cmd, int *listIdx)
 
 // parse the indeces of an array variable
 // this MUST parse the given number of indeces
-bool ParseIndeces(PT_Node *indexNodes[], int dim)
+bool ParseIndeces(Node *indexNodes[], int dim)
 {
     int nodeIdx = 0;
 
@@ -401,7 +401,7 @@ bool IsAssign(Command *pCommand)
     pCommand->type = CT_ASSIGN;
     pCommand->cmd.assignCmd.varsym = lexval.lexsym;
 
-    // [let] Numvar ['(' expr [',' expr]* ')'] '=' expr
+    // [let] [Numvar | Strvar] ['(' expr [',' expr]* ')'] '=' expr
     // [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
     if (token == Numvar || token == Strvar)
     {
@@ -415,27 +415,16 @@ bool IsAssign(Command *pCommand)
             }
         }
 
-        // perform the assignment
-        if (GetNextToken(NULL))
+        // evaluate the RHS
+        if (GetNextToken(NULL) && token == '=')
         {
-            if (token == '=')
+            // can only assign values to variables
+            if (SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_NUMVAR || SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_STRVAR)
             {
-                // perform the assignment based on the LHS
-                if (SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_NUMVAR)
+                // the RHS is any primary expression
+                if (GetNextToken(NULL) && IsExpr(&pCommand->cmd.assignCmd.expr))
                 {
-                    // the RHS is a const, scaler or vector number variable or function return value
-                    if (GetNextToken(NULL) && IsExpr(&pCommand->cmd.assignCmd.expr))
-                    {
-                        return true;
-                    }
-                }
-                else if (SYM_TYPE(pCommand->cmd.assignCmd.varsym) == ST_STRVAR)
-                {
-                    // the RHS is a string or scaler or vector string variable
-                    if (GetNextToken(NULL) && IsPostfixExpr(&pCommand->cmd.assignCmd.expr))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
             }
         }
@@ -504,7 +493,7 @@ bool IsNext(Command *pCommand)
 // goto : GOTO Constant
 bool IsGoto(Command *pCommand)
 {
-    PT_Node *dest;
+    Node *dest;
     
     if (token == GOTO)
     {
@@ -522,7 +511,7 @@ bool IsGoto(Command *pCommand)
 // if : IF expr THEN command-list
 bool IsIf(Command *pCommand)
 {
-    PT_Node *expr;
+    Node *expr;
     
     if (token == IF)
     {
@@ -549,7 +538,7 @@ bool IsIf(Command *pCommand)
 // gosub : GOSUB Constant
 bool IsGosub(Command *pCommand)
 {
-    PT_Node *dest;
+    Node *dest;
     
     if (token == GOSUB)
     {
@@ -621,7 +610,7 @@ bool IsInput(Command *pCommand)
 // poke : POKE expr ',' expr
 bool IsPoke(Command *pCommand)
 {
-    PT_Node *addr, *data;
+    Node *addr, *data;
     
     if (token == POKE)
     {
@@ -646,7 +635,7 @@ bool IsPoke(Command *pCommand)
 // tone : TONE expr [',' expr]
 bool IsTone(Command *pCommand)
 {
-    PT_Node *freq, *duration;
+    Node *freq, *duration;
     
     if (token == TONE)
     {
@@ -694,7 +683,7 @@ bool IsBeep(Command *pCommand)
 // leds : LEDS expr
 bool IsLeds(Command *pCommand)
 {
-    PT_Node *value;
+    Node *value;
     
     if (token == LEDS)
     {
@@ -713,7 +702,7 @@ bool IsLeds(Command *pCommand)
 bool IsDisplay(Command *pCommand)
 {
     // note: display quantity is either 2 or 4 (the number of 7-seg displays)
-    PT_Node *value, *displayQty;
+    Node *value, *displayQty;
     
     if (token == DISPLAY)
     {
@@ -738,7 +727,7 @@ bool IsDisplay(Command *pCommand)
 // putchar : PUTCHAR expr ',' expr ',' expr
 bool IsPutchar(Command *pCommand)
 {
-    PT_Node *row, *col, *value;
+    Node *row, *col, *value;
     
     if (token == PUTCHAR)
     {
@@ -806,7 +795,7 @@ bool IsGr(Command *pCommand)
 // outchar : OUTCHAR expr
 bool IsOutchar(Command *pCommand)
 {
-    PT_Node *outputChar;
+    Node *outputChar;
     
     if (token == OUTCHAR)
     {
@@ -824,7 +813,7 @@ bool IsOutchar(Command *pCommand)
 // rseed : RSEED expr
 bool IsRseed(Command *pCommand)
 {
-    PT_Node *seed;
+    Node *seed;
     
     if (token == RSEED)
     {
@@ -842,7 +831,7 @@ bool IsRseed(Command *pCommand)
 // delay : DELAY expr
 bool IsDelay(Command *pCommand)
 {
-    PT_Node *duration;
+    Node *duration;
     
     if (token == DELAY)
     {

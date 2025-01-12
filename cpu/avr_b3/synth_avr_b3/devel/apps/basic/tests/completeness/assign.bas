@@ -1,8 +1,9 @@
 100 dim array1(2,3,4) : dim array2(2,3)
 110 a=1 : ?a
-120 b=5 : a=b : ?a
-130 array1(0,0,0) = 123 : ?array1(0,0,0)
-140 a = array1(0,0,0) : ?a
+120 b=3 : a=b : ?a
+130 array1(1,2,3) = 123 : ?array1(1,2,3)
+140 a = array1(1,2,3) : ?a
+145 b = array1(b-2,2,3) : ?b
 150 a = peek(0xf000) : ?a
 160 array2(0,0) = b : ?array2(0,0)
 170 array1(0,0,0) = array2(0,0) : ?array1(0,0,0)

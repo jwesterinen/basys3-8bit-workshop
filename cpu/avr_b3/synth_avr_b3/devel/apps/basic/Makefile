@@ -32,7 +32,7 @@ CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfiel
 #LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
 #LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn
-LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn -Wl,--defsym=__heap_start=0x80a000,--defsym=__heap_end=0x80efff -Wl,-u,vfprintf -lprintf_flt
+LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn -Wl,--defsym=__heap_start=0x80c000,--defsym=__heap_end=0x80efff -Wl,-u,vfprintf -lprintf_flt
 
 PMEM_DEPTH=15
 PMEM_WORDS=$(shell echo $$((1<<$(PMEM_DEPTH))))

@@ -21,7 +21,7 @@ enum NodeType {
     NT_BINOP, NT_UNOP,
     
     // primary expression types
-    NT_CONSTANT, NT_NUMVAR, NT_STRVAR, NT_FCT, NT_STRING
+    NT_CONSTANT, NT_STRING, NT_NUMVAR, NT_STRVAR, NT_FCT
 };
 
 union NodeValue {
@@ -38,17 +38,17 @@ union NodeValue {
 #define BRO(node)               (node)->bro
 #define SON(node)               (node)->son
 
-typedef struct PT_Node {
+typedef struct Node {
     enum NodeType type;
     union NodeValue value;
-    struct PT_Node *bro;
-    struct PT_Node *son;
-} PT_Node;
+    struct Node *bro;
+    struct Node *son;
+} Node;
 
 void FreeExprTrees(void);
-bool IsExpr(PT_Node **ppNode);
-bool IsPostfixExpr(PT_Node **ppNode);
-bool IsPrimaryExpr(PT_Node **ppNode);
+bool IsExpr(Node **ppNode);
+bool IsPostfixExpr(Node **ppNode);
+bool IsPrimaryExpr(Node **ppNode);
 
 extern int gNodeQty;
 

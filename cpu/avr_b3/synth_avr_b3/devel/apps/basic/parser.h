@@ -15,7 +15,7 @@ extern char errorStr[];
 typedef struct Command Command;
 
 typedef struct Printable {
-    PT_Node *expr;
+    Node *expr;
     char separator;
 } Printable;
 enum PrintStyle {PS_DECIMAL, PS_HEX, PS_ASCII};
@@ -27,16 +27,16 @@ typedef struct PrintCommand {
 
 typedef struct AssignCommand {
     Symbol *varsym;             // LHS symbol to which to assign a RHS value
-    PT_Node *indexNodes[DIM_MAX];  // possible array index nodes
-    PT_Node *expr;                 // RHS
+    Node *indexNodes[DIM_MAX];  // possible array index nodes
+    Node *expr;                 // RHS
 } AssignCommand;
 
 typedef struct ForCommand {
     int lineNum;
     Symbol *symbol;
-    PT_Node *init;
-    PT_Node *to;
-    PT_Node *step;
+    Node *init;
+    Node *to;
+    Node *step;
 } ForCommand;
 
 typedef struct NextCommand {
@@ -45,34 +45,34 @@ typedef struct NextCommand {
 } NextCommand;
 
 typedef struct GotoCommand {
-    PT_Node *dest;
+    Node *dest;
 } GotoCommand;
 
 enum IF_TYPE {IT_PRINT, IT_ASSIGN, IT_GOTO};
 typedef struct IfCommand {
-    PT_Node *expr;
+    Node *expr;
     Command *commandList;
 } IfCommand;
 
 typedef struct GosubCommand {
     int lineNum;
-    PT_Node *dest;
+    Node *dest;
 } GosubCommand;
 
 typedef struct InputCommand {
     Symbol *varsym;                 // LHS symbol to which to assign an input value
-    PT_Node *indexNodes[DIM_MAX];
+    Node *indexNodes[DIM_MAX];
 } InputCommand;
 
 typedef struct PlatformCommand {
-    PT_Node *arg1;
-    PT_Node *arg2;
-    PT_Node *arg3;
+    Node *arg1;
+    Node *arg2;
+    Node *arg3;
 } PlatformCommand;
 
 typedef struct DimCommand {
     Symbol *varsym;                 // contains the linear data array
-    PT_Node *dimSizeNodes[DIM_MAX];    // the expression of each dimension
+    Node *dimSizeNodes[DIM_MAX];    // the expression of each dimension
 } DimCommand;
 
 enum EX_COMMAND_TYPE {

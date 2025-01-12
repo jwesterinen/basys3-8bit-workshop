@@ -243,7 +243,7 @@ char *NodeTypeStr(enum NodeType type)
 int indent = 0;
 bool broMode = false;
 
-void PrintNode(PT_Node *node)
+void PrintNode(Node *node)
 {
     if (node == NULL)
     {
@@ -268,7 +268,7 @@ void PrintNode(PT_Node *node)
     }
 }
 
-void PrintExprTree(PT_Node *root)
+void PrintExprTree(Node *root)
 {
     if (root)
     {
