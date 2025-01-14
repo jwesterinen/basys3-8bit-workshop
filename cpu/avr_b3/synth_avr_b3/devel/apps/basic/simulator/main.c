@@ -7,12 +7,12 @@
 #include <string.h>
 #include <inttypes.h>
 #include "symtab.h"
-#include "ir.h"
+#include "expr.h"
 #include "parser.h"
 #include "runtime.h"
 
 char message[80];
-char *versionStr = "v3.0";
+char *versionStr = "v4.0";
 char *promptStr = "> ";
 char frameBuf[40][80];
 
@@ -238,44 +238,6 @@ char *NodeTypeStr(enum NodeType type)
             return "STR  ";
     }
     return "unknown type";
-}
-
-int indent = 0;
-bool broMode = false;
-
-void PrintNode(Node *node)
-{
-    if (node == NULL)
-    {
-        return;
-    }
-    for (int i = 0; i < indent; i++)
-    {
-        printf("     ");
-    }
-    printf("%s", NodeTypeStr(NODE_TYPE(node)));
-    if (node->son)
-    {
-        puts("");
-        PrintNode(node->son);
-        if (node->son->bro)
-        {
-            indent++;
-            PrintNode(node->son->bro);
-            puts("");
-            indent--;
-        }
-    }
-}
-
-void PrintExprTree(Node *root)
-{
-    if (root)
-    {
-        printf("expr tree:\n");
-        PrintNode(root);
-        puts("");
-    }
 }
 
 int main(void)

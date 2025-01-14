@@ -8,9 +8,9 @@ LIB_DIR = ../../lib
 INC_DIR = ../../include
 MISC_DIR = ../../misc
 
-HEADERS=main.h symtab.h lexer.h parser.h ir.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_ps2.h $(INC_DIR)/keycodes.h \
+HEADERS=main.h symtab.h lexer.h parser.h expr.h runtime.h $(INC_DIR)/avr_b3.h $(INC_DIR)/avr_b3_stdio.h $(INC_DIR)/avr_b3_ps2.h $(INC_DIR)/keycodes.h \
 $(INC_DIR)/avr_b3_diskio.h $(INC_DIR)/ff.h $(INC_DIR)/ffconf.h
-OBJECTS=main.o symtab.o lexer.o parser.o ir.o runtime.o $(LIB_DIR)/avr_b3_stdio.o $(LIB_DIR)/avr_b3_ps2.o \
+OBJECTS=main.o symtab.o lexer.o parser.o expr.o runtime.o $(LIB_DIR)/avr_b3_stdio.o $(LIB_DIR)/avr_b3_ps2.o \
 $(LIB_DIR)/avr_b3_diskio.o $(LIB_DIR)/ff.o $(LIB_DIR)/ffsystem.o $(LIB_DIR)/ffunicode.o
 
 CC=avr-gcc
@@ -32,7 +32,7 @@ CFLAGS=-mmcu=$(ARCH) -D__COMPILING_AVR_LIBC__ -funsigned-char -funsigned-bitfiel
 #LDFLAGS=-mmcu=$(ARCH)
 #LDFLAGS=-mmcu=$(ARCH) -Wl,--verbose
 #LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn
-LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn -Wl,--defsym=__heap_start=0x80c000,--defsym=__heap_end=0x80efff -Wl,-u,vfprintf -lprintf_flt
+LDFLAGS=-mmcu=$(ARCH) -T $(MISC_DIR)/avr_b3_51.xn -Wl,--defsym=__heap_start=0x80a000,--defsym=__heap_end=0x80efff -Wl,-u,vfprintf -lprintf_flt
 
 PMEM_DEPTH=15
 PMEM_WORDS=$(shell echo $$((1<<$(PMEM_DEPTH))))

@@ -5,6 +5,7 @@
  *      1.0     First complete Basic interpreter
  *      2.0     Added file system
  *      3.0     Added expression tree reduction
+ *      4.0     Added proper syntax tree to correctly reduce node usage
  */
 
 #include <inttypes.h>

@@ -12,7 +12,7 @@
 #include "../../include/ff.h"
 #include "../../include/avr_b3_diskio.h"
 #include "symtab.h"
-#include "ir.h"
+#include "expr.h"
 #include "parser.h"
 #include "runtime.h"
 
@@ -56,7 +56,7 @@ ISR(_VECTOR(2))
 #endif
 
 char message[80];
-char *versionStr = "v3.0";
+char *versionStr = "v4.0";
 char *promptStr = "> ";
     
 extern bool ready;

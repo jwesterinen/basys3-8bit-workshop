@@ -145,7 +145,7 @@
 #include <stdbool.h>
 #include "symtab.h"
 #include "lexer.h"
-#include "ir.h"
+#include "expr.h"
 #include "parser.h"
 #include "main.h"
 
@@ -653,7 +653,7 @@ bool IsTone(Command *pCommand)
                 // contrive a constant without using the lexer
                 strcpy(tokenStr, "0");
                 token = Constant;
-                if (!SymLookup(token) || !IsPrimaryExpr(&duration))
+                if (!SymLookup(token) || !IsExpr(&duration))
                 {
                     return false;
                 }

@@ -47,8 +47,6 @@ typedef struct Node {
 
 void FreeExprTrees(void);
 bool IsExpr(Node **ppNode);
-bool IsPostfixExpr(Node **ppNode);
-bool IsPrimaryExpr(Node **ppNode);
 
 extern int gNodeQty;
 

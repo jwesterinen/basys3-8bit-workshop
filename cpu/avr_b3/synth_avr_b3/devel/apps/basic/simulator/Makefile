@@ -13,8 +13,8 @@ TARGET = basic_simulator
 
 CFLAGS = -O0 -g -Wall -c
 
-HEADERS = main.h symtab.h lexer.h parser.h ir.h runtime.h
-OBJECTS = main.o symtab.o lexer.o parser.o ir.o runtime.o
+HEADERS = main.h symtab.h lexer.h parser.h expr.h runtime.h
+OBJECTS = main.o symtab.o lexer.o parser.o expr.o runtime.o
 
 all: $(TARGET)
 

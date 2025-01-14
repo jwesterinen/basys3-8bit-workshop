@@ -4,7 +4,7 @@
 *   An execution engine for a Basic language interpreter.
 *
 *   This module accepts a parsed internal representation of a Basic Language
-*   command and executes the command.
+*   command and executes the command(s).
 *
 */
 
@@ -18,13 +18,11 @@
 #include <math.h>
 #include "symtab.h"
 #include "lexer.h"
-#include "ir.h"
+#include "expr.h"
 #include "parser.h"
 #include "runtime.h"
 #include "main.h"
 
-#define USE_SYNTAX_TREE 
-   
 #define STRING_LEN 80
 #define TABLE_LEN 100
 #define STACK_SIZE 20
@@ -65,12 +63,12 @@ bool ExecRseed(PlatformCommand *cmd);
 bool ExecDelay(PlatformCommand *cmd);
 bool ExecDim(DimCommand *cmd);
 bool ExecBreak(PlatformCommand *cmd);
-
 bool ExecBuiltinFct(const char *name);
+
 bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue);
 bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue);
 bool TraverseSyntaxTree(Node *node);
-bool TraverseTree(Node *node);
+
 float NumStackPush(float a);
 float NumStackPop(void);
 float NumStackTop(void);
@@ -79,6 +77,16 @@ char *StrStackPush(char *a);
 char *StrStackPop(void);
 char *StrStackTop(void);
 char *StrStackPut(char *a);
+
+void FreeCommand(Command *cmd);
+void FreeCommandList(Command *commandList);
+void FreeProgram(void);
+Command *IterateCmdPtr(bool cmdListOnly);
+bool LineNum2CmdLineIdx(int lineNum);
+void SwapProgLines(int progIdxA, int progIdxB);
+void SortProgramByLineNum(void);
+void PrintResult(void);
+bool InstallBuiltinFcts(void);
 
 // runtime strings and flags
 bool ready = true;
@@ -123,131 +131,9 @@ typedef struct FctList {
     int arity;
 } FctList;
 
-// free a command list
-void FreeCommand(Command *cmd)
-{
-    if (cmd)
-    {
-        if (cmd->next)
-        {
-            FreeCommand(cmd->next);
-        }
-        free(cmd);
-    }
-}
 
-// free all allocated commands in a command line
-void FreeCommandList(Command *commandList)
-{
-    if (commandList)
-    {
-        if (commandList->next)
-        {
-            FreeCommand(commandList->next);
-        }
-        commandList->next = NULL;
-    }
-}
+// *** main entry point from the main UI into the interpreter ***
 
-// free all allocated commands in the program
-void FreeProgram(void)
-{
-    for (int i = 0; i < MAX_PROGRAM_LEN; i++)
-    {
-        FreeCommandList(Program[i].commandList);
-        Program[i] = emptyCommandLine;
-    }
-}
-
-Command *IterateCmdPtr(bool cmdListOnly)
-{
-    if (cmdPtr->next)
-    {
-        // next command in the command line
-        return cmdPtr->next;
-    }
-    else if ((!cmdListOnly) && (cmdListIdx < programSize))
-    {
-        // first command in the next command line
-        return Program[++cmdListIdx].commandList;
-    }
-    
-    return NULL;
-}
-
-// convert a line number to a program index
-bool LineNum2CmdLineIdx(int lineNum)
-{
-    for (int i = 0; i < programSize; i++)
-    {
-        if (Program[i].lineNum == lineNum)
-        {
-            cmdListIdx = i;
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-void SwapProgLines(int progIdxA, int progIdxB) 
-{ 
-    // copy a to temp, b to a, then temp to b
-    CommandLine temp = Program[progIdxA]; 
-    Program[progIdxA] = Program[progIdxB]; 
-    Program[progIdxB] = temp; 
-} 
-
-void SortProgramByLineNum(void) 
-{ 
-    int i, j, min_idx; 
-  
-    // One by one move boundary of unsorted subarray 
-    for (i = 0; i < programSize - 1; i++) 
-    { 
-        // Find the minimum element in unsorted array 
-        min_idx = i; 
-        for (j = i + 1; j < programSize; j++) 
-            if (Program[j].lineNum < Program[min_idx].lineNum) 
-                min_idx = j; 
-  
-        // Swap the found minimum element with the first element 
-        SwapProgLines(min_idx, i); 
-    } 
-} 
-
-void PrintResult(void)
-{
-    if (resultStr[0] != '\0')
-    {
-        PutString(resultStr);
-        PutString("\n");
-        resultStr[0] = '\0';
-    }
-}
-
-// install builtin functions
-bool InstallBuiltinFcts(void)
-{
-    for (int i = 0; i < builtinFctTableSize; i++)
-    {
-        strcpy(tokenStr, builtinFctTab[i].name);
-        if (SymLookup(Function))
-        {
-            // for a function symbol the arity is stored as the dimension of the variable
-            SYM_DIM(lexval.lexsym) = builtinFctTab[i].arity;
-        }
-        else
-        {
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// this is the entry point from the main UI into the interpreter
-// command : directive | command-line
 bool ProcessCommand(char *commandStr)
 {
     // init the parser and error string
@@ -389,7 +275,7 @@ bool ProcessCommand(char *commandStr)
                 }
                 SortProgramByLineNum();
                 sprintf(message, "%d nodes in use\n", gNodeQty);
-                Console(message);
+                MESSAGE(message);
                 ready = false;
                 return true;
             }
@@ -477,8 +363,6 @@ bool NewProgram(void)
     FreeSymtab();
     InstallBuiltinFcts();
     FreeProgram();
-    //sprintf(message, "node qty: %d\n", nodeCount);
-    //MESSAGE(message);
     
     return true;
 }
@@ -621,121 +505,13 @@ bool ExecCommand(Command *command, bool cmdListOnly)
     return true;
 }
 
-#ifndef USE_SYNTAX_TREE    
-Node *GetPrimaryExprNode(Node *node)
-{
-    if (node == NULL || NODE_TYPE(node) == NT_PRIMARY_EXPR)
-    {
-        return node;
-    }
-    //if (NODE_TYPE(node) == NT_UNOP)
-    //{
-    //    return GetPrimaryExprNode(BRO(node));
-    //} 
-    return GetPrimaryExprNode(SON(node));
-}
-#endif
-
 // expr-list : expr  [{';' | ','} expr-list]
-#ifndef USE_SYNTAX_TREE    
 bool ExecPrint(PrintCommand *cmd)
 {
     char exprStr[80];
     float numval;
     char *strval;
     int intval, decval;
-    Node *primaryExprNode;
-    
-    for (int i = 0; i < cmd->printListIdx; i++)
-    {
-        strcat(resultStr, "");
-        
-        if (cmd->printList[i].separator == ',')
-        {
-            strcat(resultStr, "    ");
-        }
-        
-        // TODO: the creation of a syntax tree would obviate this as follows...
-        if ((primaryExprNode = GetPrimaryExprNode(cmd->printList[i].expr)) != NULL)
-        {
-            switch (NODE_TYPE(primaryExprNode->son))
-            {
-                case NT_NUMVAR:
-                case NT_FCT:
-                case NT_CONSTANT:
-                    if (!EvaluateNumExpr(cmd->printList[i].expr, &numval))
-                    {
-                        if (!strcmp(errorStr, ""))
-                        {
-                            // default error
-                            strcpy(errorStr, "invalid print expression");
-                        }
-                        return false;
-                    }
-                    switch (cmd->style)
-                    {
-                        case PS_DECIMAL:
-                            sprintf(exprStr, "%f", numval);
-                            sscanf(exprStr, "%d.%d", &intval, &decval);
-                            if (decval == 0)
-                            {
-                                sprintf(exprStr, "%.f", numval);
-                            }
-                            break;
-                        case PS_HEX:
-                            sprintf(exprStr, "0x%x", (unsigned int)numval);
-                            break;
-                        case PS_ASCII:
-                            sprintf(exprStr, "%c", (int)numval);
-                            break;
-                    }
-                    if (exprStr == NULL)
-                    {
-                        strcpy(errorStr, "invalid print expression");
-                        return false;
-                    }
-                    strcat(resultStr, exprStr);
-                    break;
-                    
-                case NT_STRVAR:
-                case NT_STRING:
-                    if (!EvaluateStrExpr(cmd->printList[i].expr, &strval))
-                    {
-                        if (!strcmp(errorStr, ""))
-                        {
-                            // default error
-                            strcpy(errorStr, "invalid print expression");
-                        }
-                        return false;
-                    }
-                    if (strval == NULL)
-                    {
-                        strcpy(errorStr, "invalid print expression");
-                        return false;
-                    }
-                    strcat(resultStr, strval);
-                    break;
-
-                default:
-                    break;
-            }
-        }
-        else
-        {
-            return false;
-        }
-    }
-    
-    return true;
-}
-#else
-bool ExecPrint(PrintCommand *cmd)
-{
-    char exprStr[80];
-    float numval;
-    char *strval;
-    int intval, decval;
-    Node *primaryExprNode;
     
     for (int i = 0; i < cmd->printListIdx; i++)
     {
@@ -813,78 +589,10 @@ bool ExecPrint(PrintCommand *cmd)
     
     return true;
 }
-#endif            
 
 // assignment : {Intvar | Strvar} ['(' expr [',' expr]* ')'] '=' {expr | string}
 // [let] Intvar ['(' expr [',' expr]* ')'] '=' expr
 // [let] Strvar ['(' expr [',' expr]* ')'] '=' String | postfixExpr
-#ifndef USE_SYNTAX_TREE    
-bool ExecAssign(AssignCommand *cmd)
-{
-    float indeces[DIM_MAX] = {0};
-    float numRhs;
-    char *strRhs;
-    int i;
-    
-    if (SYM_DIM(cmd->varsym) > 0)
-    {
-        // evaluate the LHS index values from their nodes padding with 0's for unused higher order dimensions
-        for (i = 0; i < DIM_MAX - SYM_DIM(cmd->varsym); i++)
-        {
-            SYM_DIMSIZES(cmd->varsym, i) = 0;
-        }
-        for (int j = 0; j < SYM_DIM(cmd->varsym); j++, i++)
-        {
-            if (!EvaluateNumExpr(cmd->indexNodes[j], &indeces[i]))
-            {
-                strcpy(errorStr, "invalid array index expression");
-                return false;
-            }
-        }
-    }
-            
-    // perform the assignment
-    Node *varNode = SON(GetPrimaryExprNode(cmd->expr));
-    if (SYM_TYPE(cmd->varsym) == ST_NUMVAR)
-    {
-        // check for type agreement
-        if (NODE_TYPE(varNode) != NT_CONSTANT && NODE_TYPE(varNode) != NT_NUMVAR && NODE_TYPE(varNode) != NT_FCT)
-        {
-            strcpy(errorStr, "incompatible types");
-            return false;
-        }
-        
-        // RHS is an expression that must be evaluated
-        if (EvaluateNumExpr(cmd->expr, &numRhs))
-        {
-            if (SymWriteNumvar(cmd->varsym, indeces, numRhs))
-            {
-                return true;
-            }
-        }
-    }        
-    else if (SYM_TYPE(cmd->varsym) == ST_STRVAR)
-    {
-        // check for type agreement
-        if (NODE_TYPE(varNode) != NT_STRING && NODE_TYPE(varNode) != NT_STRVAR)
-        {
-            strcpy(errorStr, "incompatible types");
-            return false;
-        }
-        
-        // RHS is a string expr (e.g. array ref) that must be evaluated
-        if (EvaluateStrExpr(cmd->expr, &strRhs))
-        {
-            if (SymWriteStrvar(cmd->varsym, indeces, strRhs))
-            {
-                return true;
-            }
-        }
-    }
-
-    return false;
-}
-#else
 bool ExecAssign(AssignCommand *cmd)
 {
     float indeces[DIM_MAX] = {0};
@@ -957,7 +665,6 @@ bool ExecAssign(AssignCommand *cmd)
     }
     return false;
 }
-#endif
 
 // for : FOR Intvar '=' init TO to [STEP step]
 bool ExecFor(ForCommand *cmd)
@@ -1491,16 +1198,7 @@ bool ExecBuiltinFct(const char *name)
 // return the value of a numberic expression based on the traversal of its expr tree
 bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue)
 {
-#ifdef VERBOSE
-    PrintExprTree(exprTreeRoot);
-    printf("%d nodes\n", gNodeQty);
-#endif    
-
-#ifndef USE_SYNTAX_TREE    
-    if (TraverseTree(exprTreeRoot))
-#else
     if (TraverseSyntaxTree(exprTreeRoot))
-#endif    
     {
         *pValue = NumStackPop();
         return true;
@@ -1512,11 +1210,7 @@ bool EvaluateNumExpr(Node *exprTreeRoot, float *pValue)
 // return the value of a string expression based on the traversal of its expr tree
 bool EvaluateStrExpr(Node *exprTreeRoot, char **pValue)
 {
-#ifndef USE_SYNTAX_TREE    
-    if (TraverseTree(exprTreeRoot))
-#else
     if (TraverseSyntaxTree(exprTreeRoot))
-#endif    
     {
         *pValue = StrStackPop();
         return true;
@@ -1822,313 +1516,8 @@ bool TraverseSyntaxTree(Node *node)
     return retval;
 }
 
-// tree traversal is guided by the grammar rule
-bool TraverseTree(Node *node)
-{
-    bool retval = true;
-    float indeces[4] = {0};
-    int intval;
-    float numval;
-    char *strval;
-    
-    if (node != NULL)
-    {
-        switch (NODE_TYPE(node))
-        {
-            case NT_LOGIC_EXPR:
-            case NT_REL_EXPR:
-            case NT_SHIFT_EXPR:
-            case NT_ADD_EXPR:
-            case NT_MULT_EXPR:
-                //  expr
-	            //    : expr expr'
-                retval &= TraverseTree(SON(node));
-                retval &= TraverseTree(BRO(SON(node)));            
-                break;
-                
-            case NT_LOGIC_EXPR_PRIME:
-            case NT_REL_EXPR_PRIME:
-            case NT_SHIFT_EXPR_PRIME:
-            case NT_ADD_EXPR_PRIME:
-            case NT_MULT_EXPR_PRIME:
-                // binary expressions
-                // expr'
-	            //    : op expr expr'
-	            //    ...
-	            //    | $
-                retval &= TraverseTree(BRO(SON(node)));         // left opnd
-                retval &= TraverseTree(BRO(BRO(SON(node))));    // right opnd
-                retval &= TraverseTree(SON(node));              // binop
-                break;
-                
-            case NT_UNARY_EXPR:
-                // unaryExpr
-	            //   ['+' | '-' | '~' | NOT_OP] unaryExpr
-	            if (SON(node))
-	            {
-                    retval &= TraverseTree(SON(node));              // opnd
-                    retval &= TraverseTree(BRO(SON(node)));         // unop
-                }
-                break;
 
-            case NT_POSTFIX_EXPR:
-                // postfixExpr
-                //   primaryExpr [subExprList]
-                if (BRO(SON(node)))
-                {
-                    // check for attempt to use scaler as vector if this is not a builtin fct
-                    if (SYM_TYPE(SON(SON(node))->value.varsym) != ST_FCT)
-                    {
-                        if (SYM_DIM(SON(SON(node))->value.varsym) == 0)
-                        {
-                            strcpy(errorStr, "subscript error: attempt to use scaler as vector");
-                            retval &= false;
-                            break;
-                        }
-                    }
-                    
-                    // only do this for fct/array ref
-                    retval &= TraverseTree(BRO(SON(node)));     // push indeces/args, could be null
-                    NumStackPush(NODE_VAL_OP(node));            // push indeces/arg qty onto num stack, could be 0
-                }
-                retval &= TraverseTree(SON(node));              // intvar, strvar, or fct
-                break;
-            
-            case NT_SUB_EXPR_LIST:
-                // subExprList
-                //   addExpr [',' subExprList]
-                if (SON(node))
-                {
-                    retval &= TraverseTree(SON(node));              // subscript
-                    retval &= TraverseTree(BRO(SON(node)));         // another subscript list
-                }
-                break;
-            
-            case NT_PRIMARY_EXPR:
-                // primaryExpr
-                //   expr | Constant | Identifier
-                retval &= TraverseTree(SON(node));
-                break;
-            
-            case NT_BINOP:
-                switch (NODE_VAL_OP(node))
-                {    
-                    case AND_OP:
-                        // put the logical AND of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() && NumStackTop());
-                        break;
-                        
-    
-                    case OR_OP:
-                        // put the logical OR of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() || NumStackTop());
-                        break;
-                        
-    
-                    case XOR_OP:
-                        // put the exclusive OR of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut((float)((int)NumStackPop() ^ (int)NumStackTop()));
-                        break;
-                                                
-                    case '=':
-                        // put the equality relation of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() == NumStackTop());
-                        break;                        
-                        
-                    case NE_OP:
-                        // put the non-equality relation of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() != NumStackTop());
-                        break;     
-                                           
-                    case '>':
-                        // put the > relation of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() > numval);
-                        break;
-                            
-                    case GE_OP:
-                        // put the >= relation of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() >= numval);
-                        break;
-                        
-                    case '<':
-                        // put the < relation of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() < numval);
-                        break;
-                        
-    
-                    case LE_OP:
-                        // put the <= relation of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() <= numval);
-                        break;
-                        
-                    case '+':
-                        // put the sum of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() + NumStackTop());
-                        break;
-                        
-                    case '-':
-                        // put the difference of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() - numval);
-                        break;
-                        
-                    case '*':
-                        // put the product of the top 2 expr stack entries onto the top of the stack
-                        NumStackPut(NumStackPop() * NumStackTop());
-                        break;
-                        
-                    case '/':
-                        // put the quotient of the top 2 expr stack entries onto the top of the stack
-                        numval = NumStackPop();
-                        NumStackPut(NumStackTop() / numval);
-                        break;
-                        
-                    // NOTE: the following operators can only operate on
-                    case '%':
-                    case MOD_OP:
-                        // put the modulus of the next to top of stack value by the top of stack value onto the top of the stack
-                        intval = (int)NumStackPop();
-                        NumStackPut((int)NumStackTop() % intval);
-                        break;
-                        
-                    case SL_OP:
-                        // put the left shift of the next to top of stack value by the top of stack onto the top of the stack
-                        intval = (int)NumStackPop();
-                        NumStackPut((int)NumStackTop() << intval);
-                        break;
-                        
-                    case SR_OP:
-                        // put the right shift of the next to top of stack value by the top of stack onto the top of the stack
-                        intval = (int)NumStackPop();
-                        NumStackPut((int)NumStackTop() >> intval);
-                        break;
-                }
-                break;
-                
-            case NT_UNOP:
-                switch (NODE_VAL_OP(node))
-                {
-                    case '+':
-                        // do nothing to make something positive
-                        break;
-                        
-                    case '-':
-                        // negate the top of the expression
-                        NumStackPut(-NumStackTop());
-                        break;
-                        
-                    case NOT_OP:
-                        // logically invert the top of the expression stack
-                        NumStackPut(!NumStackTop());
-                        break;
-                }
-                break;
-                
-            case NT_CONSTANT:
-                NumStackPush(NODE_VAL_CONST(node));
-                break;
-                
-            // note: for arrays, pop the indeces into an index array then read the value, 
-            // the popped values will be the reverse of the needed indeces so reverse them in the indeces array
-            case NT_NUMVAR:
-                // process vector
-                if (SYM_DIM(NODE_VAL_VARSYM(node)) > 0)
-                {
-                    // check that the dim of the array equals the qty of indeces parsed, at the top of the num stack
-                    if (SYM_DIM(NODE_VAL_VARSYM(node)) == (int)NumStackPop())
-                    {                
-                        // build the index list from the num stack in reverse order
-                        for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
-                        {
-                            indeces[DIM_MAX-1 - i] = (int)NumStackPop();
-                        }
-                        if ((retval = SymReadNumvar(NODE_VAL_VARSYM(node), indeces, &numval)))
-                        {
-                            NumStackPush(numval);
-                        }
-                        else
-                        {
-                            strcpy(errorStr, "index out of range");
-                            retval &= false;
-                        }
-                    }
-                    else
-                    {
-                        strcpy(errorStr, "subscript error: dim of the number array does not equal the qty of indeces parsed");
-                        retval &= false;
-                    }
-                }
-                
-                // process scalar
-                else if ((retval = SymReadNumvar(NODE_VAL_VARSYM(node), indeces, &numval)))
-                {
-                    NumStackPush(numval);
-                }
-
-                break;
-
-            case NT_STRVAR:         
-                // process vector
-                if (SYM_DIM(NODE_VAL_VARSYM(node)) > 0)
-                {
-                    // check that the dim of the array equals the qty of indeces parsed, at the top of the num stack
-                    if (SYM_DIM(NODE_VAL_VARSYM(node)) == (int)NumStackPop())
-                    {                
-                        // build the index list from the num stack in reverse order
-                        for (int i = 0; i < SYM_DIM(NODE_VAL_VARSYM(node)); i++)
-                        {
-                            indeces[DIM_MAX-1 - i] = (int)NumStackPop();
-                        }
-                        if ((retval = SymReadStrvar(NODE_VAL_VARSYM(node), indeces, &strval)))
-                        {
-                            StrStackPush(strval);
-                        }
-                        else
-                        {
-                            strcpy(errorStr, "index out of range");
-                            retval &= false;
-                        }
-                    }
-                    else
-                    {
-                        strcpy(errorStr, "subscript error: dim of the string array does not equal the qty of indeces parsed");
-                        retval &= false;
-                    }
-                }
-
-                // process scalar
-                else if ((retval = SymReadStrvar(NODE_VAL_VARSYM(node), indeces, &strval)))
-                {
-                    StrStackPush(strval);
-                }
-
-                break;
-                
-            case NT_FCT:
-                // exec the builtin fct which will put the result on the stack
-                // pass the name of the fct and its arity to allow a consistence check of the function call
-                retval = ExecBuiltinFct(SYM_NAME(NODE_VAL_VARSYM(node)));
-                break;
-
-            case NT_STRING:
-                // push the node's string value onto the string stack
-                StrStackPush(NODE_VAL_STRING(node));
-                break;
-                
-            default:
-                puts("unknown node type");
-                retval &= false;
-                break;
-        }
-    }
-    
-    return retval;
-}
-
+// STACKS
 // TODO: add call stack push/pop functions
 
 // number stack functions
@@ -2210,6 +1599,139 @@ char *StrStackPut(char *a)
     Panic("num stack underflow in StrStackPut()\n");
     return NULL;
 }
+
+
+// HELPER FUNCTIONS
+
+// free a command list
+void FreeCommand(Command *cmd)
+{
+    if (cmd)
+    {
+        if (cmd->next)
+        {
+            FreeCommand(cmd->next);
+        }
+        free(cmd);
+    }
+}
+
+// free all allocated commands in a command line
+void FreeCommandList(Command *commandList)
+{
+    if (commandList)
+    {
+        if (commandList->next)
+        {
+            FreeCommand(commandList->next);
+        }
+        commandList->next = NULL;
+    }
+}
+
+// free all allocated commands in the program
+void FreeProgram(void)
+{
+    for (int i = 0; i < MAX_PROGRAM_LEN; i++)
+    {
+        FreeCommandList(Program[i].commandList);
+        Program[i] = emptyCommandLine;
+    }
+}
+
+Command *IterateCmdPtr(bool cmdListOnly)
+{
+    if (cmdPtr->next)
+    {
+        // next command in the command line
+        return cmdPtr->next;
+    }
+    else if ((!cmdListOnly) && (cmdListIdx < programSize))
+    {
+        // first command in the next command line
+        return Program[++cmdListIdx].commandList;
+    }
+    
+    return NULL;
+}
+
+// convert a line number to a program index
+bool LineNum2CmdLineIdx(int lineNum)
+{
+    for (int i = 0; i < programSize; i++)
+    {
+        if (Program[i].lineNum == lineNum)
+        {
+            cmdListIdx = i;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+void SwapProgLines(int progIdxA, int progIdxB) 
+{ 
+    // copy a to temp, b to a, then temp to b
+    CommandLine temp = Program[progIdxA]; 
+    Program[progIdxA] = Program[progIdxB]; 
+    Program[progIdxB] = temp; 
+} 
+
+void SortProgramByLineNum(void) 
+{ 
+    int i, j, min_idx; 
+  
+    // One by one move boundary of unsorted subarray 
+    for (i = 0; i < programSize - 1; i++) 
+    { 
+        // Find the minimum element in unsorted array 
+        min_idx = i; 
+        for (j = i + 1; j < programSize; j++) 
+            if (Program[j].lineNum < Program[min_idx].lineNum) 
+                min_idx = j; 
+  
+        // Swap the found minimum element with the first element 
+        SwapProgLines(min_idx, i); 
+    } 
+} 
+
+void PrintResult(void)
+{
+    if (resultStr[0] != '\0')
+    {
+        PutString(resultStr);
+        PutString("\n");
+        resultStr[0] = '\0';
+    }
+}
+
+// install builtin functions
+bool InstallBuiltinFcts(void)
+{
+    for (int i = 0; i < builtinFctTableSize; i++)
+    {
+        strcpy(tokenStr, builtinFctTab[i].name);
+        if (SymLookup(Function))
+        {
+            // for a function symbol the arity is stored as the dimension of the variable
+            SYM_DIM(lexval.lexsym) = builtinFctTab[i].arity;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+
+
+
+
+
+
 
 // end of runtime.c
 
