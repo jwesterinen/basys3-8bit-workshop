@@ -92,7 +92,10 @@ struct KeywordTableEntry {
     {"text",    TEXT    },
     {"gr",      GR      },
     {"putchar", PUTCHAR },
+    {"putdb",   PUTDB   },
+    {"loadfb",  LOADFB  },
     {"clear",   CLEAR   },
+    {"cleardb", CLEARDB },
     {"outchar", OUTCHAR },
     {"rseed",   RSEED   },
     {"delay",   DELAY   },
@@ -110,7 +113,8 @@ struct BuiltinFctTableEntry builtinFctTab[] = {
     {"abs",         1},
     {"switches",    0},
     {"buttons",     0},
-    {"getchar",     2}
+    {"getchar",     2},
+    {"getdb",       3}
 };
 int builtinFctTableSize = sizeof builtinFctTab / sizeof(struct BuiltinFctTableEntry);
 

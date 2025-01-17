@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "../../include/avr_b3.h"
 //#include "../../include/avr_b3_stdio.h"
-//#include "../../include/avr_b3_console.h"
+#include "../../include/avr_b3_console.h"
 
 #if 0
 // UART receive ISR
@@ -130,17 +130,6 @@ __attribute__((noinline)) void test_out4(void)
 }
 */
 
-void test_vgaterm(void)
-{
-    VGA_CUR_STYLE = VGA_CUR_INVISIBLE;
-    VGA_CUR_ROW = VGA_ROW_MIN;
-    VGA_CUR_COL = VGA_COL_MIN;
-    for (int i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
-    {
-        VGA_CHAR = i % 256;
-    }
-}
-
 void test_keyboard(void)
 {
     while ( 1 )
@@ -149,7 +138,6 @@ void test_keyboard(void)
         LED = KEYBOARD;
     }
 }    
-#endif
 
 void test_heap(void)
 {
@@ -158,19 +146,63 @@ void test_heap(void)
     LED = *px;
 }
 
+#endif
+
+void test_vgaterm(void)
+{
+    stdout = &mystdout;
+
+    VGA_CUR_STYLE = VGA_CUR_INVISIBLE;
+    int i;
+    
+    /*
+    VGA_CUR_ROW = VGA_ROW_MIN;
+    VGA_CUR_COL = VGA_COL_MIN;
+    for (int i = 0; i < (VGA_ROW_MAX+1)*(VGA_COL_MAX+1); i++)
+    {
+        VGA_CHAR = i % 256;
+    }
+    */
+    
+    // load the frame buffer
+    i = 0;
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+    {
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+        {
+            VGA_CUR_ROW = row;
+            VGA_CUR_COL = col;
+            VGA_CHAR = i % 256;
+            i++;
+        }
+    }
+    
+    // display the frame buffer
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+    {
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+        {
+            VGA_CUR_ROW = row;
+            VGA_CUR_COL = col;
+            i = VGA_CHAR;
+            printf("(%d,%d)=%d\n\r", row, col, i);
+        }
+    }
+}
+
 int main(void)
 {
     // set UART baud rate to 115200
-    //UBRR0 = 54-1;
+    UBRR0 = 54-1;
 
     //test_printf();
     //test_interrupt();
     //test_io();
     //test_sound();
     //test_out4();
-    //test_vgaterm();
+    test_vgaterm();
     //test_keyboard();
-    test_heap();
+    //test_heap();
     
     return(0);
 }

@@ -55,7 +55,10 @@ bool ExecBeep(PlatformCommand *cmd);
 bool ExecLeds(PlatformCommand *cmd);
 bool ExecDisplay(PlatformCommand *cmd);
 bool ExecPutchar(PlatformCommand *cmd);
+bool ExecPutDB(PlatformCommand *cmd);
+bool ExecLoadFB(PlatformCommand *cmd);
 bool ExecClear(PlatformCommand *cmd);
+bool ExecClearDB(PlatformCommand *cmd);
 bool ExecText(PlatformCommand *cmd);
 bool ExecGr(PlatformCommand *cmd);
 bool ExecOutchar(PlatformCommand *cmd);
@@ -457,8 +460,23 @@ bool ExecCommand(Command *command, bool cmdListOnly)
                 return false;
             break;                
                 
+        case CT_PUTDB: 
+            if (!ExecPutDB(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_LOADFB: 
+            if (!ExecLoadFB(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
         case CT_CLEAR: 
             if (!ExecClear(&command->cmd.platformCmd))
+                return false;
+            break;                
+                
+        case CT_CLEARDB: 
+            if (!ExecClearDB(&command->cmd.platformCmd))
                 return false;
             break;                
                 
@@ -1035,6 +1053,7 @@ bool ExecDisplay(PlatformCommand *cmd)
     return false;
 }
 
+// putchar row,col,value
 bool ExecPutchar(PlatformCommand *cmd)
 {
     float numval;
@@ -1058,10 +1077,68 @@ bool ExecPutchar(PlatformCommand *cmd)
     return false;
 }
 
+// putdb id,row,col,value
+bool ExecPutDB(PlatformCommand *cmd)
+{
+    float numval;
+    int id, row, col, value;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        id = (int)numval;
+        if (EvaluateNumExpr(cmd->arg2, &numval))
+        {
+            row = (int)numval;
+            if (EvaluateNumExpr(cmd->arg3, &numval))
+            {
+                col = (int)numval;
+                if (EvaluateNumExpr(cmd->arg4, &numval))
+                {
+                    value = (int)numval;
+                    GfxPutDB((uint8_t)id, (uint8_t)row, (uint8_t)col, (uint8_t)value);
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool ExecLoadFB(PlatformCommand *cmd)
+{
+    float numval;
+    int id;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        id = (int)numval;
+        GfxLoadFB(id);
+        return true;
+    }
+    
+    return false;
+}
+
 bool ExecClear(PlatformCommand *cmd)
 {
     GfxClearScreen();
     return true;
+}
+
+bool ExecClearDB(PlatformCommand *cmd)
+{
+    float numval;
+    int id;
+    
+    if (EvaluateNumExpr(cmd->arg1, &numval))
+    {
+        id = (int)numval;
+        GfxClearDB(id);
+        return true;
+    }
+    
+    return false;
 }
 
 bool ExecText(PlatformCommand *cmd)
@@ -1181,10 +1258,18 @@ bool ExecBuiltinFct(const char *name)
     } 
     else if (!strcmp(name, "getchar"))
     {
-        // 2 unsigned int args, row in on TOS followed by col
+        // 2 unsigned int args, row (TOS), col
         uint16_t col = (uint16_t)NumStackPop();
         uint16_t row = (uint16_t)NumStackPop();
         NumStackPush(GfxGetChar(row, col));
+    }
+    else if (!strcmp(name, "getdb"))
+    {
+        // 3 unsigned int args, id (TOS), row, col
+        uint16_t col = (uint16_t)NumStackPop();
+        uint16_t row = (uint16_t)NumStackPop();
+        uint16_t id = (uint16_t)NumStackPop();
+        NumStackPush(GfxGetDB(id, row, col));
     }
     else
     {

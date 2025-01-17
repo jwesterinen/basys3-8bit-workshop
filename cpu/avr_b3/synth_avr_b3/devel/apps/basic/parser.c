@@ -49,6 +49,7 @@
         | leds
         | display
         | putchar
+        | putdb
         | clear
         | outchar
         | rseed
@@ -117,7 +118,10 @@
         : GR
         ;
     putchar
-        : PUTCHAR expr ',' expr ',' expr
+        : PUTCHAR expr ',' expr ',' expr            // row, col, value
+        ;
+    putdb
+        : PUTCHAR expr ',' expr ',' expr ',' expr   // buffer ID, row, col, value
         ;
     clear
         : CLEAR
@@ -169,7 +173,10 @@ bool IsBeep(Command *pCommand);
 bool IsLeds(Command *pCommand);
 bool IsDisplay(Command *pCommand);
 bool IsPutchar(Command *pCommand);
+bool IsPutDB(Command *pCommand);
+bool IsLoadFB(Command *pCommand);
 bool IsClear(Command *pCommand);
+bool IsClearDB(Command *pCommand);
 bool IsText(Command *pCommand);
 bool IsGr(Command *pCommand);
 bool IsOutchar(Command *pCommand);
@@ -239,30 +246,33 @@ bool IsCommandList(Command **ppCommandList, int lineNum)
 bool IsExecutableCommand(Command *pCommand)
 {
     if (
-        IsNop(pCommand)              ||
-        IsPrint(pCommand)            ||
-        IsAssign(pCommand)           ||
-        IsFor(pCommand)              ||
-        IsNext(pCommand)             ||
-        IsGoto(pCommand)             ||
-        IsIf(pCommand)               ||
-        IsGosub(pCommand)            ||
-        IsReturn(pCommand)           ||
-        IsEnd(pCommand)              ||
-        IsInput(pCommand)            ||
-        IsPoke(pCommand)             ||
-        IsTone(pCommand)             ||
-        IsBeep(pCommand)             ||
-        IsLeds(pCommand)             ||
-        IsDisplay(pCommand)          ||
-        IsPutchar(pCommand)          ||
-        IsClear(pCommand)            ||
-        IsText(pCommand)             ||
-        IsGr(pCommand)               ||
-        IsOutchar(pCommand)          ||
-        IsRseed(pCommand)            ||
-        IsDelay(pCommand)            ||
-        IsDim(pCommand)              ||
+        IsNop(pCommand)             ||
+        IsPrint(pCommand)           ||
+        IsAssign(pCommand)          ||
+        IsFor(pCommand)             ||
+        IsNext(pCommand)            ||
+        IsGoto(pCommand)            ||
+        IsIf(pCommand)              ||
+        IsGosub(pCommand)           ||
+        IsReturn(pCommand)          ||
+        IsEnd(pCommand)             ||
+        IsInput(pCommand)           ||
+        IsPoke(pCommand)            ||
+        IsTone(pCommand)            ||
+        IsBeep(pCommand)            ||
+        IsLeds(pCommand)            ||
+        IsDisplay(pCommand)         ||
+        IsPutchar(pCommand)         ||
+        IsPutDB(pCommand)           ||
+        IsLoadFB(pCommand)          ||
+        IsClear(pCommand)           ||
+        IsClearDB(pCommand)         ||
+        IsText(pCommand)            ||
+        IsGr(pCommand)              ||
+        IsOutchar(pCommand)         ||
+        IsRseed(pCommand)           ||
+        IsDelay(pCommand)           ||
+        IsDim(pCommand)             ||
         IsBreak(pCommand)
     )
     {
@@ -724,7 +734,7 @@ bool IsDisplay(Command *pCommand)
     return false;
 }
 
-// putchar : PUTCHAR expr ',' expr ',' expr
+// putFB : PUTFB expr ',' expr ',' expr
 bool IsPutchar(Command *pCommand)
 {
     Node *row, *col, *value;
@@ -756,6 +766,63 @@ bool IsPutchar(Command *pCommand)
     return false;
 }
 
+// putDB : PUTDB expr ',' expr ',' expr ',' expr
+bool IsPutDB(Command *pCommand)
+{
+    Node *id, *row, *col, *value;
+    
+    if (token == PUTDB)
+    {
+        if (GetNextToken(NULL) && IsExpr(&id))
+        {
+            if (token == ',')
+            {
+                if (GetNextToken(NULL) && IsExpr(&row))
+                {
+                    if (token == ',')
+                    {
+                        if (GetNextToken(NULL) && IsExpr(&col))
+                        {
+                            if (token == ',')
+                            {
+                                if (GetNextToken(NULL) && IsExpr(&value))
+                                {
+                                    pCommand->type = CT_PUTDB;
+                                    pCommand->cmd.platformCmd.arg1 = id;
+                                    pCommand->cmd.platformCmd.arg2 = row;
+                                    pCommand->cmd.platformCmd.arg3 = col;
+                                    pCommand->cmd.platformCmd.arg4 = value;
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }                  
+            }
+        }
+    }
+    
+    return false;
+}
+
+// loadFB : LOADFB
+bool IsLoadFB(Command *pCommand)
+{
+    Node *id;
+    
+    if (token == LOADFB)
+    {
+        if (GetNextToken(NULL) && IsExpr(&id))
+        {
+            pCommand->type = CT_LOADFB;
+            pCommand->cmd.platformCmd.arg1 = id;
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 // clear : CLEAR
 bool IsClear(Command *pCommand)
 {
@@ -763,6 +830,24 @@ bool IsClear(Command *pCommand)
     {
         pCommand->type = CT_CLEAR;
         return GetNextToken(NULL);
+    }
+    
+    return false;
+}
+
+// clearDB : CLEARDB
+bool IsClearDB(Command *pCommand)
+{
+    Node *id;
+    
+    if (token == CLEARDB)
+    {
+        if (GetNextToken(NULL) && IsExpr(&id))
+        {
+            pCommand->type = CT_CLEARDB;
+            pCommand->cmd.platformCmd.arg1 = id;
+            return true;
+        }
     }
     
     return false;

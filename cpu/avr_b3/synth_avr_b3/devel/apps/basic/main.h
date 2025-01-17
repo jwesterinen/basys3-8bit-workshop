@@ -34,11 +34,14 @@ void Leds(uint16_t value);
 void Display7(uint16_t value, uint8_t displayQty);
 
 // graphics
-uint8_t GfxGetChar(uint8_t row, uint8_t col);
 uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c);
+uint8_t GfxGetChar(uint8_t row, uint8_t col);
+uint8_t GfxPutDB(uint8_t id, uint8_t row, uint8_t col, uint8_t c);
+uint8_t GfxGetDB(uint8_t id, uint8_t row, uint8_t col);
+void GfxLoadFB(uint8_t id);
 void GfxClearScreen(void);
+void GfxClearDB(uint8_t id);
 void GfxTextMode(uint8_t);
-void GfxClearScreen(void);
 void GfxSetFGColor(uint8_t color);
 void GfxSetBGColor(uint8_t color);
 

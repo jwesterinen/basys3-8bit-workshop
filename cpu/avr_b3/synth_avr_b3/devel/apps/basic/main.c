@@ -16,6 +16,9 @@
 #include "parser.h"
 #include "runtime.h"
 
+// ping-pong display buffers
+VGA_DISPLAY_BUFFER dispBuf[2];
+
 // default is PS2 keyboard
 #define USE_CONSOLE_KB
 
@@ -184,19 +187,40 @@ void Delay(uint16_t duration)
     msleep(duration);
 }
 
-uint8_t GfxGetChar(uint8_t row, uint8_t col)
-{
-    return VgaGetChar(row, col);
-}
-
 uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c)
 {
     return VgaPutChar(row, col, c);
 }
 
+uint8_t GfxGetChar(uint8_t row, uint8_t col)
+{
+    return VgaGetChar(row, col);
+}
+
+uint8_t GfxPutDB(uint8_t id, uint8_t row, uint8_t col, uint8_t c)
+{
+    dispBuf[id][row][col] = c;
+    return dispBuf[id][row][col];
+}
+
+uint8_t GfxGetDB(uint8_t id, uint8_t row, uint8_t col)
+{
+    return dispBuf[id][row][col];
+}
+
+void GfxLoadFB(uint8_t id)
+{
+    VgaLoadFrameBuffer(dispBuf[id]);
+}
+
 void GfxClearScreen(void)
 {
     VgaClearFrameBuffer();
+}
+
+void GfxClearDB(uint8_t id)
+{
+    VgaClearDisplayBuffer(dispBuf[id]);
 }
 
 void GfxTextMode(uint8_t mode)

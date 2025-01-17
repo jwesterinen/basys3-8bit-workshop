@@ -47,12 +47,15 @@
 #define LEDS        336
 #define DISPLAY     337
 #define PUTCHAR     338
-#define CLEAR       339
-#define OUTCHAR     340
-#define RSEED       341
-#define DELAY       342
-#define TEXT        343
-#define GR          344
+#define PUTDB       339
+#define LOADFB      340
+#define CLEAR       341
+#define CLEARDB     342
+#define OUTCHAR     343
+#define RSEED       344
+#define DELAY       345
+#define TEXT        346
+#define GR          347
 
 union LEXTYPE {
     Symbol *lexsym;  // the symbol created from a token

@@ -68,6 +68,7 @@ typedef struct PlatformCommand {
     Node *arg1;
     Node *arg2;
     Node *arg3;
+    Node *arg4;
 } PlatformCommand;
 
 typedef struct DimCommand {
@@ -95,7 +96,10 @@ enum EX_COMMAND_TYPE {
     CT_LEDS,
     CT_DISPLAY,
     CT_PUTCHAR,
+    CT_PUTDB,
+    CT_LOADFB,
     CT_CLEAR,
+    CT_CLEARDB,
     CT_TEXT,
     CT_GR,
     CT_OUTCHAR,
