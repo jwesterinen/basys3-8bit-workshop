@@ -5,8 +5,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <inttypes.h>
+#include <stdio.h>
 #include "symtab.h"
 #include "lexer.h"
+#include "main.h"
 
 extern void Panic(const char *message);
 
@@ -18,12 +21,54 @@ extern void Panic(const char *message);
 extern char errorStr[];
 char *emptyStr = "";
 
+// dynamic memory management
+struct memAllocEntry
+{
+    void *ptr;
+    unsigned byteQty;
+};
+struct memAllocEntry memAllocList[100];
+int memAllocListIdx = 0;
+unsigned memAllocByteQty = 0;
+
+uint16_t netAllocs = 0;
+
+#ifdef DEBUG_ALLOCS
+void *LocalCalloc(size_t nmemb, size_t size)
+{
+    netAllocs++;
+    //sprintf(message, "allocation, net allocations = %d\n", netAllocs);
+    //Console(message);
+    Leds(netAllocs);
+    return calloc(nmemb, size);
+}
+
+void LocalFree(void *ptr)
+{
+    netAllocs--;
+    //sprintf(message, "free, net allocations = %d\n", netAllocs);
+    //Console(message);
+    Leds(netAllocs);
+    free(ptr);
+}
+
+unsigned GetAllocMemQty(void)
+{
+    return netAllocs;
+}
+
+void ClearAllocMemQty(void)
+{
+    netAllocs = 0;
+}
+#endif
+
 // symbol table
 static Symbol *symtab = NULL;
 
 static char* strsave(const char* s)
 {
-    char* cp = calloc(strlen(s)+1, 1);
+    char* cp = (char *)calloc(strlen(s)+1, 1);
     
     if (cp)
     {
@@ -82,18 +127,27 @@ bool SymLookup(int token)
     {  
         case Numvar:
             if ((lexval.lexsym = SymFind(tokenStr)))
+            {
                 break;
+            }
             lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_NUMVAR;
-            lexval.lexsym->vectorVal.numvals = NULL;
+            for (int i = 0; i < ARRAY_MAX; i++)
+            {
+                lexval.lexsym->value.numvals[i] = 0;
+            }
             break;
         case Strvar:
             if ((lexval.lexsym = SymFind(tokenStr)))
+            {
                 break;
+            }
             lexval.lexsym = SymCreate(tokenStr);
             lexval.lexsym->type = ST_STRVAR;
-            lexval.lexsym->scalerVal.strval = emptyStr;
-            lexval.lexsym->vectorVal.strvals = NULL;
+            for (int i = 0; i < ARRAY_MAX; i++)
+            {
+                lexval.lexsym->value.strvals[i] = emptyStr;
+            }
             break;
         case Function:
             if ((lexval.lexsym = SymFind(tokenStr)))
@@ -110,53 +164,10 @@ bool SymLookup(int token)
     return true; 
 }
 
-bool SymConvertToArray(Symbol *varsym, int size)
-{
-    // allocate the array
-    if (varsym->type == ST_NUMVAR)
-    {
-        if(varsym->vectorVal.numvals == NULL)
-        {
-            if ((varsym->vectorVal.numvals = (float *)calloc(size, sizeof(float))) == NULL)
-            {
-                Panic("system error: memory allocation error while dimensioning num array\n");
-                return false;
-            }
-        }
-    }
-    else if (varsym->type == ST_STRVAR)
-    {
-        if (varsym->vectorVal.strvals == NULL)
-        {
-            if ((varsym->vectorVal.strvals = (char **)calloc(size, sizeof(char *))) == NULL)
-            {
-                Panic("system error: memory allocation error while dimensioning string array\n");
-                return false;
-            }
-            
-            // default all string array elements to the empty string
-            for (int i = 0; i < size; i++)
-            {
-                varsym->vectorVal.strvals[i] = emptyStr;
-            }
-        }
-    }
-    
-    return true;
-}
-
 void FreeSymbol(Symbol *symbol)
 {
     if (symbol->next)
         FreeSymbol(symbol->next);
-    if (symbol->type == ST_NUMVAR)
-    {
-        free (symbol->vectorVal.numvals);
-    }
-    else
-    {
-        free (symbol->vectorVal.strvals);
-    }
     free(symbol);
 }
 
@@ -216,8 +227,7 @@ bool SymReadNumvar(Symbol *varsym, float indeces[4], float *value)
     {
         return false;
     }
-    
-    *value = (varsym->dim == 0) ? SYM_NUMVAL(varsym) : SYM_NUMVAL_IDX(varsym, index);
+    *value = varsym->value.numvals[index];
     
     return true;
 }
@@ -230,15 +240,7 @@ bool SymWriteNumvar(Symbol *varsym, float indeces[4], float value)
     {
         return false;
     }
-    
-    if (varsym->dim == 0)
-    {
-        SYM_NUMVAL(varsym) = value;
-    }
-    else
-    {
-        SYM_NUMVAL_IDX(varsym, index) = value;
-    }
+    varsym->value.numvals[index] = value;
     
     return true;
 }
@@ -251,8 +253,7 @@ bool SymReadStrvar(Symbol *varsym, float indeces[4], char **value)
     {
         return false;
     }
-    
-    *value = (varsym->dim == 0) ? SYM_STRVAL(varsym) : SYM_STRVAL_IDX(varsym, index);
+    *value = varsym->value.strvals[index];
     
     return true;
 }
@@ -265,15 +266,7 @@ bool SymWriteStrvar(Symbol *varsym, float indeces[4], char *value)
     {
         return false;
     }
-    
-    if (varsym->dim == 0)
-    {
-        SYM_STRVAL(varsym) = value;
-    }
-    else
-    {
-        SYM_STRVAL_IDX(varsym, index) = value;
-    }
+    varsym->value.strvals[index] = value;
     
     return true;
 }

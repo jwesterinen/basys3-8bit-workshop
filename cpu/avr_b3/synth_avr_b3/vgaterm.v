@@ -106,6 +106,7 @@ module vgaterm(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,clocks,
     reg    [5:0] rowoff;     // Row offset to help with scrolling
     wire   [21:0] rddata;    // latched char data from display buffer (bg,fg,b,u,char)
     wire   [21:0] wrdata;    // char data written to the display buffer
+    wire   [21:0] hostdata;  // latched char data at cursor location
     wire   [7:0] fontchar;   // char passed to the font ROM
     reg    [2:0] fcol;       // font column index (0-7)
     reg    [3:0] frow;       // font row index (0-11)
@@ -119,6 +120,8 @@ module vgaterm(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,clocks,
     vgasyncs sync(n10clk, vsync, hsync, pixelclk, vstart, hstart, enabled);
     font437 font(pixelclk, fontchar, frow, bits);
 
+    // This buffer is dual port to the DAC pins.  Pin side reads
+    // and host side writes.
     display_buffer charbuf(
         .wclk(CLK_I),        // write clock
         .rclk(pixelclk),     // read clock
@@ -130,6 +133,20 @@ module vgaterm(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,clocks,
         .roff(rowoff),       // read row offset
         .rc(rastercol),      // read col
         .rd(rddata));        // read data
+ 
+    // This buffer is dual port to the host.  The host write and
+    // and host can read any location asynchronously to the ADC pins.
+    display_buffer hostbuf(
+        .wclk(CLK_I),        // write clock
+        .rclk(pixelclk),     // read clock
+        .we(TGA_I & myaddr & WE_I & (ADR_I[3:0] == 0)), // write strobe
+        .wr(cursorrow),      // write row
+        .wc(cursorcol),      // write col
+        .wd(wrdata),         // write data
+        .rr(cursorrow),      // read row
+        .roff(0),            // read row offset
+        .rc(cursorcol),      // read col
+        .rd(hostdata));      // read data
  
 
     // Data to and from the display buffer is bg color (6), fg color (6), 
@@ -204,10 +221,10 @@ module vgaterm(CLK_I,WE_I,TGA_I,STB_I,ADR_I,STALL_O,ACK_O,DAT_I,DAT_O,clocks,
             fcol <= fcol - 3'h1;
             if (fcol == 2)      // two clock offset, one from buffer, one from font
                 rastercol <= rastercol + 7'h1;
-            // latch char under cursor in case the host asks for it.
-            if ((rasterrow == cursorrow) && (rastercol == cursorcol))
-                curchar <= rddata;
         end
+
+        // curchar is always what is under the cursor.
+        curchar <= hostdata;
     end
 
     always @(posedge CLK_I)

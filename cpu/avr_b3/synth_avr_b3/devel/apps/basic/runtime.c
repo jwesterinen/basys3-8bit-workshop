@@ -1081,23 +1081,19 @@ bool ExecPutchar(PlatformCommand *cmd)
 bool ExecPutDB(PlatformCommand *cmd)
 {
     float numval;
-    int id, row, col, value;
+    int row, col, value;
     
     if (EvaluateNumExpr(cmd->arg1, &numval))
     {
-        id = (int)numval;
+        row = (int)numval;
         if (EvaluateNumExpr(cmd->arg2, &numval))
         {
-            row = (int)numval;
+            col = (int)numval;
             if (EvaluateNumExpr(cmd->arg3, &numval))
             {
-                col = (int)numval;
-                if (EvaluateNumExpr(cmd->arg4, &numval))
-                {
-                    value = (int)numval;
-                    GfxPutDB((uint8_t)id, (uint8_t)row, (uint8_t)col, (uint8_t)value);
-                    return true;
-                }
+                value = (int)numval;
+                GfxPutDB((uint8_t)row, (uint8_t)col, (uint8_t)value);
+                return true;
             }
         }
     }
@@ -1107,17 +1103,8 @@ bool ExecPutDB(PlatformCommand *cmd)
 
 bool ExecLoadFB(PlatformCommand *cmd)
 {
-    float numval;
-    int id;
-    
-    if (EvaluateNumExpr(cmd->arg1, &numval))
-    {
-        id = (int)numval;
-        GfxLoadFB(id);
-        return true;
-    }
-    
-    return false;
+    GfxLoadFB();
+    return true;
 }
 
 bool ExecClear(PlatformCommand *cmd)
@@ -1128,17 +1115,8 @@ bool ExecClear(PlatformCommand *cmd)
 
 bool ExecClearDB(PlatformCommand *cmd)
 {
-    float numval;
-    int id;
-    
-    if (EvaluateNumExpr(cmd->arg1, &numval))
-    {
-        id = (int)numval;
-        GfxClearDB(id);
-        return true;
-    }
-    
-    return false;
+    GfxClearDB();
+    return true;
 }
 
 bool ExecText(PlatformCommand *cmd)
@@ -1216,8 +1194,11 @@ bool ExecDim(DimCommand *cmd)
         }
         size *= SYM_DIMSIZES(cmd->varsym, i);
     }
-    if (!SymConvertToArray(cmd->varsym, size))
+    
+    // ensure total number of array elements will fit into a variable
+    if (size > ARRAY_MAX)
     {
+        strcpy(errorStr, "too many array elements");
         return false;
     }
     
@@ -1265,11 +1246,10 @@ bool ExecBuiltinFct(const char *name)
     }
     else if (!strcmp(name, "getdb"))
     {
-        // 3 unsigned int args, id (TOS), row, col
+        // 2 unsigned int args, row (TOS), col
         uint16_t col = (uint16_t)NumStackPop();
         uint16_t row = (uint16_t)NumStackPop();
-        uint16_t id = (uint16_t)NumStackPop();
-        NumStackPush(GfxGetDB(id, row, col));
+        NumStackPush(GfxGetDB(row, col));
     }
     else
     {

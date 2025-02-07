@@ -118,10 +118,10 @@
         : GR
         ;
     putchar
-        : PUTCHAR expr ',' expr ',' expr            // row, col, value
+        : PUTCHAR expr ',' expr ',' expr    // row, col, value
         ;
     putdb
-        : PUTCHAR expr ',' expr ',' expr ',' expr   // buffer ID, row, col, value
+        : PUTCHAR expr ',' expr ',' expr    // row, col, value
         ;
     clear
         : CLEAR
@@ -766,35 +766,28 @@ bool IsPutchar(Command *pCommand)
     return false;
 }
 
-// putDB : PUTDB expr ',' expr ',' expr ',' expr
+// putDB : PUTDB expr ',' expr ',' expr
 bool IsPutDB(Command *pCommand)
 {
-    Node *id, *row, *col, *value;
+    Node *row, *col, *value;
     
     if (token == PUTDB)
     {
-        if (GetNextToken(NULL) && IsExpr(&id))
+        if (GetNextToken(NULL) && IsExpr(&row))
         {
             if (token == ',')
             {
-                if (GetNextToken(NULL) && IsExpr(&row))
+                if (GetNextToken(NULL) && IsExpr(&col))
                 {
                     if (token == ',')
                     {
-                        if (GetNextToken(NULL) && IsExpr(&col))
+                        if (GetNextToken(NULL) && IsExpr(&value))
                         {
-                            if (token == ',')
-                            {
-                                if (GetNextToken(NULL) && IsExpr(&value))
-                                {
-                                    pCommand->type = CT_PUTDB;
-                                    pCommand->cmd.platformCmd.arg1 = id;
-                                    pCommand->cmd.platformCmd.arg2 = row;
-                                    pCommand->cmd.platformCmd.arg3 = col;
-                                    pCommand->cmd.platformCmd.arg4 = value;
-                                    return true;
-                                }
-                            }
+                            pCommand->type = CT_PUTDB;
+                            pCommand->cmd.platformCmd.arg1 = row;
+                            pCommand->cmd.platformCmd.arg2 = col;
+                            pCommand->cmd.platformCmd.arg3 = value;
+                            return true;
                         }
                     }
                 }                  
@@ -808,16 +801,10 @@ bool IsPutDB(Command *pCommand)
 // loadFB : LOADFB
 bool IsLoadFB(Command *pCommand)
 {
-    Node *id;
-    
     if (token == LOADFB)
     {
-        if (GetNextToken(NULL) && IsExpr(&id))
-        {
-            pCommand->type = CT_LOADFB;
-            pCommand->cmd.platformCmd.arg1 = id;
-            return true;
-        }
+        pCommand->type = CT_LOADFB;
+        return GetNextToken(NULL);
     }
     
     return false;
@@ -838,16 +825,10 @@ bool IsClear(Command *pCommand)
 // clearDB : CLEARDB
 bool IsClearDB(Command *pCommand)
 {
-    Node *id;
-    
     if (token == CLEARDB)
     {
-        if (GetNextToken(NULL) && IsExpr(&id))
-        {
-            pCommand->type = CT_CLEARDB;
-            pCommand->cmd.platformCmd.arg1 = id;
-            return true;
-        }
+        pCommand->type = CT_CLEARDB;
+        return GetNextToken(NULL);
     }
     
     return false;

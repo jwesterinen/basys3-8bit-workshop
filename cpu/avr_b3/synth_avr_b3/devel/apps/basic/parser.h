@@ -68,7 +68,6 @@ typedef struct PlatformCommand {
     Node *arg1;
     Node *arg2;
     Node *arg3;
-    Node *arg4;
 } PlatformCommand;
 
 typedef struct DimCommand {

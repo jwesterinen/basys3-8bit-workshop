@@ -11,10 +11,18 @@
 #include "parser.h"
 #include "runtime.h"
 
+#define VGA_ROW_MAX         39
+#define VGA_COL_MAX         79
+typedef char VGA_DISPLAY_BUFFER[VGA_ROW_MAX][VGA_COL_MAX];
+
 char message[80];
 char *versionStr = "v4.0";
 char *promptStr = "> ";
 char frameBuf[40][80];
+
+// display buffer used for animation
+VGA_DISPLAY_BUFFER dispBuf;
+
 
 // print a message to the console device
 void Console(const char *string)
@@ -72,7 +80,7 @@ uint16_t Switches(void)
 uint8_t Buttons(void)
 {
     printf("read buttons\n");
-    return 56;
+    return 0;
 }
 
 void Leds(uint16_t value)
@@ -97,12 +105,6 @@ void InitDisplay(void)
     PutString("\n\n");
 }
 
-uint8_t GfxGetChar(uint8_t row, uint8_t col)
-{
-    printf("read char from screen{%d,%d}\n", row, col);
-    return frameBuf[row][col];
-}
-
 uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c)
 {
     printf("write char '%d' to screen{%d,%d}\n", c, row, col);
@@ -110,9 +112,42 @@ uint8_t GfxPutChar(uint8_t row, uint8_t col, uint8_t c)
     return c;
 }
 
+uint8_t GfxGetChar(uint8_t row, uint8_t col)
+{
+    printf("read char from screen{%d,%d}\n", row, col);
+    return frameBuf[row][col];
+}
+
+uint8_t GfxPutDB(uint8_t row, uint8_t col, uint8_t c)
+{
+    dispBuf[row][col] = c;
+    return dispBuf[row][col];
+}
+
+uint8_t GfxGetDB(uint8_t row, uint8_t col)
+{
+    return dispBuf[row][col];
+}
+
+void GfxLoadFB(void)
+{
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+            frameBuf[row][col] = dispBuf[row][col];
+}
+
 void GfxClearScreen(void)
 {
-    printf("clear the screen\n");
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+            frameBuf[row][col] = 0x20;
+}
+
+void GfxClearDB()
+{
+    for (int row = 0; row <= VGA_ROW_MAX; row++)
+        for (int col = 0; col <= VGA_COL_MAX; col++)
+            dispBuf[row][col] = 0x20;
 }
 
 void GfxTextMode(uint8_t mode)

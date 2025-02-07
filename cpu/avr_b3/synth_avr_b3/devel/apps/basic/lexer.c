@@ -114,7 +114,7 @@ struct BuiltinFctTableEntry builtinFctTab[] = {
     {"switches",    0},
     {"buttons",     0},
     {"getchar",     2},
-    {"getdb",       3}
+    {"getdb",       2}
 };
 int builtinFctTableSize = sizeof builtinFctTab / sizeof(struct BuiltinFctTableEntry);
 

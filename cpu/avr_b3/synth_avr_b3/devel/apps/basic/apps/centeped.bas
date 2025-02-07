@@ -29,11 +29,11 @@
 651 rem
 700 if head(0) >= 39 goto 200
 710 nextpos(0) = nextpos(0) + 1 : goto 800
-720 if head() >= 79 goto 200
+720 if head(1) >= 79 goto 200
 730 nextpos(1) = nextpos(1) + 1 : goto 800
 740 if head(0) <= 0 goto 200
 750 nextpos(0) = nextpos(0) - 1 : goto 800
-760 if head() <= 0 goto 200
+760 if head(1) <= 0 goto 200
 770 nextpos(1) = nextpos(1) - 1 : goto 800
 771 rem
 800 tail(3,0) = tail(2,0) : tail(3,1) = tail(2,1)
